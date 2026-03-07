@@ -1,0 +1,22 @@
+# Django y DRF
+Django==5.1.7
+djangorestframework==3.15.2
+
+# Base de Datos
+psycopg2-binary==2.9.10
+
+# Autenticación JWT
+djangorestframework-simplejwt==5.5.0
+
+# CORS
+django-cors-headers==4.7.0
+
+# Variables de entorno
+python-decouple==3.8
+
+# Documentación OpenAPI / Swagger
+drf-spectacular==0.28.0
+
+# Manejo de archivos (preparado para escalar a S3)
+django-storages==1.14.6
+Pillow==11.1.0

@@ -1,0 +1,31 @@
+# Variables de entorno - NUNCA subir esto
+.env
+.env.*
+!.env.example
+ 
+# Python / Django
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+backend/media/
+backend/staticfiles/
+ 
+# Node / React
+node_modules/
+frontend/dist/
+frontend/.env
+ 
+# Docker
+*.log
+ 
+# IDEs
+.vscode/
+.idea/
+*.swp
+ 
+# OS
+.DS_Store
+Thumbs.db
+

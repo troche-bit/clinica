@@ -1,0 +1,51 @@
+services:
+
+  db:
+    image: postgres:16-alpine    #Version de base de datos
+    container_name: clinica_db   #Nombre del contenedor
+    restart: unless-stopped      #Se reinicia automaticamente, a no ser que se pare de forma manual
+    env_file: .env               #Carga las variables del archivo .env
+    environment:                  #Para las variables especificas al contenedor
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data    #Guarda los datos de forma persistente
+    ports:
+      - '5432:5432'
+    healthcheck:                 #Verifica que la DB este lista antes de arrancar otros servicios
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']    #Comando que comprueba si PostgreSQl responde
+      interval: 10s              #Lo intenta cada 10 segundos
+      timeout: 5s
+      retries: 5                 #Hasta 5 veces antes de marcar como fallido
+
+  backend:
+    build: ./backend             #Construye la imagen desde la carpeta Backend
+    container_name: clinica_backend
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./backend:/app           #Sincroniza el código local con el contenedor
+      - ./backend/media:/app/media    #Carpeta de archivos subido por usuarios
+    ports:
+      - '8000:8000'
+    depends_on:
+      db:
+        condition: service_healthy    #No arranca hasta que la DB pase el healthcheck
+    command: >
+      sh -c 'python manage.py migrate && python manage.py runserver 0.0.0.0:8000'
+
+  frontend:
+    build: ./frontend            #Construye desde la carpeta frontend
+    container_name: clinica_frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app          #Sincroniza el codigo (hot reload)
+      - /app/node_modules       #Volumne anonimo - protege node_modules del contenedo
+    ports:
+      - '5173:5173'              #Puerto estandar de vite
+    depends_on:
+      - backend                  #Espera que el backend este corriendo
+
+volumes:
+  postgres_data:                 #Volumen nombrado — los datos de PostgreSQL sobreviven aunque elimines el contenedor
