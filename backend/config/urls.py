@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
  
+# URL Configuracion del proyecto
 urlpatterns = [
     path('admin/', admin.site.urls),
  
@@ -22,8 +23,10 @@ urlpatterns = [
     path('api/auth/token/verify/', TokenVerifyView.as_view()),
  
     # Aplicaciones
-    path('api/', include('apps.patients.urls')),
     path('api/', include('apps.appointments.urls')),
+    path('api/', include('apps.ubicacion.urls')),
+    path('api/', include('apps.persona.urls')),
+    path('api/', include('apps.paciente.urls')),
  
     # OpenAPI / Swagger
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
