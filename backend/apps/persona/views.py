@@ -6,6 +6,7 @@ from rest_framework.decorators import action # Importamos el decorador para acci
 from rest_framework.response import Response # Importamos la clase para construir respuestas HTTP
 from drf_spectacular.utils import extend_schema, OpenApiParameter # Importamos utilidades para la documentación de la API
 from apps.paciente.models import Paciente # Importamos el modelo de Paciente para verificar si una persona es paciente
+from apps.paciente.serializers import PacienteSerializer    #Importamos el serialicer de paciente
 
 class TipoDocumentoViewSet(viewsets.ModelViewSet):
     queryset = TipoDocumento.objects.all() # Definimos el queryset para este viewset
@@ -58,13 +59,19 @@ class PersonaViewSet(viewsets.ModelViewSet):
             persona = Persona.objects.get(nro_documento=nro_documento, is_deleted=False) # Intentamos obtener la persona con el número de documento proporcionado, asegurándonos de que no esté marcada como eliminada
             serializer = PersonaSerializer(persona) # Serializamos la persona encontrada
             #es_paciente = hasattr(persona, 'paciente') # Verificamos si la persona tiene un paciente asociado
-            es_paciente = Paciente.objects.filter(persona=persona).exists() # Verificamos si la persona tiene un paciente asociado de manera más eficiente
-            return Response(
-                {
-                    'persona': serializer.data, # Devolvemos los datos de la persona serializados
-                    'es_paciente': es_paciente # Devolvemos si la persona es un paciente
-                })
+            try:
+                paciente = Paciente.objects.get(persona=persona, is_deleted=False)
+                paciente_data = PacienteSerializer(paciente).data
+                es_paciente = True
+            except Paciente.DoesNotExist:
+                paciente_data = None
+                es_paciente = False
+            return Response({
+                'persona': serializer.data,
+                'paciente': paciente_data,
+                'es_paciente': es_paciente
+            })
         except Persona.DoesNotExist:
             return Response(
-                { 'persona': None, 'es_paciente': False }, status=200 # Si no se encuentra la persona, devolvemos un error 200
+                { 'persona': None, 'paciente': None, 'es_paciente': False }, status=200 # Si no se encuentra la persona, devolvemos un error 200
             )

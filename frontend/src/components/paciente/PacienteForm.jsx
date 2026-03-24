@@ -28,36 +28,42 @@ export default function PacienteForm( { onSuccess }) {
   const { mutateAsync: updatePaciente } = useUpdatePatient()
 
   const handleGuardar = async () => {
+    if (!formPaciente.fecha_nacimiento && !formPaciente.sexo) {
+      const confirmar = window.confirm(
+        'Datos del paciente no completado, desea guardar los datos de la persona?'
+      )
+      if(!confirmar) return
+    }
     onSuccess()
     setError('')
     setGuardando(true)
     try {
       let personaId = resultado.persona?.id
 
+      // Función helper para preparar los datos de persona
+      const prepararPersona = (data) => ({
+        ...data,
+        ruc_dv: data.ruc_dv ? parseInt(data.ruc_dv) : null
+      })
+
       if (resultado.modo === 'crear_todo') {
-        // Crear Persona nueva
-        const nuevaPersona = await createPersona(formPersona)
+        const nuevaPersona = await createPersona(prepararPersona(formPersona))
         personaId = nuevaPersona.data.id
-        // Crear Paciente
         await createPaciente({ ...formPaciente, persona: personaId })
 
       } else if (resultado.modo === 'agregar_paciente') {
-        // Actualizar Persona existente
-        await updatePersona({ id: personaId, ...formPersona })
-        // Crear Paciente
+        await updatePersona({ id: personaId, ...prepararPersona(formPersona) })
         await createPaciente({ ...formPaciente, persona: personaId })
 
       } else if (resultado.modo === 'editar') {
-        // Actualizar Persona
-        await updatePersona({ id: personaId, ...formPersona })
-        // Actualizar Paciente
+        await updatePersona({ id: personaId, ...prepararPersona(formPersona) })
         await updatePaciente({
-          id: resultado.persona.paciente.id,
+          id: resultado.paciente.id,
           ...formPaciente
         })
       }
 
-      navigate('/pacientes')
+      onSuccess()
 
     } catch (err) {
       console.log('Error al guardar:', err.response?.data)
@@ -81,6 +87,7 @@ export default function PacienteForm( { onSuccess }) {
 
           <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-4">
             <FormPersona
+              key={resultado.documento}
               persona={resultado.persona}
               documento={resultado.documento}
               readOnly={resultado.modo === 'agregar_paciente'}
@@ -90,7 +97,8 @@ export default function PacienteForm( { onSuccess }) {
 
           <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-6">
             <FormPaciente
-              paciente={resultado.modo === 'editar' ? resultado.persona?.paciente : null}
+              key={resultado.documento}
+              paciente={resultado.modo === 'editar' ? resultado.paciente : null}
               onChange={setFormPaciente}
             />
           </div>

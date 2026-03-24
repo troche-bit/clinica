@@ -6,9 +6,10 @@ export function usePaises() {
         queryKey: ['paises'], // Clave única para esta consulta
         queryFn: async () => {
             const { data } = await apiClient.get('/pais/?page_size=100') // Realizamos una solicitud GET a la API para obtener la lista de países
+            console.log('Paises: ', data)
             return data.results // Devolvemos el resultado de la consulta
-    },
-    staleTime: 1000 * 60 * 30, // Tiempo en milisegundos para considerar los datos como frescos (30 minutos)
+        },
+        staleTime: 1000 * 60 * 30, // Tiempo en milisegundos para considerar los datos como frescos (30 minutos)
     })
 }
 

@@ -20,6 +20,7 @@ class TipoDocumento(BaseModel): # Definimos el modelo TipoDocumento que hereda d
     class Meta: 
         verbose_name = "Tipo de Documento" # Nombre legible para el modelo en singular.
         verbose_name_plural = "Tipos de Documentos" # Nombre legible para el modelo en plural.
+        ordering = ['descripcion']
         constraints = [ # Definimos una restricción de unicidad para el campo nombre, ignorando mayúsculas y minúsculas.
             UniqueConstraint(
                 Lower('descripcion'), name='unique_tipo_documento_descripcion'
@@ -116,6 +117,7 @@ class Persona(BaseModel): # Definimos el modelo Persona que hereda de BaseModel.
     class Meta: # Definimos la clase Meta para configurar opciones adicionales del modelo.
         verbose_name = "Persona" # Nombre legible para el modelo en singular.
         verbose_name_plural = "Personas" # Nombre legible para el modelo en plural.
+        ordering = ['nro_documento']
         constraints = [ # Definimos una restricción de unicidad para el campo nro_documento, ignorando mayúsculas y minúsculas, solo para registros que no estén marcados como eliminados (is_deleted=False).
             UniqueConstraint(
                 Lower('nro_documento'), 

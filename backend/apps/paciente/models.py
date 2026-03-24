@@ -28,6 +28,7 @@ class PacienteResponsable(BaseModel): # Definimos el modelo PacienteResponsable 
     class Meta: # Definimos la clase Meta para establecer opciones adicionales para el modelo.
         verbose_name = 'Paciente Responsable' # Establecemos el nombre singular del modelo para la interfaz de administración de Django.
         verbose_name_plural = 'Pacientes Responsables' # Establecemos el nombre plural del modelo para la interfaz de administración de Django.
+        ordering = ['persona__nro_documento'] # Ordenamos por el numero de documento de la persona.
         indexes = [ # Definimos índices para mejorar el rendimiento de las consultas.
             Index(fields=['persona'], name='idx_pac_resp_per'), # Índice para el campo persona.   
         ]
@@ -85,6 +86,7 @@ class Paciente(BaseModel): # Definimos el modelo Paciente que hereda de BaseMode
     class Meta: # Definimos la clase Meta para establecer opciones adicionales para el modelo.
         verbose_name = 'Paciente' # Establecemos el nombre singular del modelo para la interfaz de administración de Django.
         verbose_name_plural = 'Pacientes' # Establecemos el nombre plural del modelo para la interfaz de administración de Django.
+        ordering = ['persona__nro_documento'] # Ordenamos por el numero de documento de la persona.
         indexes = [ # Definimos índices para mejorar el rendimiento de las consultas.
             Index(fields=['persona'], name='idx_paciente_persona'), # Índice para el campo persona.   
         ]

@@ -22,6 +22,7 @@ export default function BuscadorPersona({ onResultado }) { // Definimos el compo
             onResultado({
                 documento,
                 persona: response.data.persona,
+                paciente:    response.data.paciente,
                 es_paciente: response.data.es_paciente,
 
                 modo: !response.data.persona ? 'crear_todo' : !response.data.es_paciente ? 'agregar_paciente' : 'editar',

@@ -30,10 +30,10 @@ class PersonaSerializer(serializers.ModelSerializer): # Creamos un serializer pa
             qs = qs.exclude(pk=instance.pk) # Excluimos la instancia actual de la consulta para evitar falsos positivos
         if qs.exists(): # Si existe alguna persona con el mismo número de documento
             raise serializers.ValidationError("El número de documento ya existe.") # Lanzamos un error de validación
-            
-        tipo_documento = self.initial_data.get('tipo_documento') # Obtenemos el tipo de documento del data inicial
-        if tipo_documento == 1 and len(value) != 8: # Si el tipo de documento es DNI, el número debe tener 8 dígitos
-            raise serializers.ValidationError("El número de documento debe tener 8 dígitos para DNI.")
-        elif tipo_documento == 2 and len(value) != 11: # Si el tipo de documento es RUC, el número debe tener 11 dígitos
-            raise serializers.ValidationError("El número de documento debe tener 11 dígitos para RUC.")
-        return value # Retornamos el valor validado
+        return value
+        #tipo_documento = self.initial_data.get('tipo_documento') # Obtenemos el tipo de documento del data inicial
+        #if tipo_documento == 1 and len(value) != 8: # Si el tipo de documento es DNI, el número debe tener 8 dígitos
+        #    raise serializers.ValidationError("El número de documento debe tener 8 dígitos para DNI.")
+        #elif tipo_documento == 2 and len(value) != 11: # Si el tipo de documento es RUC, el número debe tener 11 dígitos
+        #    raise serializers.ValidationError("El número de documento debe tener 11 dígitos para RUC.")
+        #return value # Retornamos el valor validado 
