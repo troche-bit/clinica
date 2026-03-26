@@ -4,6 +4,8 @@ import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
 import Layout from './components/layout/Layout'
 import Paciente from './pages/Paciente'
+import PacienteResponsablePage from './pages/PacienteResponsablePage'
+//import Paciente from './pages/ResponsablePacientePage'
 
 export default function App() {
   return (
@@ -20,6 +22,18 @@ export default function App() {
             <PrivateRoute>
               <Layout>
                 <Paciente />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        // Ruta para listar paciente responsable
+        <Route 
+          path="/pacienteresponsable"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <PacienteResponsablePage />
               </Layout>
             </PrivateRoute>
           }

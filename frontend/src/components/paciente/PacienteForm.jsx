@@ -1,26 +1,32 @@
-import { useState } from 'react' // React hook para manejar el estado del resultado del buscador
-import { useNavigate } from 'react-router-dom' //
-import BuscadorPersona from '../persona/BuscadorPersona' // Componente que permite buscar una persona por documento o crear una nueva
-import FormPersona from  '../persona/FormPersona' //
-import FormPaciente from '../paciente/FormPaciente' //
+import { useState } from 'react'
+import BuscadorPersona from '../persona/BuscadorPersona'
+import FormPersona     from '../persona/FormPersona'
+import FormPaciente    from '../paciente/FormPaciente'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/usePersona'
 import { useCreatePatient, useUpdatePatient } from '../../hooks/usePatients'
 
-
-const MODO_LABELS = {
-  crear_todo:        { texto: 'Documento no encontrado — completá los datos para registrar', color: 'text-blue-600 bg-blue-50' },
-  agregar_paciente:  { texto: 'Persona encontrada — completá los datos del paciente',        color: 'text-green-600 bg-green-50' },
-  editar:            { texto: 'Paciente existente — modo edición',                           color: 'text-orange-600 bg-orange-50' },
+const MODO_INFO = {
+  crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },
+  agregar_paciente: { texto: 'Persona encontrada — completá los datos del paciente',        bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+  editar:           { texto: 'Paciente existente — modo edición',                           bg: '#fff7ed', color: '#9a3412', border: '#fed7aa' },
 }
 
-export default function PacienteForm( { onSuccess }) { 
-  //const navigate = useNavigate()
-
-  const [resultado,     setResultado]     = useState(null)
-  const [formPersona,   setFormPersona]   = useState({})
-  const [formPaciente,  setFormPaciente]  = useState({})
-  const [guardando,     setGuardando]     = useState(false)
-  const [error,         setError]         = useState('')
+export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
+  const [resultado, setResultado] = useState(
+    pacienteInicial
+      ? {
+          documento:   pacienteInicial.persona_detalle?.nro_documento || '',
+          persona:     pacienteInicial.persona_detalle,
+          paciente:    pacienteInicial,
+          es_paciente: true,
+          modo:        'editar',
+        }
+      : null
+  )
+  const [formPersona,  setFormPersona]  = useState({})
+  const [formPaciente, setFormPaciente] = useState({})
+  const [guardando,    setGuardando]    = useState(false)
+  const [error,        setError]        = useState('')
 
   const { mutateAsync: createPersona } = useCreatePersona()
   const { mutateAsync: updatePersona } = useUpdatePersona()
@@ -30,20 +36,20 @@ export default function PacienteForm( { onSuccess }) {
   const handleGuardar = async () => {
     if (!formPaciente.fecha_nacimiento && !formPaciente.sexo) {
       const confirmar = window.confirm(
-        'Datos del paciente no completado, desea guardar los datos de la persona?'
+        'Datos del paciente incompletos. ¿Desea guardar solo los datos de la persona?'
       )
-      if(!confirmar) return
+      if (!confirmar) return
     }
-    onSuccess()
+
     setError('')
     setGuardando(true)
+
     try {
       let personaId = resultado.persona?.id
 
-      // Función helper para preparar los datos de persona
       const prepararPersona = (data) => ({
         ...data,
-        ruc_dv: data.ruc_dv ? parseInt(data.ruc_dv) : null
+        ruc_dv: data.ruc_dv ? parseInt(data.ruc_dv) : null,
       })
 
       if (resultado.modo === 'crear_todo') {
@@ -57,71 +63,190 @@ export default function PacienteForm( { onSuccess }) {
 
       } else if (resultado.modo === 'editar') {
         await updatePersona({ id: personaId, ...prepararPersona(formPersona) })
-        await updatePaciente({
-          id: resultado.paciente.id,
-          ...formPaciente
-        })
+        await updatePaciente({ id: resultado.paciente.id, ...formPaciente })
       }
 
       onSuccess()
 
     } catch (err) {
-      console.log('Error al guardar:', err.response?.data)
+      console.error('Error al guardar:', err.response?.data)
       setError('Error al guardar. Revisá los datos e intentá de nuevo.')
     } finally {
       setGuardando(false)
     }
   }
 
+  const modo = resultado?.modo
+  const info = modo ? MODO_INFO[modo] : null
+
   return (
-    <div>
-      {/* Buscador */}
-      <BuscadorPersona onResultado={setResultado} />
+    <>
+      <style>{`
+        .pf-root { width: 100%; font-family: 'DM Sans', sans-serif; }
 
-      {resultado && (
-        <>
-          {/* Badge modo */}
-          <div className={`text-sm font-medium px-4 py-2 rounded-lg mb-6 ${MODO_LABELS[resultado.modo].color}`}>
-            {MODO_LABELS[resultado.modo].texto}
-          </div>
+        .pf-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 9px;
+          border: 1px solid;
+          font-size: 13px;
+          font-weight: 500;
+          margin-bottom: 20px;
+        }
+        .pf-badge-dot {
+          width: 7px; height: 7px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          background: currentColor;
+        }
 
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-4">
-            <FormPersona
-              key={resultado.documento}
-              persona={resultado.persona}
-              documento={resultado.documento}
-              readOnly={resultado.modo === 'agregar_paciente'}
-              onChange={setFormPersona}
-            />
-          </div>
+        .pf-section {
+          background: #ffffff;
+          border: 1px solid #e8edf2;
+          border-radius: 12px;
+          padding: 22px 24px;
+          margin-bottom: 14px;
+        }
 
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-6">
-            <FormPaciente
-              key={resultado.documento}
-              paciente={resultado.modo === 'editar' ? resultado.paciente : null}
-              onChange={setFormPaciente}
-            />
-          </div>
+        .pf-error {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 9px;
+          font-size: 13px;
+          color: #dc2626;
+          margin-bottom: 16px;
+          font-family: 'DM Sans', sans-serif;
+        }
 
-          {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+        .pf-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          padding-top: 4px;
+        }
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={onSuccess}
-              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleGuardar}
-              disabled={guardando}
-              className="px-6 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {guardando ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+        .pf-btn-cancel {
+          padding: 9px 18px;
+          font-size: 13.5px;
+          font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 9px;
+          background: #ffffff;
+          color: #6b7280;
+          cursor: pointer;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .pf-btn-cancel:hover { background: #f9fafb; border-color: #d1d5db; }
+
+        .pf-btn-save {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          padding: 9px 22px;
+          font-size: 13.5px;
+          font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          background: #1a3a5c;
+          color: #ffffff;
+          border: none;
+          border-radius: 9px;
+          cursor: pointer;
+          transition: background 0.15s, box-shadow 0.15s;
+        }
+        .pf-btn-save:hover:not(:disabled) {
+          background: #15304d;
+          box-shadow: 0 4px 12px rgba(26,58,92,0.2);
+        }
+        .pf-btn-save:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pf-spin {
+          width: 14px; height: 14px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          flex-shrink: 0;
+        }
+      `}</style>
+
+      <div className="pf-root">
+
+        {/* Buscador */}
+        {!pacienteInicial && <BuscadorPersona onResultado={setResultado} />}
+
+        {resultado && (
+          <>
+            {/* Badge de modo */}
+            {info && (
+              <div
+                className="pf-badge"
+                style={{ background: info.bg, color: info.color, borderColor: info.border }}
+              >
+                <div className="pf-badge-dot" />
+                {info.texto}
+              </div>
+            )}
+
+            {/* FormPersona */}
+            <div className="pf-section">
+              <FormPersona
+                key={resultado.documento}
+                persona={resultado.persona}
+                documento={resultado.documento}
+                readOnly={resultado.modo === 'agregar_paciente'}
+                onChange={setFormPersona}
+              />
+            </div>
+
+            {/* FormPaciente */}
+            <div className="pf-section">
+              <FormPaciente
+                key={resultado.documento}
+                paciente={resultado.modo === 'editar' ? resultado.paciente : null}
+                onChange={setFormPaciente}
+              />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="pf-error">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{flexShrink:0}}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                </svg>
+                {error}
+              </div>
+            )}
+
+            {/* Acciones */}
+            <div className="pf-actions">
+              <button className="pf-btn-cancel" onClick={onSuccess}>
+                Cancelar
+              </button>
+              <button
+                className="pf-btn-save"
+                onClick={handleGuardar}
+                disabled={guardando}
+              >
+                {guardando
+                  ? <><div className="pf-spin" /> Guardando...</>
+                  : 'Guardar'
+                }
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   )
 }

@@ -83,6 +83,24 @@ class Paciente(BaseModel): # Definimos el modelo Paciente que hereda de BaseMode
         help_text='Observaciones adicionales sobre el paciente'
     )   
 
+    grupo_sanguineo = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        help_text='Grupo sanguineo del paciente'
+    )
+
+    alergias_conocidas = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Alergias conocidas del paciente'
+    )
+    enfermedades_cronicas = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Enfermedades cronicas del paciente'
+    )
+
     class Meta: # Definimos la clase Meta para establecer opciones adicionales para el modelo.
         verbose_name = 'Paciente' # Establecemos el nombre singular del modelo para la interfaz de administración de Django.
         verbose_name_plural = 'Pacientes' # Establecemos el nombre plural del modelo para la interfaz de administración de Django.

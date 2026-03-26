@@ -1,18 +1,14 @@
 from django.contrib import admin
-from .models import Paciente
+from .models import PacienteResponsable, Paciente
 
-
-@admin.register(Paciente) # Decorador para registrar el modelo Paciente en el admin de Django
-class PacienteAdmin(admin.ModelAdmin):
+@admin.register(PacienteResponsable) # Decorador para registrar el modelo Paciente Responsable en el admin de Django
+class PacienteResponsableAdmin(admin.ModelAdmin):
 
     list_display = ( # Campos que se mostrarán en la lista de pacientes en el admin
         'id',
         'get_nombre_completo',
         'get_documento',
-        'fecha_nacimiento',
-        'responsable',
-        'sexo',
-        'observacion'
+        'parentesco'
     )
 
     search_fields = ( # Campos por los que se puede buscar en la lista de pacientes en el admin
@@ -21,7 +17,6 @@ class PacienteAdmin(admin.ModelAdmin):
     )
 
     list_filter = ( # Campos por los que se puede filtrar en la lista de pacientes en el admin
-        'sexo',
         'is_deleted',
     )
 
@@ -34,8 +29,61 @@ class PacienteAdmin(admin.ModelAdmin):
         ('Persona', { # Sección para los campos relacionados con la persona del paciente
             'fields': ('persona',)
         }),
+        ('Datos del Paciente Responsable', { # Sección para los campos específicos del paciente
+            'fields': ('parentesco',)
+        }),
+        ('Auditoría', { # Sección para los campos relacionados con la auditoría del paciente
+            'classes': ('collapse',),
+            'fields': ('fecha_creacion', 'fecha_modificacion', 'is_deleted')
+        }),
+    )
+
+    @admin.display(description="Nombre")
+    def get_nombre_completo(self, obj):
+        return obj.persona.razon_social if obj.persona else "-"
+
+    @admin.display(description="Documento")
+    def get_documento(self, obj):
+        return obj.persona.nro_documento if obj.persona else "-"
+
+@admin.register(Paciente) # Decorador para registrar el modelo Paciente en el admin de Django
+class PacienteAdmin(admin.ModelAdmin):
+
+    list_display = ( # Campos que se mostrarán en la lista de pacientes en el admin
+        'id',
+        'get_nombre_completo',
+        'get_documento',
+        'fecha_nacimiento',
+        'responsable',
+        'sexo',
+        'observacion',
+        'alergias_conocidas',
+        'enfermedades_cronicas',
+        'grupo_sanguineo'
+    )
+
+    search_fields = ( # Campos por los que se puede buscar en la lista de pacientes en el admin
+        'persona__razon_social',
+        'persona__nro_documento'
+    )
+
+    list_filter = ( # Campos por los que se puede filtrar en la lista de pacientes en el admin
+        'sexo',
+        'is_deleted',
+    )
+
+
+    readonly_fields = ( # Campos que serán de solo lectura en el formulario de edición del paciente en el admin
+        'fecha_creacion',
+        'fecha_modificacion'
+    )
+
+    fieldsets = ( # Organización de los campos en el formulario de edición del paciente en el admin
+        ('Persona', { # Sección para los campos relacionados con la persona del paciente
+            'fields': ('persona',)
+        }),
         ('Datos del Paciente', { # Sección para los campos específicos del paciente
-            'fields': ('fecha_nacimiento', 'responsable', 'sexo', 'observacion')
+            'fields': ('fecha_nacimiento', 'responsable', 'sexo', 'observacion', 'alergias_conocidas', 'enfermedades_cronicas', 'grupo_sanguineo')
         }),
         ('Auditoría', { # Sección para los campos relacionados con la auditoría del paciente
             'classes': ('collapse',),
