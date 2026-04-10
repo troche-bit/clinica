@@ -5,6 +5,10 @@ import Login from './pages/Login'
 import Layout from './components/layout/Layout'
 import Paciente from './pages/Paciente'
 import PacienteResponsablePage from './pages/PacienteResponsablePage'
+import UbicacionesPage from './pages/UbicacionesPage'
+import ConsultorioPage from './pages/ConsultorioPage'
+import EspecialidadPage from './pages/EspecialidadPage'
+import EventoClinicoPage from './pages/EventoClinicoPage'
 //import Paciente from './pages/ResponsablePacientePage'
 
 export default function App() {
@@ -55,6 +59,54 @@ export default function App() {
             <PrivateRoute>
               <Layout>
                 <div>Página de Pagos — en construcción</div>
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        // Ruta para listar ubicaciones
+        <Route 
+          path="/ubicaciones"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <UbicacionesPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        // Ruta para listar consultorios
+        <Route 
+          path="/mantenimiento/consultorios"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <ConsultorioPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        // Ruta para listar especialidades
+        <Route 
+          path="/rrhh/especialidades"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <EspecialidadPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        // Ruta para listar eventos clinicos
+        <Route 
+          path="/consultas/eventos"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <EventoClinicoPage />
               </Layout>
             </PrivateRoute>
           }

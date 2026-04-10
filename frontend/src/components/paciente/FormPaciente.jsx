@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import apiClient from '../../api/client'
 
 export default function FormPaciente({ paciente, readOnly = false, onChange }) {
   const [form, setForm] = useState({
@@ -9,7 +10,43 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
     enfermedades_cronicas: '',
     observacion:         '',
     responsable:         '',
+    parentesco:          '',
   })
+  const [responsableBuscado, setResponsableBuscado] = useState(null)
+  const [docResponsable, setDocResponsable]         = useState('')
+  const [buscandoResp, setBuscandoResp]             = useState(false)
+  const [errorResp, setErrorResp]                   = useState('')
+
+  const buscarResponsable = async (e) => {
+    e.preventDefault()
+    if (!docResponsable.trim()) return
+    setErrorResp('')
+    setBuscandoResp(true)
+    try {
+      const res = await apiClient.get(
+        `/pacienteresponsable/buscar/?nro_documento=${docResponsable.trim()}`
+      )
+
+      if (res.data.es_responsable) {
+        setResponsableBuscado(res.data.pacienteresponsable)
+        setForm(prev => ({ ...prev, responsable: res.data.pacienteresponsable.id }))
+      } else {
+        setErrorResp('No se encontró un responsable con ese documento. Registralo primero en el módulo de Responsables.')
+      }
+    } catch (err) {
+      console.log('error completo:', err)
+      console.log('error response:', err.response?.data)
+      setErrorResp('Error al buscar. Intentá de nuevo.')
+    } finally {
+      setBuscandoResp(false)
+    }
+  }
+
+  const limpiarResponsable = () => {
+    setResponsableBuscado(null)
+    setDocResponsable('')
+    setForm(prev => ({ ...prev, responsable: '' }))
+  }
 
   // Precarga datos si paciente existe
   useEffect(() => {
@@ -21,13 +58,18 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
         alergias_conocidas:   paciente.alergias_conocidas   ?? '',
         enfermedades_cronicas: paciente.enfermedades_cronicas ?? '',
         observacion:          paciente.observacion          ?? '',
-        responsable:          paciente.responsable          ?? '',
+        responsable:          paciente.responsable_          ?? '',
+        parentesco:            paciente.parentesco            ?? '',
       })
+    }
+    if (paciente?.responsable_detalle) {
+      setResponsableBuscado(paciente.responsable_detalle)
     }
   }, [paciente])
 
   // Notifica cambios al padre
   useEffect(() => {
+    console.log('form.responsable:', form.responsable)
     if (onChange) onChange(form)
   }, [form])
 
@@ -237,19 +279,75 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             </div>
           </div>
 
-          <div className="fpa-field">
+          {/* Responsable */}
+          <div className="fpa-field fpa-col-2">
             <label className="fpa-label">Responsable</label>
-            <input
-              type="text"
-              name="responsable"
-              value={form.responsable}
-              onChange={handleChange}
-              disabled={readOnly}
-              placeholder="Buscar por documento..."
-              className="fpa-input"
-            />
-            <span className="fpa-hint">Opcional — padre, madre o tutor</span>
+
+            {!responsableBuscado ? (
+              <form onSubmit={buscarResponsable} style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={docResponsable}
+                  onChange={(e) => setDocResponsable(e.target.value)}
+                  placeholder="Nro. de documento del responsable..."
+                  className="fpa-input"
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="submit"
+                  disabled={buscandoResp || !docResponsable.trim()}
+                  style={{
+                    padding: '9px 14px', background: '#1a3a5c', color: '#fff',
+                    border: 'none', borderRadius: '9px', fontSize: '13px',
+                    cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'DM Sans, sans-serif',
+                    opacity: buscandoResp ? 0.6 : 1,
+                  }}
+                >
+                  {buscandoResp ? 'Buscando...' : 'Buscar'}
+                </button>
+              </form>
+            ) : (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', background: '#f0fdf4',
+                border: '1.5px solid #bbf7d0', borderRadius: '9px',
+              }}>
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>
+                    {responsableBuscado.persona_detalle?.razon_social}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                    {responsableBuscado.persona_detalle?.nro_documento}
+                  </div>
+                </div>
+                <button onClick={limpiarResponsable} style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#6b7280', fontSize: '18px', lineHeight: 1,
+                }}>×</button>
+              </div>
+            )}
+
+            {errorResp && (
+              <span style={{ fontSize: '12px', color: '#dc2626' }}>{errorResp}</span>
+            )}
+            <span className="fpa-hint">Opcional — registralo primero en el módulo de Responsables</span>
           </div>
+
+          {/* Parentesco — solo visible si hay responsable */}
+          {responsableBuscado && (
+            <div className="fpa-field fpa-col-2">
+              <label className="fpa-label">Parentesco</label>
+              <input
+                type="text"
+                name="parentesco"
+                value={form.parentesco}
+                onChange={handleChange}
+                disabled={readOnly}
+                placeholder="Ej: Madre, Padre, Tutor..."
+                className="fpa-input"
+              />
+            </div>
+          )}
 
           {/* ── Antecedentes clínicos ── */}
           <div className="fpa-divider" />

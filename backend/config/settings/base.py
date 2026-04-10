@@ -26,6 +26,10 @@ INSTALLED_APPS = [
     'apps.ubicacion',
     'apps.persona',
     'apps.paciente',
+    'apps.diasemana',
+    'apps.consultorio',
+    'apps.administracion.especialidad',
+    'apps.principal.eventoclinico',
 ]
  
 MIDDLEWARE = [

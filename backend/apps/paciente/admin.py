@@ -8,7 +8,10 @@ class PacienteResponsableAdmin(admin.ModelAdmin):
         'id',
         'get_nombre_completo',
         'get_documento',
-        'parentesco'
+        'grupo_sanguineo',
+        'ocupacion',
+        'es_contacto_emergencia',
+        'observacion'
     )
 
     search_fields = ( # Campos por los que se puede buscar en la lista de pacientes en el admin
@@ -30,7 +33,7 @@ class PacienteResponsableAdmin(admin.ModelAdmin):
             'fields': ('persona',)
         }),
         ('Datos del Paciente Responsable', { # Sección para los campos específicos del paciente
-            'fields': ('parentesco',)
+            'fields': ('grupo_sanguineo','ocupacion','es_contacto_emergencia','observacion',)
         }),
         ('Auditoría', { # Sección para los campos relacionados con la auditoría del paciente
             'classes': ('collapse',),
@@ -59,7 +62,8 @@ class PacienteAdmin(admin.ModelAdmin):
         'observacion',
         'alergias_conocidas',
         'enfermedades_cronicas',
-        'grupo_sanguineo'
+        'grupo_sanguineo',
+        'parentesco'
     )
 
     search_fields = ( # Campos por los que se puede buscar en la lista de pacientes en el admin
@@ -83,7 +87,7 @@ class PacienteAdmin(admin.ModelAdmin):
             'fields': ('persona',)
         }),
         ('Datos del Paciente', { # Sección para los campos específicos del paciente
-            'fields': ('fecha_nacimiento', 'responsable', 'sexo', 'observacion', 'alergias_conocidas', 'enfermedades_cronicas', 'grupo_sanguineo')
+            'fields': ('fecha_nacimiento', 'responsable', 'sexo', 'observacion', 'alergias_conocidas', 'enfermedades_cronicas', 'grupo_sanguineo', 'parentesco')
         }),
         ('Auditoría', { # Sección para los campos relacionados con la auditoría del paciente
             'classes': ('collapse',),

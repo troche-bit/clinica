@@ -91,7 +91,7 @@ const MENU = [
         label: 'Mantenimiento',
         icon: Settings,
         sub: [
-          { to: '/mantenimiento/ubicaciones',  label: 'Ubicaciones' },
+          { to: '/ubicaciones',  label: 'Ubicaciones' },
           { to: '/mantenimiento/consultorios', label: 'Consultorios' },
           { to: '/mantenimiento/tipo-doc',     label: 'Tipo doc. digitalizado' },
         ],

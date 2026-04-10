@@ -2,10 +2,14 @@ from rest_framework import viewsets, filters # Importamos los módulos necesario
 from rest_framework.permissions import IsAuthenticated # Importamos el permiso de autenticación
 from rest_framework.response import Response # Importamos la clase Response para enviar respuestas HTTP
 from rest_framework.decorators import action # Importamos el decorador action para crear acciones personalizadas
+from rest_framework.exceptions import ValidationError
 from django.utils import timezone # Importamos el módulo timezone para manejar fechas y horas
 from .models import PacienteResponsable, Paciente # Importamos el modelo Paciente
 from .serializers import PacienteSerializer, PacienteListSerializer, PacienteResponsableSerializer, PacienteResponsableListSerializer # Importamos los serializers para el modelo Paciente
+from apps.persona.models import Persona
+from apps.persona.serializers import PersonaSerializer
 from config.pagination import StandardPagination # Importamos la clase de paginación personalizada
+from drf_spectacular.utils import extend_schema, OpenApiParameter # Importamos utilidades para la documentación de la API
 
 class PacienteViewSet(viewsets.ModelViewSet): # Creamos una vista de conjunto para el modelo Paciente
     pagination_class = StandardPagination # Usamos la clase de paginación personalizada
@@ -32,7 +36,7 @@ class PacienteViewSet(viewsets.ModelViewSet): # Creamos una vista de conjunto pa
     def perform_create(self, serializer): # Sobrescribimos el método perform_create para personalizar la creación de un paciente
         serializer.save(id_usu_creator=self.request.user) # Guardamos el paciente con el usuario que lo creó
 
-    def perform_update(self, serializer): # Sobrescribimos el método perform_update para personalizar la actualización de un paciente
+    def perform_update(self, serializer): # Sobrescribimos el método perform_update para personalizar la actualización de un paciente  
         serializer.save(id_usu_modificator=self.request.user) # Guardamos el paciente con el usuario que lo actualizó
     
     def perform_destroy(self, instance): # Sobrescribimos el método perform_destroy para personalizar la eliminación de un paciente
@@ -76,6 +80,11 @@ class PacienteResponsableViewSet(viewsets.ModelViewSet):
         serializer.save(id_usu_modificator=self.request.user) # Guardamos el paciente con el usuario que lo actualizó
     
     def perform_destroy(self, instance): # Sobrescribimos el método perform_destroy para personalizar la eliminación de un paciente
+        pacientes_activos = instance.pacientes.filter(is_deleted=False).count()
+        if pacientes_activos > 0:
+            raise ValidationError(
+                f'No se puede eliminar — tiene {pacientes_activos} paciente(s) vinculado(s).'
+            )
         instance.is_deleted = True # Marcamos el paciente como eliminado en lugar de eliminarlo físicamente
         instance.fecha_eliminacion = timezone.now() # Guardamos la fecha de eliminación
         instance.id_usu_modificator = self.request.user # Guardamos el usuario que eliminó el paciente
@@ -86,3 +95,44 @@ class PacienteResponsableViewSet(viewsets.ModelViewSet):
         queryset = PacienteResponsable.objects.filter(is_deleted=True).select_related('persona') # Obtenemos los pacientes que están marcados como eliminados y optimizamos la consulta con select_related
         serializer = PacienteResponsableListSerializer(queryset, many=True) # Serializamos los pacientes eliminados
         return Response(serializer.data) # Devolvemos la respuesta con los datos serializados
+
+    @extend_schema( # Decorador para extender la documentación de esta acción personalizada
+        parameters=[ # Definimos los parámetros que esta acción personalizada acepta
+            OpenApiParameter( 
+                name='nro_documento',
+                type=str,
+                description='Número de documento a buscar',
+                required=True
+            )
+        ]
+    )
+    
+    @action(detail=False, methods=['get'], url_path='buscar') # Decorador para definir una acción personalizada en el viewset
+    def buscar(self, request):
+        nro_documento = request.query_params.get('nro_documento') # Obtenemos el número de documento de los parámetros de la consulta
+        if not nro_documento:
+            return Response(
+                {
+                    'error': 'nro_documento es requerido'
+
+                }, status=400
+            )
+        try:
+            persona = Persona.objects.get(nro_documento=nro_documento, is_deleted=False) # Intentamos obtener la persona con el número de documento proporcionado, asegurándonos de que no esté marcada como eliminada
+            serializer = PersonaSerializer(persona) # Serializamos la persona encontrada
+            try:
+                pacienteresponsable = PacienteResponsable.objects.get(persona=persona, is_deleted=False)
+                responsable_data = PacienteResponsableSerializer(pacienteresponsable).data
+                es_responsable = True
+            except PacienteResponsable.DoesNotExist:
+                responsable_data = None
+                es_responsable = False
+            return Response({
+                'persona': serializer.data,
+                'pacienteresponsable': responsable_data,
+                'es_responsable': es_responsable
+            })
+        except Persona.DoesNotExist:
+            return Response(
+                { 'persona': None, 'pacienteresponsable': None, 'es_responsable': False }, status=200 # Si no se encuentra la persona, devolvemos un error 200
+            )

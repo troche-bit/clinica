@@ -18,11 +18,27 @@ class PacienteResponsable(BaseModel): # Definimos el modelo PacienteResponsable 
         help_text='Persona a la que se le asigna el paciente responsable'
     )
 
-    parentesco = models.CharField(
-        max_length=200, 
-        blank=False, 
-        null=False, 
-        help_text='Parentesco del paciente responsable con el paciente'
+    grupo_sanguineo = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        help_text='Grupo sanguineo del paciente responsable'
+    )
+
+    ocupacion = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text='Ocupación del paciente responsable'
+    )
+
+    es_contacto_emergencia = models.BooleanField(
+        default=True
+    )
+
+    observacion = models.TextField(
+        blank=True,
+        null=True
     )
 
     class Meta: # Definimos la clase Meta para establecer opciones adicionales para el modelo.
@@ -34,7 +50,7 @@ class PacienteResponsable(BaseModel): # Definimos el modelo PacienteResponsable 
         ]
 
     def __str__(self): # Definimos el método __str__ para representar el modelo como una cadena de texto.
-        return f'{self.persona} - {self.parentesco}' # Retornamos la representación de la persona y el parentesco como la representación del paciente responsable.|
+        return f'{self.persona}' # Retornamos la representación de la persona y el parentesco como la representación del paciente responsable.|
 
 class Paciente(BaseModel): # Definimos el modelo Paciente que hereda de BaseModel.
     id = models.AutoField(primary_key=True) # Definimos un campo id como AutoField, que se incrementa automáticamente y es la clave primaria del modelo.
@@ -99,6 +115,13 @@ class Paciente(BaseModel): # Definimos el modelo Paciente que hereda de BaseMode
         blank=True,
         null=True,
         help_text='Enfermedades cronicas del paciente'
+    )
+
+    parentesco = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Parentesco con el paciente responsable'
     )
 
     class Meta: # Definimos la clase Meta para establecer opciones adicionales para el modelo.

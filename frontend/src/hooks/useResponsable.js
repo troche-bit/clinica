@@ -1,47 +1,42 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query' // Importa los hooks necesarios de React Query
-import apiClient from '../api/client' // Importa el cliente API configurado para hacer las solicitudes HTTP
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import apiClient from '../api/client'
 
-// Hook para obtener la lista de pacientes con paginación y búsqueda
-export function useResponsables({ page = 1, pageSize = 20, search = '' } = {}) {
+// ── Listado ──────────────────────────────────────────────
+export function useResponsables({ page = 1, search = '' } = {}) {
   return useQuery({
-    queryKey: ['responsable', { page, pageSize, search }],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page,
-        page_size: pageSize,
-        ...(search && { search }),
-      })
-      const { data } = await apiClient.get(`/pacienteresponsable/?${params}`)
-      return data
+    queryKey: ['responsables', page, search],
+    queryFn:  async () => {
+      const params = new URLSearchParams({ page })
+      if (search) params.append('search', search)
+      const res = await apiClient.get(`/pacienteresponsable/?${params}`)
+      return res.data
     },
-    staleTime: 1000 * 60 * 5,
-    keepPreviousData: true, // Mantiene datos anteriores mientras carga la nueva página
   })
 }
 
-// Hook para crear un nuevo paciente
+// ── Crear ────────────────────────────────────────────────
 export function useCreateResponsable() {
-  const queryClient = useQueryClient()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => apiClient.post('/pacienteresponsable/', data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['responsable'] }),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['responsables'] }),
   })
 }
 
-// Hook para actualizar un paciente existente
+// ── Actualizar ───────────────────────────────────────────
 export function useUpdateResponsable() {
-  const queryClient = useQueryClient()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }) => apiClient.patch(`/pacienteresponsable/${id}/`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['responsable'] }),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['responsables'] }),
   })
 }
 
-// Hook para eliminar un paciente
+// ── Eliminar ─────────────────────────────────────────────
 export function useDeleteResponsable() {
-  const queryClient = useQueryClient()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (id) => apiClient.delete(`/pacienteresponsable/${id}/`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['responsable'] }),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['responsables'] }),
   })
 }
