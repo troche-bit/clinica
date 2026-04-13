@@ -58,7 +58,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
         alergias_conocidas:   paciente.alergias_conocidas   ?? '',
         enfermedades_cronicas: paciente.enfermedades_cronicas ?? '',
         observacion:          paciente.observacion          ?? '',
-        responsable:          paciente.responsable_          ?? '',
+        responsable:          paciente.responsable          ?? '',
         parentesco:            paciente.parentesco            ?? '',
       })
     }
@@ -69,7 +69,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
 
   // Notifica cambios al padre
   useEffect(() => {
-    console.log('form.responsable:', form.responsable)
     if (onChange) onChange(form)
   }, [form])
 

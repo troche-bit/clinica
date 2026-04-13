@@ -9,7 +9,10 @@ import UbicacionesPage from './pages/UbicacionesPage'
 import ConsultorioPage from './pages/ConsultorioPage'
 import EspecialidadPage from './pages/EspecialidadPage'
 import EventoClinicoPage from './pages/EventoClinicoPage'
-//import Paciente from './pages/ResponsablePacientePage'
+import TipoDocDigPage from './pages/TipoDocDigPage'
+import PersonaRRHHPage from './pages/PersonaRRHHPage'
+import HorarioPrestadorPage from './pages/HorarioPrestadorPage'
+import AgendaPage from './pages/AgendaPage'
 
 export default function App() {
   return (
@@ -43,16 +46,6 @@ export default function App() {
           }
         />
 
-        <Route
-          path="/citas"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <div>Página de Citas — en construcción</div>
-              </Layout>
-            </PrivateRoute>
-          }
-        />
         <Route
           path="/pagos"
           element={
@@ -88,8 +81,20 @@ export default function App() {
           }
         />
 
+        // Ruta para gestión de prestadores (RRHH)
+        <Route
+          path="/rrhh/personal"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <PersonaRRHHPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
         // Ruta para listar especialidades
-        <Route 
+        <Route
           path="/rrhh/especialidades"
           element={
             <PrivateRoute>
@@ -111,6 +116,42 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        {/* Ruta para tipos de documento digitalizado */}
+        <Route
+          path="/mantenimiento/tipo-doc"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <TipoDocDigPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para horarios de prestadores */}
+        <Route
+          path="/agenda/horarios"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <HorarioPrestadorPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para agenda y citas */}
+        <Route
+          path="/agenda/citas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <AgendaPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
         <Route path="/" element={<Navigate to="/paciente" replace/>} />
         <Route path="*" element={<div>Página no encontrada</div>} />
       </Routes>

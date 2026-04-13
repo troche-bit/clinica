@@ -23,13 +23,22 @@ INSTALLED_APPS = [
     # Propias
     'apps.users',
     'apps.appointments',
-    'apps.ubicacion',
+    'apps.administracion.ubicacion',
     'apps.persona',
-    'apps.paciente',
+    # paciente_responsable antes que paciente por la dependencia FK
+    'apps.principal.paciente_responsable',
+    'apps.principal.paciente',
     'apps.diasemana',
-    'apps.consultorio',
+    # Módulos de administración agrupados bajo apps.administracion/
+    'apps.administracion.consultorio',
     'apps.administracion.especialidad',
+    # Módulos principales
     'apps.principal.eventoclinico',
+    'apps.principal.persona_rrhh',
+    'apps.principal.horario_prestador',
+    'apps.principal.agenda',
+    # Módulos de mantenimiento del sistema
+    'apps.mantenimiento.tipo_doc_dig',
 ]
  
 MIDDLEWARE = [
@@ -102,4 +111,3 @@ LANGUAGE_CODE = 'es-py'
 TIME_ZONE = 'America/Asuncion'
 USE_I18N = True
 USE_TZ = True
-

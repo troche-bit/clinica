@@ -3,6 +3,8 @@ import { Search, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Users } from '
 import Modal          from '../components/ui/Modal'
 import ResponsableForm from '../components/responsable/ResponsableForm'
 import { useResponsables, useDeleteResponsable } from '../hooks/useResponsable'
+import Toast from '../components/ui/Toast'
+import { useToast } from '../hooks/useToast'
 
 export default function PacienteResponsablePage() {
   const [modalOpen,        setModalOpen]        = useState(false)
@@ -11,6 +13,7 @@ export default function PacienteResponsablePage() {
   const [search,           setSearch]           = useState('')
   const [searchInput,      setSearchInput]      = useState('')
 
+  const { toast, showToast }            = useToast()
   const { data, isLoading, isError }    = useResponsables({ page, search })
   const { mutate: deleteResponsable }   = useDeleteResponsable()
 
@@ -37,14 +40,26 @@ export default function PacienteResponsablePage() {
     setResponsableEdit(null)
   }
 
+  // Cierra el modal y muestra notificación de éxito tras guardar
+  const handleSuccess = () => {
+    handleClose()
+    showToast('Responsable guardado correctamente.', 'success')
+  }
+
   const handleDelete = (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este responsable?')) {
-      deleteResponsable(id)
+    if (window.confirm('¿Eliminar este responsable?')) {
+      deleteResponsable(id, {
+        onSuccess: () => showToast('Responsable eliminado correctamente.', 'success'),
+        onError:   () => showToast('No se pudo eliminar: tiene pacientes vinculados.', 'error'),
+      })
     }
   }
 
   return (
     <>
+      {/* Notificación flotante */}
+      <Toast toast={toast} />
+
       <style>{`
         .pr-header {
           display: flex; align-items: flex-start;
@@ -185,7 +200,6 @@ export default function PacienteResponsablePage() {
           <thead>
             <tr>
               <th>Responsable</th>
-              <th>Parentesco</th>
               <th>Teléfono</th>
               <th>Acciones</th>
             </tr>
@@ -226,12 +240,6 @@ export default function PacienteResponsablePage() {
                         <div className="pr-doc">{responsable.documento || responsable.persona_detalle?.nro_documento || '—'}</div>
                       </div>
                     </div>
-                  </td>
-                  <td>
-                    {responsable.parentesco
-                      ? <span className="pr-badge">{responsable.parentesco}</span>
-                      : '—'
-                    }
                   </td>
                   <td>{responsable.persona_detalle?.telefono || '—'}</td>
                   <td>
@@ -278,7 +286,7 @@ export default function PacienteResponsablePage() {
       >
         <ResponsableForm
           responsableInicial={responsableEdit}
-          onSuccess={handleClose}
+          onSuccess={handleSuccess}
         />
       </Modal>
     </>

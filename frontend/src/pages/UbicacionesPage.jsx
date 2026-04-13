@@ -3,22 +3,77 @@ import { Plus, Pencil, Trash2, ChevronRight, MapPin } from 'lucide-react'
 import { usePaises, useDepartamentos, useCiudades } from '../hooks/useUbicacion'
 import { useQueryClient, useMutation } from '@tanstack/react-query'
 import apiClient from '../api/client'
+import Toast from '../components/ui/Toast'
+import { useToast } from '../hooks/useToast'
 
-// ── Mutations ────────────────────────────────────────────
-function useUbicacionMutations() {
+// Extrae el primer mensaje de error de una respuesta DRF (400/403/500)
+function extraerMensajeError(err) {
+  const data = err?.response?.data
+  if (!data) return 'Ocurrió un error inesperado.'
+  if (typeof data === 'string') return data
+  const valores = Object.values(data)
+  if (valores.length === 0) return 'Error al guardar.'
+  const primero = valores[0]
+  if (Array.isArray(primero)) return primero[0]
+  if (typeof primero === 'object') {
+    const sub = Object.values(primero)[0]
+    return Array.isArray(sub) ? sub[0] : String(sub)
+  }
+  return String(primero)
+}
+
+// Hook de mutaciones para las tres entidades de ubicación.
+// Recibe showToast para notificar éxito/error directamente desde las mutaciones.
+function useUbicacionMutations(showToast) {
   const qc = useQueryClient()
 
-  const crearPais        = useMutation({ mutationFn: (d) => apiClient.post('/pais/', d),                    onSuccess: () => qc.invalidateQueries({ queryKey: ['paises'] }) })
-  const actualizarPais   = useMutation({ mutationFn: ({ id, ...d }) => apiClient.patch(`/pais/${id}/`, d),  onSuccess: () => qc.invalidateQueries({ queryKey: ['paises'] }) })
-  const eliminarPais     = useMutation({ mutationFn: (id) => apiClient.delete(`/pais/${id}/`),              onSuccess: () => qc.invalidateQueries({ queryKey: ['paises'] }) })
+  const crearPais = useMutation({
+    mutationFn: (d) => apiClient.post('/pais/', d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['paises'] }); showToast('País creado.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
+  const actualizarPais = useMutation({
+    mutationFn: ({ id, ...d }) => apiClient.patch(`/pais/${id}/`, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['paises'] }); showToast('País actualizado.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
+  const eliminarPais = useMutation({
+    mutationFn: (id) => apiClient.delete(`/pais/${id}/`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['paises'] }); showToast('País eliminado.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
 
-  const crearDepto       = useMutation({ mutationFn: (d) => apiClient.post('/departamento/', d),                       onSuccess: () => qc.invalidateQueries({ queryKey: ['departamentos'] }) })
-  const actualizarDepto  = useMutation({ mutationFn: ({ id, ...d }) => apiClient.patch(`/departamento/${id}/`, d),     onSuccess: () => qc.invalidateQueries({ queryKey: ['departamentos'] }) })
-  const eliminarDepto    = useMutation({ mutationFn: (id) => apiClient.delete(`/departamento/${id}/`),                 onSuccess: () => qc.invalidateQueries({ queryKey: ['departamentos'] }) })
+  const crearDepto = useMutation({
+    mutationFn: (d) => apiClient.post('/departamento/', d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); showToast('Departamento creado.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
+  const actualizarDepto = useMutation({
+    mutationFn: ({ id, ...d }) => apiClient.patch(`/departamento/${id}/`, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); showToast('Departamento actualizado.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
+  const eliminarDepto = useMutation({
+    mutationFn: (id) => apiClient.delete(`/departamento/${id}/`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); showToast('Departamento eliminado.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
 
-  const crearCiudad      = useMutation({ mutationFn: (d) => apiClient.post('/ciudad/', d),                        onSuccess: () => qc.invalidateQueries({ queryKey: ['ciudades'] }) })
-  const actualizarCiudad = useMutation({ mutationFn: ({ id, ...d }) => apiClient.patch(`/ciudad/${id}/`, d),      onSuccess: () => qc.invalidateQueries({ queryKey: ['ciudades'] }) })
-  const eliminarCiudad   = useMutation({ mutationFn: (id) => apiClient.delete(`/ciudad/${id}/`),                  onSuccess: () => qc.invalidateQueries({ queryKey: ['ciudades'] }) })
+  const crearCiudad = useMutation({
+    mutationFn: (d) => apiClient.post('/ciudad/', d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ciudades'] }); showToast('Ciudad creada.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
+  const actualizarCiudad = useMutation({
+    mutationFn: ({ id, ...d }) => apiClient.patch(`/ciudad/${id}/`, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ciudades'] }); showToast('Ciudad actualizada.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
+  const eliminarCiudad = useMutation({
+    mutationFn: (id) => apiClient.delete(`/ciudad/${id}/`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ciudades'] }); showToast('Ciudad eliminada.', 'success') },
+    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+  })
 
   return {
     crearPais, actualizarPais, eliminarPais,
@@ -27,7 +82,7 @@ function useUbicacionMutations() {
   }
 }
 
-// ── Fila editable inline ─────────────────────────────────
+// Fila editable inline para crear o editar un registro directamente en la tabla
 function FilaEditable({ valor, onGuardar, onCancelar }) {
   const [texto, setTexto] = useState(valor || '')
   return (
@@ -78,7 +133,7 @@ function FilaEditable({ valor, onGuardar, onCancelar }) {
   )
 }
 
-// ── Tabla de ubicación genérica ──────────────────────────
+// Componente genérico de tabla para cada nivel de ubicación (País, Departamento, Ciudad)
 function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditandoId, agregando, setAgregando, onGuardar, onActualizar, onEliminar, deshabilitada = false, mensajeDeshabilitada = '', onSeleccionar, seleccionadoId }) {
 
   if (deshabilitada) {
@@ -97,7 +152,6 @@ function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditan
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e8edf2', borderRadius: '12px', overflow: 'hidden' }}>
-      {/* Header */}
       <div style={{ padding: '14px 18px', borderBottom: '1px solid #e8edf2', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '3px', height: '16px', background: color, borderRadius: '4px' }} />
@@ -121,7 +175,6 @@ function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditan
         </button>
       </div>
 
-      {/* Tabla */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
         <tbody>
           {isLoading && (
@@ -203,7 +256,7 @@ function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditan
   )
 }
 
-// ── Página principal ─────────────────────────────────────
+// Página principal de gestión de ubicaciones — jerarquía País → Departamento → Ciudad
 export default function UbicacionesPage() {
   const [paisSeleccionado,  setPaisSeleccionado]  = useState(null)
   const [deptoSeleccionado, setDeptoSeleccionado] = useState(null)
@@ -216,17 +269,20 @@ export default function UbicacionesPage() {
   const [agregandoDepto, setAgregandoDepto] = useState(false)
   const [agregandoCiud,  setAgregandoCiud]  = useState(false)
 
-  const { data: paises,       isLoading: loadPaises } = usePaises()
+  const { toast, showToast } = useToast()
+
+  const { data: paises,        isLoading: loadPaises } = usePaises()
   const { data: departamentos, isLoading: loadDeptos } = useDepartamentos(paisSeleccionado?.id)
   const { data: ciudades,      isLoading: loadCiuds  } = useCiudades(deptoSeleccionado?.id)
 
+  // Las mutaciones reciben showToast para notificar éxito y error
   const {
     crearPais, actualizarPais, eliminarPais,
     crearDepto, actualizarDepto, eliminarDepto,
     crearCiudad, actualizarCiudad, eliminarCiudad,
-  } = useUbicacionMutations()
+  } = useUbicacionMutations(showToast)
 
-  // Al seleccionar un país, resetear departamento y ciudad seleccionados
+  // Al seleccionar un país se resetean departamento y ciudad
   const handleSeleccionarPais = (pais) => {
     setPaisSeleccionado(pais)
     setDeptoSeleccionado(null)
@@ -235,20 +291,21 @@ export default function UbicacionesPage() {
   return (
     <>
       <style>{`
+        /* ── UbicacionesPage — layout jerárquico de ubicaciones ── */
         .ub-root { font-family: 'DM Sans', sans-serif; }
         .ub-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
         .ub-title { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
         .ub-subtitle { font-size: 13px; color: #6b7280; }
+        /* Grid responsive de 3 columnas */
         .ub-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
         @media (max-width: 900px) { .ub-grid { grid-template-columns: 1fr; } }
         @media (min-width: 901px) and (max-width: 1100px) { .ub-grid { grid-template-columns: 1fr 1fr; } }
-        .ub-arrow {
-          display: none;
-          align-items: center; justify-content: center;
-          color: #d1d5db;
-        }
+        .ub-arrow { display: none; align-items: center; justify-content: center; color: #d1d5db; }
         @media (min-width: 901px) { .ub-arrow { display: flex; } }
       `}</style>
+
+      {/* Notificación flotante */}
+      <Toast toast={toast} />
 
       <div className="ub-root">
         <div className="ub-header">
@@ -258,7 +315,7 @@ export default function UbicacionesPage() {
           </div>
         </div>
 
-        {/* Breadcrumb de selección */}
+        {/* Breadcrumb de selección activa */}
         {(paisSeleccionado || deptoSeleccionado) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontSize: '13px', color: '#6b7280' }}>
             <MapPin size={13} />

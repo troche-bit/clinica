@@ -1,6 +1,6 @@
 from rest_framework import serializers # Importamos el módulo de serializers de Django REST Framework
 from .models import TipoDocumento, Persona # Importamos los modelos TipoDocumento y Persona desde el archivo models.py
-from apps.ubicacion.serializers import (
+from apps.administracion.ubicacion.serializers import (
     PaisSerializer, DepartamentoSerializer, CiudadSerializer
 )
 
@@ -23,17 +23,12 @@ class PersonaSerializer(serializers.ModelSerializer): # Creamos un serializer pa
             'departamento', 'departamento_detalle', 'ciudad', 'ciudad_detalle', 'direccion'
         ] # Especificamos los campos que se van a incluir en la serialización, incluyendo los campos adicionales para los detalles de las relaciones
     
-    def validate_nro_documento(self, value): # Método de validación para el campo nro_documento
-        instance = self.instance # Obtenemos la instancia actual del serializer
-        qs = Persona.objects.filter(nro_documento=value) # Filtramos las personas por el número de documento proporcionado
-        if instance: # Si la instancia existe (es decir, estamos actualizando un registro)
-            qs = qs.exclude(pk=instance.pk) # Excluimos la instancia actual de la consulta para evitar falsos positivos
-        if qs.exists(): # Si existe alguna persona con el mismo número de documento
-            raise serializers.ValidationError("El número de documento ya existe.") # Lanzamos un error de validación
+    def validate_nro_documento(self, value):
+        # Bug D corregido: solo verificamos contra registros activos (is_deleted=False)
+        # para no bloquear creación si el documento perteneció a una persona borrada
+        qs = Persona.objects.filter(nro_documento=value, is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("El número de documento ya existe.")
         return value
-        #tipo_documento = self.initial_data.get('tipo_documento') # Obtenemos el tipo de documento del data inicial
-        #if tipo_documento == 1 and len(value) != 8: # Si el tipo de documento es DNI, el número debe tener 8 dígitos
-        #    raise serializers.ValidationError("El número de documento debe tener 8 dígitos para DNI.")
-        #elif tipo_documento == 2 and len(value) != 11: # Si el tipo de documento es RUC, el número debe tener 11 dígitos
-        #    raise serializers.ValidationError("El número de documento debe tener 11 dígitos para RUC.")
-        #return value # Retornamos el valor validado 

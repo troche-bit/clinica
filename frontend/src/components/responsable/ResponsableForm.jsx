@@ -5,6 +5,17 @@ import FormResponsable  from '../responsable/FormResponsable'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/usePersona'
 import { useCreateResponsable, useUpdateResponsable } from '../../hooks/useResponsable'
 
+// Extrae el primer mensaje de error legible de una respuesta DRF
+function extraerMensajeError(err) {
+  const data = err?.response?.data
+  if (!data) return 'Ocurrió un error inesperado.'
+  if (typeof data === 'string') return data
+  const valores = Object.values(data)
+  if (valores.length === 0) return 'Error al guardar.'
+  const primero = valores[0]
+  return Array.isArray(primero) ? primero[0] : String(primero)
+}
+
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },
   agregar_paciente: { texto: 'Persona encontrada — completá los datos del responsable',     bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
@@ -63,8 +74,7 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
 
       onSuccess()
     } catch (err) {
-      console.error('Error al guardar:', err.response?.data)
-      setError('Error al guardar. Revisá los datos e intentá de nuevo.')
+      setError(extraerMensajeError(err))
     } finally {
       setGuardando(false)
     }
@@ -129,7 +139,7 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
       `}</style>
 
       <div className="rf-root">
-        {!responsableInicial && <BuscadorPersona onResultado={setResultado} />}
+        {!responsableInicial && <BuscadorPersona onResultado={setResultado} tipo="responsable" />}
 
         {resultado && (
           <>

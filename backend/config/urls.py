@@ -13,27 +13,34 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
  
-# URL Configuracion del proyecto
+# Configuración de URLs del proyecto
 urlpatterns = [
     path('admin/', admin.site.urls),
  
-    # JWT Auth
+    # Autenticación JWT
     path('api/auth/token/', TokenObtainPairView.as_view()),
     path('api/auth/token/refresh/', TokenRefreshView.as_view()),
     path('api/auth/token/verify/', TokenVerifyView.as_view()),
  
-    # Aplicaciones
+    # Módulos de la aplicación
     path('api/', include('apps.appointments.urls')),
-    path('api/', include('apps.ubicacion.urls')),
+    path('api/', include('apps.administracion.ubicacion.urls')),
     path('api/', include('apps.persona.urls')),
-    path('api/', include('apps.paciente.urls')),
-    path('api/', include('apps.consultorio.urls')),
+    path('api/', include('apps.principal.paciente_responsable.urls')),
+    path('api/', include('apps.principal.paciente.urls')),
+    # Módulos de administración (movidos a apps/administracion/)
+    path('api/', include('apps.administracion.consultorio.urls')),
     path('api/', include('apps.administracion.especialidad.urls')),
+    # Módulos principales
     path('api/', include('apps.principal.eventoclinico.urls')),
- 
+    path('api/', include('apps.principal.persona_rrhh.urls')),
+    path('api/', include('apps.principal.horario_prestador.urls')),
+    path('api/', include('apps.principal.agenda.urls')),
+    # Módulos de mantenimiento del sistema
+    path('api/', include('apps.mantenimiento.tipo_doc_dig.urls')),
+
     # OpenAPI / Swagger
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema')),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

@@ -1,5 +1,5 @@
 # CLAUDE.md — Clínica Lichi
-_Versión 2.0 · Abril 2026 — Generado por análisis de código fuente + revisión manual_
+_Versión 2.9 · Abril 2026 — Módulo Agenda implementado_
 
 ---
 
@@ -52,11 +52,19 @@ clinica/
 │   │   ├── paciente/           ← Paciente, PacienteResponsable
 │   │   ├── ubicacion/          ← Pais, Departamento, Ciudad
 │   │   ├── diasemana/          ← DiaSemana (solo lectura, sin BaseModel)
-│   │   ├── consultorio/        ← Consultorio
 │   │   ├── administracion/
-│   │   │   └── especialidad/   ← Especialidad
+│   │   │   ├── consultorio/    ← Consultorio (movido desde apps/consultorio/)
+│   │   │   ├── especialidad/   ← Especialidad
+│   │   │   └── ubicacion/      ← Pais, Departamento, Ciudad (movido desde apps/ubicacion/)
 │   │   ├── principal/
-│   │   │   └── eventoclinico/  ← EventoClinico
+│   │   │   ├── eventoclinico/        ← EventoClinico
+│   │   │   ├── paciente_responsable/ ← PacienteResponsable (módulo independiente)
+│   │   │   ├── paciente/             ← Paciente (movido desde apps/paciente/)
+│   │   │   ├── persona_rrhh/         ← PersonaRRHH (prestadores con M2M especialidades)
+│   │   │   ├── horario_prestador/    ← HorarioPrestador (horarios semanales + excepciones)
+│   │   │   └── agenda/               ← Agenda (turnos: disponible/ocupado/inactivo/cancelado)
+│   │   ├── mantenimiento/
+│   │   │   └── tipo_doc_dig/   ← TipoDocDigital
 │   │   ├── appointments/       ← PENDIENTE (solo urls.py vacío)
 │   │   └── users/              ← PENDIENTE (en INSTALLED_APPS, sin implementación)
 │   ├── config/
@@ -81,7 +89,12 @@ clinica/
         │   ├── usePatients.js
         │   ├── usePersona.js
         │   ├── useResponsable.js
-        │   └── useUbicacion.js
+        │   ├── useUbicacion.js
+        │   ├── useConsultorios.js      ← hooks de consultorios (extraídos de ConsultorioPage)
+        │   ├── useToast.js             ← estado de notificación Toast
+        │   ├── usePersonaRRHH.js       ← hooks de PersonaRRHH
+        │   ├── useEspecialidades.js    ← hooks de Especialidad (page_size=200)
+        │   └── useHorarioPrestador.js  ← hooks de HorarioPrestador + generar turnos
         ├── components/
         │   ├── PrivateRoute.jsx
         │   ├── layout/
@@ -89,16 +102,20 @@ clinica/
         │   │   ├── Sidebar.jsx   ← menú colapsable con roles
         │   │   └── Navbar.jsx    ← breadcrumbs
         │   ├── ui/
-        │   │   └── Modal.jsx     ← modal genérico (sm/md/lg/xl/full)
+        │   │   ├── Modal.jsx       ← modal genérico (sm/md/lg/xl/full)
+        │   │   ├── PanelSimple.jsx ← panel lateral genérico Master-Detail
+        │   │   └── Toast.jsx       ← notificación flotante (success/error/warning)
         │   ├── persona/
         │   │   ├── BuscadorPersona.jsx
         │   │   └── FormPersona.jsx
         │   ├── paciente/
         │   │   ├── PacienteForm.jsx    ← orquestador
         │   │   └── FormPaciente.jsx    ← sub-formulario
-        │   └── responsable/
-        │       ├── ResponsableForm.jsx ← orquestador
-        │       └── FormResponsable.jsx ← sub-formulario
+        │   ├── responsable/
+        │   │   ├── ResponsableForm.jsx ← orquestador
+        │   │   └── FormResponsable.jsx ← sub-formulario
+        │   └── rrhh/
+        │       └── FormRRHH.jsx        ← orquestador (PersonaRRHH con selector especialidades)
         ├── pages/
         │   ├── Login.jsx
         │   ├── Dashboard.jsx              ← existe pero NO está en el router
@@ -107,7 +124,10 @@ clinica/
         │   ├── ConsultorioPage.jsx
         │   ├── EspecialidadPage.jsx
         │   ├── EventoClinicoPage.jsx
-        │   └── UbicacionesPage.jsx
+        │   ├── UbicacionesPage.jsx
+        │   ├── PersonaRRHHPage.jsx        ← gestión de prestadores
+        │   ├── HorarioPrestadorPage.jsx   ← horarios semanales master-detail
+        │   └── AgendaPage.jsx             ← agenda y citas (3 columnas: médicos, calendario, panel día)
         └── utils/
             └── calcularDV.js             ← dígito verificador RUC Paraguay
 ```
@@ -132,12 +152,17 @@ def perform_destroy(self, instance):
 
 - Los queries de listado filtran siempre `is_deleted=False`.
 - Las `UniqueConstraint` usan `condition=Q(is_deleted=False)` para permitir reusar valores borrados.
-- ⚠️ **Inconsistencia pendiente:** `ConsultorioViewSet`, `EspecialidadViewSet` y `EventoClinicoViewSet` usan `queryset = Model.objects.all()` sin filtrar `is_deleted=False`. Corregir.
+- Todos los viewsets activos filtran `is_deleted=False` en el queryset. ✅
+- `Persona` no puede eliminarse (ni lógica ni físicamente) — `PersonaViewSet.perform_destroy` lanza `MethodNotAllowed`. Solo se puede eliminar el `Paciente` o `PacienteResponsable` vinculado.
 
 **Tablas que requieren validación de dependencias antes de borrar:**
-- `Pais` → verificar departamentos activos
-- `Departamento` → verificar ciudades activas
-- `PacienteResponsable` → verificar pacientes activos
+- `Pais` → verificar departamentos activos Y personas activas con ese país ✅ implementado
+- `Departamento` → verificar ciudades activas Y personas activas con ese departamento ✅ implementado
+- `Ciudad` → verificar personas activas con esa ciudad ✅ implementado
+- `Consultorio` → verificar citas activas (pendiente cuando se implemente `appointments`)
+- `TipoDocDigital` → verificar documentos digitalizados activos (pendiente cuando se implemente ese módulo)
+- `Paciente` → verificar citas activas (pendiente cuando se implemente `appointments`)
+- `PacienteResponsable` → verificar pacientes activos ✅ implementado
 - `Persona` → verificar paciente y responsable activos
 
 ### Auditoría (verificar en TODOS los viewsets)
@@ -172,6 +197,21 @@ Siempre usar `PATCH` para actualizaciones parciales. Nunca `PUT`. Aplica a hooks
 - `GET /api/pacienteresponsable/buscar/?nro_documento=X` → `{persona, pacienteresponsable, es_responsable}`
 - `GET /api/paciente/eliminados/` → lista con `is_deleted=True`
 - `GET /api/pacienteresponsable/eliminados/` → ídem
+- `GET /api/consultorio/eliminados/` → ídem
+- `GET /api/pais/eliminados/` → ídem
+- `GET /api/departamento/eliminados/` → ídem
+- `GET /api/ciudad/eliminados/` → ídem
+- `GET /api/especialidad/eliminados/` → ídem
+- `GET /api/eventoclinico/eliminados/` → ídem
+- `GET /api/tipo-doc-dig/eliminados/` → ídem
+- `GET /api/personarrhh/eliminados/` → ídem
+- `GET /api/personarrhh/buscar/?nro_documento=X` → `{persona, personarrhh, es_prestador}`
+- `GET /api/horario-prestador/eliminados/` → ídem
+- `POST /api/horario-prestador/{id}/generar/` → genera y persiste turnos `Agenda` para un rango de fechas; omite duplicados
+- `PATCH /api/agenda/{id}/asignar/` → asigna paciente a un turno disponible (estado → ocupado)
+- `PATCH /api/agenda/{id}/estado/` → cambia estado a disponible/inactivo/cancelado
+- `GET /api/agenda/resumen-mes/` → conteo por fecha de disponibles/ocupados/inactivos/total
+- `GET /api/agenda/stats-hoy/` → estadísticas del día actual
 - `GET /api/departamento/?pais=ID` → filtrado por país
 - `GET /api/ciudad/?departamento=ID` → filtrado por departamento
 
@@ -239,11 +279,32 @@ Página → botón 'Nuevo' / 'Editar'
 _Usado en: Consultorio, Especialidad, EventoClinico_
 ```
 Página → lista de registros (izquierda)
-  → click en fila → Panel lateral (derecha)
+  → click en fila → <PanelSimple> (derecha)
     modo 'ver'    → datos + botones Editar / Eliminar
     modo 'editar' → inputs habilitados + Guardar / Cancelar
     modo 'crear'  → inputs vacíos + Guardar / Cancelar
   → botón 'Nuevo' → Panel en modo 'crear'
+```
+
+**Uso de `<PanelSimple>`:**
+```jsx
+<PanelSimple
+  titulos={{ nuevo: 'Nuevo X', editar: 'Editar X', ver: 'Detalle' }}
+  icono={<IconoX size={22} color="#1a3a5c" />}
+  campos={[
+    { name: 'campo1', label: 'Campo 1', placeholder: '...', requerido: true },
+    { name: 'campo2', label: 'Campo 2', placeholder: '...', requerido: false },
+    // soloLectura: true → editable en 'crear', bloqueado con badge "No editable" en 'editar'
+    { name: 'campo3', label: 'Campo 3', placeholder: '...', requerido: true, soloLectura: true },
+  ]}
+  item={seleccionado}
+  modo={modo}
+  onCancelar={cerrarPanel}
+  onGuardar={handleGuardar}
+  onEditar={() => setModo('editar')}
+  onEliminar={handleEliminar}
+  guardando={guardando}
+/>
 ```
 
 ### Patrón Cascada — Selects dependientes
@@ -309,6 +370,8 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | Prefijo | Componente |
 |---|---|
 | `.modal-` | `components/ui/Modal.jsx` |
+| `.panel-` | `components/ui/PanelSimple.jsx` ← componente compartido extraído |
+| `.toast-` | `components/ui/Toast.jsx` |
 | `.bp-` | `components/persona/BuscadorPersona.jsx` |
 | `.fp-` | `components/persona/FormPersona.jsx` |
 | `.pf-` | `components/paciente/PacienteForm.jsx` |
@@ -319,9 +382,15 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `.nb-` | `components/layout/Navbar.jsx` |
 | `.pac-` | `pages/Paciente.jsx` |
 | `.pr-` | `pages/PacienteResponsablePage.jsx` |
-| `.con-` | `pages/ConsultorioPage.jsx` (duplicado en Especialidad y EventoClinico — pendiente extracción) |
-| `.panel-` | Componente Panel en Consultorio, Especialidad, EventoClinico (duplicado — pendiente extracción) |
+| `.con-` | `pages/ConsultorioPage.jsx` |
+| `.esp-` | `pages/EspecialidadPage.jsx` |
+| `.ec-`  | `pages/EventoClinicoPage.jsx` |
+| `.tdd-` | `pages/TipoDocDigPage.jsx` |
 | `.ub-` | `pages/UbicacionesPage.jsx` |
+| `.rrhh-` | `pages/PersonaRRHHPage.jsx` |
+| `.frrhh-` | `components/rrhh/FormRRHH.jsx` |
+| `.hp-` | `pages/HorarioPrestadorPage.jsx` |
+| `.ag-` | `pages/AgendaPage.jsx` |
 | `.login-` | `pages/Login.jsx` |
 
 > **Al crear módulos nuevos:** asignar prefijo propio y registrarlo en esta tabla.
@@ -355,8 +424,33 @@ Disponibles en todas las páginas sin redefinir:
 | `usePaises` | `hooks/useUbicacion.js` | GET lista de países (staleTime 30 min) |
 | `useDepartamentos` | `hooks/useUbicacion.js` | GET departamentos por `paisId` |
 | `useCiudades` | `hooks/useUbicacion.js` | GET ciudades por `departamentoId` |
-
-> **Pendiente:** Los hooks de Consultorio, Especialidad y EventoClinico están definidos localmente dentro de cada página. Extraer a `hooks/` al refactorizar el Panel compartido.
+| `useConsultorios` | `hooks/useConsultorios.js` | GET lista de consultorios con búsqueda |
+| `useConsultorioMutations` | `hooks/useConsultorios.js` | POST / PATCH / DELETE `/api/consultorio/` |
+| `useEspecialidades` | `hooks/useEspecialidades.js` | GET lista de especialidades con búsqueda |
+| `useEspecialidadMutations` | `hooks/useEspecialidades.js` | POST / PATCH / DELETE `/api/especialidad/` |
+| `useEventosClinicos` | `hooks/useEventosClinicos.js` | GET lista de eventos clínicos con búsqueda |
+| `useEventoClinicoMutations` | `hooks/useEventosClinicos.js` | POST / PATCH / DELETE `/api/eventoclinico/` |
+| `useTipoDocDig` | `hooks/useTipoDocDig.js` | GET lista de tipos de documento digitalizado con búsqueda |
+| `useTipoDocDigMutations` | `hooks/useTipoDocDig.js` | POST / PATCH / DELETE `/api/tipo-doc-dig/` |
+| `useToast` | `hooks/useToast.js` | Estado de notificación Toast — retorna `{ toast, showToast }` |
+| `usePersonasRRHH` | `hooks/usePersonaRRHH.js` | Lista paginada de prestadores con búsqueda |
+| `useCreatePersonaRRHH` | `hooks/usePersonaRRHH.js` | POST `/api/personarrhh/` |
+| `useUpdatePersonaRRHH` | `hooks/usePersonaRRHH.js` | PATCH `/api/personarrhh/{id}/` |
+| `useDeletePersonaRRHH` | `hooks/usePersonaRRHH.js` | DELETE `/api/personarrhh/{id}/` |
+| `useEspecialidades` | `hooks/useEspecialidades.js` | GET lista de especialidades (page_size=200, staleTime 5 min) |
+| `useEspecialidadMutations` | `hooks/useEspecialidades.js` | POST / PATCH / DELETE `/api/especialidad/` |
+| `useHorariosPrestador` | `hooks/useHorarioPrestador.js` | GET horarios filtrados por persona_rrhh y/o estado |
+| `useCreateHorario` | `hooks/useHorarioPrestador.js` | POST `/api/horario-prestador/` |
+| `useUpdateHorario` | `hooks/useHorarioPrestador.js` | PATCH `/api/horario-prestador/{id}/` |
+| `useDeleteHorario` | `hooks/useHorarioPrestador.js` | DELETE `/api/horario-prestador/{id}/` |
+| `useGenerarTurnos` | `hooks/useHorarioPrestador.js` | POST `/api/horario-prestador/{id}/generar/` |
+| `useResumenMes` | `hooks/useAgenda.js` | GET `/api/agenda/resumen-mes/` — stats por fecha del mes |
+| `useAgendaDia` | `hooks/useAgenda.js` | GET `/api/agenda/` filtrado por persona_rrhh + fecha |
+| `useAgendaMes` | `hooks/useAgenda.js` | GET `/api/agenda/` filtrado por rango del mes (pills calendario) |
+| `useAgendaDiaGlobal` | `hooks/useAgenda.js` | GET `/api/agenda/` filtrado solo por fecha (todos los médicos) |
+| `useStatsHoy` | `hooks/useAgenda.js` | GET `/api/agenda/stats-hoy/` (staleTime 1 min) |
+| `useAsignarTurno` | `hooks/useAgenda.js` | PATCH `/api/agenda/{id}/asignar/` — asignar paciente |
+| `useCambiarEstado` | `hooks/useAgenda.js` | PATCH `/api/agenda/{id}/estado/` — cambiar estado |
 
 ---
 
@@ -370,9 +464,13 @@ Disponibles en todas las páginas sin redefinir:
 | Responsables | PacienteResponsablePage + ResponsableForm | PacienteResponsableViewSet |
 | Ubicaciones | UbicacionesPage | Pais, Departamento, CiudadViewSet |
 | Consultorios | ConsultorioPage | ConsultorioViewSet |
-| Especialidades | EspecialidadPage | EspecialidadViewSet |
-| Evento Clínico | EventoClinicoPage | EventoClinicoViewSet |
+| Especialidades | EspecialidadPage (migrado a PanelSimple ✅) | EspecialidadViewSet |
+| Evento Clínico | EventoClinicoPage (migrado a PanelSimple ✅) | EventoClinicoViewSet |
+| Tipo doc. digitalizado | TipoDocDigPage | TipoDocDigitalViewSet |
 | Días de semana | — (dato de referencia, sin página) | DiaSemanaViewSet (ReadOnly) |
+| PersonaRRHH | PersonaRRHHPage + FormRRHH (selector especialidades con teclado) | PersonaRRHHViewSet (M2M especialidades, /buscar/, /eliminados/) |
+| HorarioPrestador | HorarioPrestadorPage (master-detail, preview turnos) | HorarioPrestadorViewSet (/generar/, /eliminados/) |
+| Agenda | AgendaPage (layout 3 columnas: médicos, calendario, panel día) | AgendaViewSet (/asignar/, /cambiar_estado/, /resumen-mes/, /stats-hoy/) |
 
 ### En progreso ⚠️
 | Módulo | Estado |
@@ -382,10 +480,8 @@ Disponibles en todas las páginas sin redefinir:
 ### Pendiente ❌
 | Módulo | Notas |
 |---|---|
-| RRHH / Personas prestadoras | Solo en sidebar, sin ruta ni página |
-| Agenda / Horarios prestador | Solo en sidebar, sin ruta ni página |
-| Agenda / Citas | Ruta `/citas` con placeholder. `apps/appointments/` vacío |
 | Agenda / Recordatorios | Solo en sidebar, sin ruta ni página |
+| Agenda / Recordatorios | Solo en sidebar (`/agenda/recordatorios`), sin ruta ni página |
 | Consulta médica | Solo en sidebar, sin ruta ni página |
 | Documentos digitalizados | Solo en sidebar, sin ruta ni página |
 | Tipo doc. digitalizado | Solo en sidebar, sin ruta ni página |
@@ -443,10 +539,10 @@ Depende de todos los módulos anteriores.
 
 | # | Archivo | Descripción |
 |---|---|---|
-| 1 | `components/paciente/FormPaciente.jsx:61` | `paciente.responsable_` — typo con guión bajo. El responsable no precarga al editar. Corregir a `paciente.responsable`. |
-| 2 | `pages/PacienteResponsablePage.jsx` | La columna "Parentesco" lee `responsable.parentesco` pero ese campo pertenece a `Paciente`, no a `PacienteResponsable`. Siempre muestra `—`. |
+| 1 | `components/paciente/FormPaciente.jsx:61` | `paciente.responsable_` — typo con guión bajo. ✅ corregido |
+| 2 | `pages/PacienteResponsablePage.jsx` | La columna "Parentesco" leía `responsable.parentesco` (campo de Paciente). ✅ columna eliminada |
 | 3 | `components/layout/Navbar.jsx` | Breadcrumb usa `/pacientes` (con s) pero la ruta real en App.jsx es `/paciente` (sin s). Nunca matchea. |
-| 4 | `apps/administracion/especialidad/views.py:12` | `ordering_fields = ['especialidad']` — el campo no existe. Corregir a `['descripcion']`. |
+| 4 | `apps/administracion/especialidad/views.py:12` | `ordering_fields = ['especialidad']` — el campo no existe. ✅ corregido |
 
 ---
 
@@ -455,10 +551,10 @@ Depende de todos los módulos anteriores.
 | # | Archivo | Descripción |
 |---|---|---|
 | 5 | `api/axiosConfig.js` | Cliente duplicado huérfano. Usa `authToken`/`refreshToken` en lugar de `access_token`/`refresh_token`. Nadie lo importa. Eliminar. |
-| 6 | `hooks/useUbicacion.js:9` | `console.log('Paises: ', data)` — debug sin limpiar. |
-| 7 | `components/paciente/FormPaciente.jsx:72` | `console.log('form.responsable:', form.responsable)` — debug sin limpiar. |
-| 8 | `ConsultorioPage.jsx` + `EspecialidadPage.jsx` + `EventoClinicoPage.jsx` | CSS `.con-*` y `.panel-*` duplicado íntegramente en los 3 archivos. Extraer a `<PanelSimple>` compartido. |
-| 9 | `consultorio/views.py` + `especialidad/views.py` + `eventoclinico/views.py` | `queryset = Model.objects.all()` sin filtrar `is_deleted=False`. |
+| 6 | `hooks/useUbicacion.js:9` | `console.log('Paises: ', data)` — debug sin limpiar. ✅ limpiado |
+| 7 | `components/paciente/FormPaciente.jsx:72` | `console.log('form.responsable:', form.responsable)` — debug sin limpiar. ✅ eliminado |
+| 8 | — | CSS `.con-*` y `.panel-*` duplicado corregido. `ConsultorioPage`, `EspecialidadPage` y `EventoClinicoPage` migrados a `<PanelSimple>` ✅ |
+| 9 | — | Todos los viewsets filtran `is_deleted=False` ✅ |
 | 10 | `Sidebar.jsx` | `user?.rol \|\| 'admin'` — AuthContext solo guarda el token, no el rol. Siempre retorna `'admin'`. |
 | 11 | `pages/Dashboard.jsx` | Existe pero sin ruta en `App.jsx`. Inaccesible. |
 | 12 | `apps/appointments/urls.py` | Router vacío. Sin modelos, serializers ni views. |
@@ -467,12 +563,12 @@ Depende de todos los módulos anteriores.
 
 ## Componentes Pendientes de Extraer
 
-| Componente | Destino | Props principales |
+| Componente | Destino | Estado |
 |---|---|---|
-| `<PanelSimple>` | `components/ui/PanelSimple.jsx` | `modo`, `datos`, `campos`, `onGuardar`, `onEliminar`, `onCancelar` |
-| `<Toast />` | `components/ui/Toast.jsx` | `message`, `type ('success'\|'error'\|'warning')`, `duration` |
-| `useToast()` | `hooks/useToast.js` | retorna `{ toast, showToast }` |
-| `<ConfirmDialog />` | `components/ui/ConfirmDialog.jsx` | `isOpen`, `title`, `description`, `onConfirm`, `onCancel`, `loading` |
+| `<PanelSimple>` | `components/ui/PanelSimple.jsx` | ✅ Creado — en uso en ConsultorioPage |
+| `<Toast />` | `components/ui/Toast.jsx` | ✅ Creado — en uso en ConsultorioPage |
+| `useToast()` | `hooks/useToast.js` | ✅ Creado — en uso en ConsultorioPage |
+| `<ConfirmDialog />` | `components/ui/ConfirmDialog.jsx` | ❌ Pendiente — reemplaza `window.confirm()` |
 
 ---
 
@@ -503,4 +599,4 @@ Al completar un módulo nuevo, actualizar este archivo reflejando:
 - Bugs o deuda técnica nueva detectada
 - Cualquier patrón nuevo que difiera de los documentados aquí
 
-_Clínica Lichi — CLAUDE.md · Versión 2.0 · Abril 2026_
+_Clínica Lichi — CLAUDE.md · Versión 2.8 · Abril 2026_

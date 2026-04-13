@@ -3,6 +3,8 @@ import { usePatients, useDeletePatient } from '../hooks/usePatients'
 import { Search, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Users } from 'lucide-react'
 import Modal from '../components/ui/Modal'
 import PacienteForm from '../components/paciente/PacienteForm'
+import Toast from '../components/ui/Toast'
+import { useToast } from '../hooks/useToast'
 
 export default function Paciente() {
   const [modalOpen,    setModalOpen]    = useState(false)
@@ -11,6 +13,7 @@ export default function Paciente() {
   const [search,       setSearch]       = useState('')
   const [searchInput,  setSearchInput]  = useState('')
 
+  const { toast, showToast }          = useToast()
   const { data, isLoading, isError }  = usePatients({ page, search })
   const { mutate: deletePatient }     = useDeletePatient()
 
@@ -37,9 +40,18 @@ export default function Paciente() {
     setPacienteEdit(null)
   }
 
+  // Cierra el modal y muestra notificación de éxito tras guardar
+  const handleSuccess = () => {
+    handleClose()
+    showToast('Paciente guardado correctamente.', 'success')
+  }
+
   const handleDelete = (id) => {
-    if (window.confirm('¿Estás seguro de eliminar este paciente?')) {
-      deletePatient(id)
+    if (window.confirm('¿Eliminar este paciente?')) {
+      deletePatient(id, {
+        onSuccess: () => showToast('Paciente eliminado correctamente.', 'success'),
+        onError:   () => showToast('No se pudo eliminar el paciente.', 'error'),
+      })
     }
   }
 
@@ -52,6 +64,9 @@ export default function Paciente() {
 
   return (
     <>
+      {/* Notificación flotante */}
+      <Toast toast={toast} />
+
       <style>{`
         .pac-header {
           display: flex;
@@ -415,7 +430,7 @@ export default function Paciente() {
       >
         <PacienteForm
           pacienteInicial={pacienteEdit}
-          onSuccess={handleClose}
+          onSuccess={handleSuccess}
         />
       </Modal>
     </>

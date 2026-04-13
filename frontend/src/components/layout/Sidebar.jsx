@@ -68,7 +68,7 @@ const MENU = [
         label: 'RRHH / Prestadores',
         icon: UserCog,
         sub: [
-          { to: '/rrhh/personas',      label: 'Persona RRHH' },
+          { to: '/rrhh/personal',      label: 'Persona RRHH' },
           { to: '/rrhh/especialidades', label: 'Especialidades' },
         ],
       },

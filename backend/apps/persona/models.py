@@ -3,7 +3,7 @@ from django.utils import timezone #Importamos el módulo timezone para manejar l
 from django.db.models import UniqueConstraint, Q, Index, PROTECT # Importamos UniqueConstraint para definir restricciones de unicidad, Q para construir consultas complejas, Index para crear índices en la base de datos y PROTECT para definir el comportamiento de eliminación en relaciones de clave foránea.
 from django.db.models.functions import Lower # Importamos Lower para realizar comparaciones de texto sin distinguir entre mayúsculas y minúsculas.
 from django.contrib.auth.models import User # Importamos el modelo User de Django para relacionar nuestros modelos con los usuarios del sistema.
-from apps.ubicacion.models import Pais, Departamento, Ciudad # Importamos los modelos Pais, Departamento y Ciudad desde la aplicación de ubicación para establecer relaciones entre ellos.
+from apps.administracion.ubicacion.models import Pais, Departamento, Ciudad # Importamos los modelos Pais, Departamento y Ciudad desde la aplicación de ubicación para establecer relaciones entre ellos.
 from apps.core.models import BaseModel # Importamos el modelo BaseModel desde la aplicación core para heredar de él y agregar campos comunes a nuestros modelos.
 
 class TipoDocumento(BaseModel): # Definimos el modelo TipoDocumento que hereda de BaseModel.

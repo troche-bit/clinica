@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { Search, Loader2 } from 'lucide-react'
 import apiClient from '../../api/client'
 
-export default function BuscadorPersona({ onResultado }) {
+/**
+ * Buscador por documento. Acepta el prop `tipo`:
+ *   'paciente'    → llama /persona/buscar/ y evalúa es_paciente
+ *   'responsable' → llama /pacienteresponsable/buscar/ y evalúa es_responsable
+ *   'rrhh'        → llama /personarrhh/buscar/ y evalúa es_prestador
+ * El resultado normalizado siempre devuelve: { documento, persona, paciente, es_paciente, modo }
+ * donde `paciente` es la entidad principal según el tipo.
+ */
+export default function BuscadorPersona({ onResultado, tipo = 'paciente' }) {
   const [documento, setDocumento] = useState('')
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
@@ -13,17 +21,41 @@ export default function BuscadorPersona({ onResultado }) {
     setError('')
     setLoading(true)
     try {
-      const response = await apiClient.get(
-        `/persona/buscar/?nro_documento=${documento.trim()}`
-      )
+      let persona, entidad, esEntidad
+
+      if (tipo === 'responsable') {
+        const response = await apiClient.get(
+          `/pacienteresponsable/buscar/?nro_documento=${documento.trim()}`
+        )
+        persona   = response.data.persona
+        entidad   = response.data.pacienteresponsable
+        esEntidad = response.data.es_responsable
+
+      } else if (tipo === 'rrhh') {
+        const response = await apiClient.get(
+          `/personarrhh/buscar/?nro_documento=${documento.trim()}`
+        )
+        persona   = response.data.persona
+        entidad   = response.data.personarrhh
+        esEntidad = response.data.es_prestador
+
+      } else {
+        const response = await apiClient.get(
+          `/persona/buscar/?nro_documento=${documento.trim()}`
+        )
+        persona   = response.data.persona
+        entidad   = response.data.paciente
+        esEntidad = response.data.es_paciente
+      }
+
       onResultado({
         documento,
-        persona:     response.data.persona,
-        paciente:    response.data.paciente,
-        es_paciente: response.data.es_paciente,
-        modo: !response.data.persona
+        persona,
+        paciente:    entidad,
+        es_paciente: esEntidad,
+        modo: !persona
           ? 'crear_todo'
-          : !response.data.es_paciente
+          : !esEntidad
             ? 'agregar_paciente'
             : 'editar',
       })
@@ -33,6 +65,12 @@ export default function BuscadorPersona({ onResultado }) {
       setLoading(false)
     }
   }
+
+  const label = tipo === 'responsable'
+    ? 'Buscar responsable por documento'
+    : tipo === 'rrhh'
+      ? 'Buscar prestador por documento'
+      : 'Buscar paciente por documento'
 
   return (
     <>
@@ -45,101 +83,38 @@ export default function BuscadorPersona({ onResultado }) {
           margin-bottom: 20px;
           font-family: 'DM Sans', sans-serif;
         }
-
-        .bp-header {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 14px;
-        }
-        .bp-header-bar {
-          width: 3px;
-          height: 16px;
-          background: #1a3a5c;
-          border-radius: 4px;
-          flex-shrink: 0;
-        }
-        .bp-header-label {
-          font-size: 13px;
-          font-weight: 600;
-          color: #1a3a5c;
-        }
-
-        .bp-form {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .bp-input-wrap {
-          position: relative;
-          flex: 1;
-          max-width: 380px;
-        }
+        .bp-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .bp-header-bar { width: 3px; height: 16px; background: #1a3a5c; border-radius: 4px; flex-shrink: 0; }
+        .bp-header-label { font-size: 13px; font-weight: 600; color: #1a3a5c; }
+        .bp-form { display: flex; gap: 8px; align-items: center; }
+        .bp-input-wrap { position: relative; flex: 1; max-width: 380px; }
         .bp-input-icon {
-          position: absolute;
-          left: 11px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #9ca3af;
-          pointer-events: none;
+          position: absolute; left: 11px; top: 50%;
+          transform: translateY(-50%); color: #9ca3af; pointer-events: none;
         }
         .bp-input {
-          width: 100%;
-          padding: 9px 12px 9px 34px;
-          border: 1.5px solid #e5e7eb;
-          border-radius: 9px;
-          font-size: 13.5px;
-          font-family: 'DM Sans', sans-serif;
-          color: #111827;
-          background: #ffffff;
-          outline: none;
+          width: 100%; padding: 9px 12px 9px 34px;
+          border: 1.5px solid #e5e7eb; border-radius: 9px;
+          font-size: 13.5px; font-family: 'DM Sans', sans-serif;
+          color: #111827; background: #ffffff; outline: none;
           transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .bp-input:focus {
-          border-color: #1a3a5c;
-          box-shadow: 0 0 0 3px rgba(26,58,92,0.08);
-        }
+        .bp-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
         .bp-input::placeholder { color: #d1d5db; }
-
         .bp-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 9px 18px;
-          background: #1a3a5c;
-          color: #ffffff;
-          border: none;
-          border-radius: 9px;
-          font-size: 13.5px;
-          font-weight: 500;
-          font-family: 'DM Sans', sans-serif;
-          cursor: pointer;
-          transition: background 0.15s, box-shadow 0.15s;
-          white-space: nowrap;
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 9px 18px; background: #1a3a5c; color: #ffffff;
+          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif; cursor: pointer;
+          transition: background 0.15s, box-shadow 0.15s; white-space: nowrap;
         }
-        .bp-btn:hover:not(:disabled) {
-          background: #15304d;
-          box-shadow: 0 4px 12px rgba(26,58,92,0.2);
-        }
-        .bp-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
+        .bp-btn:hover:not(:disabled) { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
+        .bp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .bp-error {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          margin-top: 10px;
-          font-size: 12.5px;
-          color: #dc2626;
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          border-radius: 8px;
-          padding: 8px 12px;
+          display: flex; align-items: center; gap: 7px; margin-top: 10px;
+          font-size: 12.5px; color: #dc2626; background: #fef2f2;
+          border: 1px solid #fecaca; border-radius: 8px; padding: 8px 12px;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
         .bp-spin { animation: spin 0.7s linear infinite; }
       `}</style>
@@ -147,7 +122,7 @@ export default function BuscadorPersona({ onResultado }) {
       <div className="bp-root">
         <div className="bp-header">
           <div className="bp-header-bar" />
-          <span className="bp-header-label">Buscar paciente por documento</span>
+          <span className="bp-header-label">{label}</span>
         </div>
 
         <form onSubmit={handleBuscar} className="bp-form">
@@ -161,11 +136,7 @@ export default function BuscadorPersona({ onResultado }) {
               className="bp-input"
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading || !documento.trim()}
-            className="bp-btn"
-          >
+          <button type="submit" disabled={loading || !documento.trim()} className="bp-btn">
             {loading
               ? <><Loader2 size={14} className="bp-spin" /> Buscando...</>
               : <><Search size={14} /> Buscar</>

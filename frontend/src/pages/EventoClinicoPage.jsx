@@ -1,391 +1,257 @@
-import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Search, Building2, X, Check } from 'lucide-react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import apiClient from '../api/client'
+import { useState } from 'react'
+import { Plus, Search, Activity, Pencil, Trash2 } from 'lucide-react'
+import PanelSimple from '../components/ui/PanelSimple'
+import Toast from '../components/ui/Toast'
+import { useEventosClinicos, useEventoClinicoMutations } from '../hooks/useEventosClinicos'
+import { useToast } from '../hooks/useToast'
 
-// ── Hooks ────────────────────────────────────────────────
-function useEventoClinico(search = '') {
-  return useQuery({
-    queryKey: ['eventosclinicos', search],
-    queryFn:  async () => {
-      const params = new URLSearchParams()
-      if (search) params.append('search', search)
-      const res = await apiClient.get(`/eventoclinico/?${params}`)
-      return res.data
-    },
-  })
-}
+// Campos del formulario de evento clínico
+const CAMPOS_EVENTO = [
+  { name: 'tipo_evento', label: 'Tipo de evento', placeholder: 'Ej: Consulta, Cirugía, Urgencia...', requerido: true },
+]
 
-function useEventoClinicoMutations() {
-  const qc = useQueryClient()
-  const inv = () => qc.invalidateQueries({ queryKey: ['eventosclinicos'] })
+// Títulos del panel según el modo activo
+const TITULOS_PANEL = { nuevo: 'Nuevo evento clínico', editar: 'Editar evento clínico', ver: 'Detalle' }
 
-  const crear      = useMutation({ mutationFn: (d) => apiClient.post('/eventoclinico/', d),                       onSuccess: inv })
-  const actualizar = useMutation({ mutationFn: ({ id, ...d }) => apiClient.patch(`/eventoclinico/${id}/`, d),     onSuccess: inv })
-  const eliminar   = useMutation({ mutationFn: (id) => apiClient.delete(`/eventoclinico/${id}/`),                 onSuccess: inv })
-
-  return { crear, actualizar, eliminar }
-}
-
-// ── Panel lateral ────────────────────────────────────────
-function Panel({ item, modo, onCancelar, onGuardar, onEditar, onEliminar }) {
-  const [form, setForm] = useState({
-    tipo_evento:     item?.tipo_evento     || '',
-  })
-
-  useEffect(() => {
-    setForm({
-        tipo_evento: item?.tipo_evento || '',
-    })
-  }, [item])
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+// Extrae el primer mensaje de error de una respuesta 400 de DRF
+function extraerMensajeError(err) {
+  const data = err?.response?.data
+  if (!data) return 'Ocurrió un error inesperado.'
+  if (typeof data === 'string') return data
+  const valores = Object.values(data)
+  if (valores.length === 0) return 'Error al guardar.'
+  const primero = valores[0]
+  if (typeof primero === 'object' && !Array.isArray(primero)) {
+    const sub = Object.values(primero)[0]
+    return Array.isArray(sub) ? sub[0] : String(sub)
   }
-
-  const esEdicion  = modo === 'editar'
-  const esCreacion = modo === 'crear'
-  const esVista    = modo === 'ver'
-
-  return (
-    <>
-      <style>{`
-        .panel-root {
-          width: 340px;
-          flex-shrink: 0;
-          background: #ffffff;
-          border: 1px solid #e8edf2;
-          border-radius: 12px;
-          display: flex;
-          flex-direction: column;
-          animation: slideIn 0.2s ease;
-          font-family: 'DM Sans', sans-serif;
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(16px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-        .panel-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 20px; border-bottom: 1px solid #f0f4f8;
-        }
-        .panel-header-left { display: flex; align-items: center; gap: 10px; }
-        .panel-header-bar { width: 3px; height: 18px; background: #1a3a5c; border-radius: 4px; }
-        .panel-header-title { font-size: 14px; font-weight: 600; color: #1a3a5c; }
-        .panel-close {
-          width: 28px; height: 28px; border-radius: 7px; border: 1px solid #e8edf2;
-          background: none; cursor: pointer; display: flex; align-items: center;
-          justify-content: center; color: #9ca3af; transition: all 0.15s;
-        }
-        .panel-close:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-        .panel-body { padding: 20px; flex: 1; }
-        .panel-field { margin-bottom: 16px; }
-        .panel-label { font-size: 12px; font-weight: 500; color: #9ca3af; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
-        .panel-value { font-size: 14px; color: #111827; font-weight: 400; }
-        .panel-input {
-          width: 100%; padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 9px;
-          font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827;
-          background: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .panel-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
-        .panel-input::placeholder { color: #d1d5db; }
-        .panel-footer {
-          padding: 14px 20px; border-top: 1px solid #f0f4f8;
-          display: flex; gap: 8px; justify-content: flex-end;
-        }
-        .panel-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 8px 14px; border-radius: 8px; font-size: 13px;
-          font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer;
-          transition: all 0.15s; border: none;
-        }
-        .panel-btn-primary { background: #1a3a5c; color: #fff; }
-        .panel-btn-primary:hover { background: #15304d; }
-        .panel-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .panel-btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
-        .panel-btn-secondary:hover { background: #e9ecef; }
-        .panel-btn-danger { background: #fff; color: #dc2626; border: 1px solid #fecaca; }
-        .panel-btn-danger:hover { background: #fef2f2; }
-        .panel-avatar {
-          width: 48px; height: 48px; border-radius: 12px; background: #dbeafe;
-          display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
-        }
-      `}</style>
-
-      <div className="panel-root">
-        <div className="panel-header">
-          <div className="panel-header-left">
-            <div className="panel-header-bar" />
-            <span className="panel-header-title">
-              {esCreacion ? 'Nuevo Evento Clínico' : esEdicion ? 'Editar evento clínico' : 'Detalle'}
-            </span>
-          </div>
-          <button className="panel-close" onClick={onCancelar}><X size={14} /></button>
-        </div>
-
-        <div className="panel-body">
-          {esVista && (
-            <div className="panel-avatar">
-              <Building2 size={22} color="#1a3a5c" />
-            </div>
-          )}
-
-
-          <div className="panel-field">
-            <div className="panel-label">Descripción</div>
-            {esVista
-              ? <div className="panel-value">{item.tipo_evento}</div>
-              : <input name="tipo_evento" value={form.tipo_evento} onChange={handleChange} placeholder="Descripción..." className="panel-input" autoFocus={esEdicion} />
-            }
-          </div>
-        </div>
-
-        <div className="panel-footer">
-          {esVista && (
-            <>
-              <button className="panel-btn panel-btn-danger" onClick={() => onEliminar(item.id)}>
-                <Trash2 size={13} /> Eliminar
-              </button>
-              <button className="panel-btn panel-btn-primary" onClick={onEditar}>
-                <Pencil size={13} /> Editar
-              </button>
-            </>
-          )}
-          {(esEdicion || esCreacion) && (
-            <>
-              <button className="panel-btn panel-btn-secondary" onClick={onCancelar}>Cancelar</button>
-              <button
-                className="panel-btn panel-btn-primary"
-                disabled={!form.tipo_evento.trim()}
-                onClick={() => onGuardar(form)}
-              >
-                <Check size={13} /> Guardar
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </>
-  )
+  return Array.isArray(primero) ? primero[0] : String(primero)
 }
 
-// ── Página principal ─────────────────────────────────────
 export default function EventoClinicoPage() {
-  const [search,      setSearch]      = useState('')
-  const [searchInput, setSearchInput] = useState('')
+  const [search,       setSearch]       = useState('')
+  const [searchInput,  setSearchInput]  = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
-  const [modo,        setModo]        = useState(null) // 'ver' | 'editar' | 'crear'
+  const [modo,         setModo]         = useState(null) // 'ver' | 'editar' | 'crear'
 
-  const { data, isLoading } = useEventoClinico(search)
+  const { data, isLoading }             = useEventosClinicos(search)
   const { crear, actualizar, eliminar } = useEventoClinicoMutations()
+  const { toast, showToast }            = useToast()
 
-  const eventosclinicos = data?.results || data || []
+  const eventos = data?.results || data || []
 
   const handleSearch = (e) => {
     e.preventDefault()
     setSearch(searchInput)
   }
 
-  const handleDobleClick = (item) => {
-    setSeleccionado(item)
-    setModo('ver')
-  }
-
-  const handleNuevo = () => {
-    setSeleccionado(null)
-    setModo('crear')
-  }
-
-  const handleCancelar = () => {
+  const cerrarPanel = () => {
     setSeleccionado(null)
     setModo(null)
   }
 
   const handleGuardar = async (form) => {
-    if (modo === 'crear') {
-      await crear.mutateAsync(form)
-    } else if (modo === 'editar') {
-      await actualizar.mutateAsync({ id: seleccionado.id, ...form })
+    try {
+      if (modo === 'crear') {
+        await crear.mutateAsync(form)
+        showToast('Evento clínico creado correctamente.', 'success')
+      } else {
+        await actualizar.mutateAsync({ id: seleccionado.id, ...form })
+        showToast('Evento clínico actualizado correctamente.', 'success')
+      }
+      cerrarPanel()
+    } catch (err) {
+      // Muestra el error del backend sin cerrar el panel
+      showToast(extraerMensajeError(err), 'error')
     }
-    setSeleccionado(null)
-    setModo(null)
   }
 
   const handleEliminar = (id) => {
-    if (window.confirm('¿Eliminar este Evento Clínico?')) {
-      eliminar.mutate(id)
-      setSeleccionado(null)
-      setModo(null)
+    if (window.confirm('¿Eliminar este evento clínico?')) {
+      eliminar.mutate(id, {
+        onSuccess: () => showToast('Evento clínico eliminado.', 'success'),
+        onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+      })
+      cerrarPanel()
     }
   }
+
+  // Estado de carga para deshabilitar el botón Guardar mientras se procesa la petición
+  const guardando = crear.isPending || actualizar.isPending
 
   return (
     <>
       <style>{`
-        .con-root { font-family: 'DM Sans', sans-serif; }
-        .con-header {
+        /* ── EventoClinicoPage — layout, encabezado y tabla ── */
+        .ec-root { font-family: 'DM Sans', sans-serif; }
+        .ec-header {
           display: flex; align-items: flex-start; justify-content: space-between;
           margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
         }
-        .con-title { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
-        .con-subtitle { font-size: 13px; color: #6b7280; }
-        .con-btn-nuevo {
+        .ec-title    { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
+        .ec-subtitle { font-size: 13px; color: #6b7280; }
+        .ec-btn-nuevo {
           display: inline-flex; align-items: center; gap: 7px;
           padding: 9px 18px; background: #1a3a5c; color: #fff;
           border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
           font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
           transition: background 0.15s, box-shadow 0.15s;
         }
-        .con-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        .con-search-row { display: flex; gap: 8px; margin-bottom: 16px; }
-        .con-search-wrap { position: relative; flex: 1; max-width: 380px; }
-        .con-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
-        .con-search-input {
+        .ec-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
+        /* Barra de búsqueda */
+        .ec-search-row  { display: flex; gap: 8px; margin-bottom: 16px; }
+        .ec-search-wrap { position: relative; flex: 1; max-width: 380px; }
+        .ec-search-icon {
+          position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+          color: #9ca3af; pointer-events: none;
+        }
+        .ec-search-input {
           width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px;
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827;
           background: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .con-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
-        .con-search-input::placeholder { color: #d1d5db; }
-        .con-btn-search {
+        .ec-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
+        .ec-search-input::placeholder { color: #d1d5db; }
+        .ec-btn-search {
           padding: 9px 16px; background: #f8fafc; border: 1.5px solid #e5e7eb; border-radius: 9px;
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #374151; cursor: pointer;
         }
-        .con-btn-search:hover { background: #f0f4f8; }
-
-        .con-layout { display: flex; gap: 16px; align-items: flex-start; }
-        .con-table-card {
+        .ec-btn-search:hover { background: #f0f4f8; }
+        /* Layout tabla + panel */
+        .ec-layout { display: flex; gap: 16px; align-items: flex-start; }
+        .ec-table-card {
           flex: 1; background: #fff; border: 1px solid #e8edf2;
           border-radius: 12px; overflow: hidden; min-width: 0;
         }
-        .con-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-        .con-table thead { background: #f8fafc; border-bottom: 1px solid #e8edf2; }
-        .con-table th {
+        /* Tabla de eventos clínicos */
+        .ec-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .ec-table thead { background: #f8fafc; border-bottom: 1px solid #e8edf2; }
+        .ec-table th {
           text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 600;
           letter-spacing: .05em; text-transform: uppercase; color: #9ca3af; white-space: nowrap;
         }
-        .con-table td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
-        .con-table tbody tr:last-child td { border-bottom: none; }
-        .con-table tbody tr {
-          cursor: pointer; transition: background 0.15s;
-        }
-        .con-table tbody tr:hover { background: #f8fafc; }
-        .con-table tbody tr.activo { background: #eff6ff; }
-        .con-table tbody tr.activo td { color: #1a3a5c; }
-        .con-hint {
-          font-size: 12px; color: #9ca3af; margin-top: 4px;
-          font-style: italic;
-        }
-        .con-empty {
-          text-align: center; padding: 48px 16px; color: #9ca3af; font-size: 13.5px;
-        }
-        .con-empty-icon {
+        .ec-table td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+        .ec-table tbody tr:last-child td { border-bottom: none; }
+        .ec-table tbody tr { cursor: pointer; transition: background 0.15s; }
+        .ec-table tbody tr:hover  { background: #f8fafc; }
+        .ec-table tbody tr.activo { background: #eff6ff; }
+        .ec-table tbody tr.activo td { color: #1a3a5c; }
+        .ec-hint  { font-size: 12px; color: #9ca3af; margin-top: 4px; font-style: italic; }
+        /* Estado vacío */
+        .ec-empty { text-align: center; padding: 48px 16px; color: #9ca3af; font-size: 13.5px; }
+        .ec-empty-icon {
           width: 40px; height: 40px; margin: 0 auto 12px; background: #f3f4f6;
           border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d1d5db;
         }
       `}</style>
 
-      <div className="con-root">
-        <div className="con-header">
+      {/* Notificación flotante */}
+      <Toast toast={toast} />
+
+      <div className="ec-root">
+        {/* Encabezado de la página */}
+        <div className="ec-header">
           <div>
-            <div className="con-title">Eventos Clínicos</div>
-            <div className="con-subtitle">
-              {eventosclinicos.length > 0
-                ? `${eventosclinicos.length} eventos clínicos registrados`
-                : 'Gestión de Eventos Clínicos'
-              }
+            <div className="ec-title">Eventos Clínicos</div>
+            <div className="ec-subtitle">
+              {eventos.length > 0
+                ? `${eventos.length} eventos clínicos registrados`
+                : 'Gestión de eventos clínicos'}
             </div>
           </div>
-          <button className="con-btn-nuevo" onClick={handleNuevo}>
+          <button className="ec-btn-nuevo" onClick={() => { setSeleccionado(null); setModo('crear') }}>
             <Plus size={15} /> Nuevo evento clínico
           </button>
         </div>
 
-        <form onSubmit={handleSearch} className="con-search-row">
-          <div className="con-search-wrap">
-            <Search size={15} className="con-search-icon" />
+        {/* Buscador */}
+        <form onSubmit={handleSearch} className="ec-search-row">
+          <div className="ec-search-wrap">
+            <Search size={15} className="ec-search-icon" />
             <input
               type="text"
-              placeholder="Buscar por evento clínico..."
+              placeholder="Buscar por tipo de evento..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="con-search-input"
+              className="ec-search-input"
             />
           </div>
-          <button type="submit" className="con-btn-search">Buscar</button>
+          <button type="submit" className="ec-btn-search">Buscar</button>
         </form>
 
-        <div className="con-layout">
-          {/* Tabla */}
-          <div className="con-table-card">
-            <table className="con-table">
+        {/* Tabla + Panel lateral */}
+        <div className="ec-layout">
+          <div className="ec-table-card">
+            <table className="ec-table">
               <thead>
                 <tr>
-                  <th>Descripción</th>
+                  <th>Tipo de evento</th>
                   <th style={{ width: '80px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading && (
-                  <tr><td colSpan={3} className="con-empty">Cargando...</td></tr>
+                  <tr><td colSpan={2} className="ec-empty">Cargando...</td></tr>
                 )}
-                {!isLoading && eventosclinicos.length === 0 && (
-                  <tr><td colSpan={3}>
-                    <div className="con-empty">
-                      <div className="con-empty-icon"><Building2 size={18} /></div>
+                {!isLoading && eventos.length === 0 && (
+                  <tr><td colSpan={2}>
+                    <div className="ec-empty">
+                      <div className="ec-empty-icon"><Activity size={18} /></div>
                       Sin eventos clínicos registrados
                     </div>
                   </td></tr>
                 )}
-                {eventosclinicos.map((c) => (
+                {eventos.map((ev) => (
                   <tr
-                    key={c.id}
-                    className={seleccionado?.id === c.id ? 'activo' : ''}
-                    onDoubleClick={() => handleDobleClick(c)}
-                    onClick={() => handleDobleClick(c)}
+                    key={ev.id}
+                    className={seleccionado?.id === ev.id ? 'activo' : ''}
+                    onClick={() => { setSeleccionado(ev); setModo('ver') }}
                   >
                     <td>
-                      {c.tipo_evento}
-                      {seleccionado?.id !== c.id && (
-                        <div className="con-hint">Hacé clic para ver el detalle</div>
+                      {ev.tipo_evento}
+                      {seleccionado?.id !== ev.id && (
+                        <div className="ec-hint">Hacé clic para ver el detalle</div>
                       )}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <button
-                        onClick={(e) => { e.stopPropagation(); setSeleccionado(c); setModo('editar') }}
-                        style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#1a3a5c'; e.currentTarget.style.borderColor = '#bfdbfe' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
+                          onClick={(e) => { e.stopPropagation(); setSeleccionado(ev); setModo('editar') }}
+                          style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#1a3a5c'; e.currentTarget.style.borderColor = '#bfdbfe' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
                         >
-                        <Pencil size={13} />
+                          <Pencil size={13} />
                         </button>
                         <button
-                        onClick={(e) => { e.stopPropagation(); handleEliminar(c.id) }}
-                        style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fecaca' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
+                          onClick={(e) => { e.stopPropagation(); handleEliminar(ev.id) }}
+                          style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fecaca' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
                         >
-                        <Trash2 size={13} />
+                          <Trash2 size={13} />
                         </button>
-                    </div>
-                </td>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* Panel lateral */}
+          {/* Panel lateral — se muestra cuando hay un modo activo */}
           {modo && (
-            <Panel
+            <PanelSimple
+              titulos={TITULOS_PANEL}
+              icono={<Activity size={22} color="#1a3a5c" />}
+              campos={CAMPOS_EVENTO}
               item={seleccionado}
               modo={modo}
-              onCancelar={handleCancelar}
+              onCancelar={cerrarPanel}
               onGuardar={handleGuardar}
               onEditar={() => setModo('editar')}
               onEliminar={handleEliminar}
+              guardando={guardando}
             />
           )}
         </div>
