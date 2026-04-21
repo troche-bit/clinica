@@ -40,6 +40,17 @@ class Agenda(BaseModel):
         null=True, blank=True,
         help_text='Observaciones del turno',
     )
+    pagado_prestador = models.BooleanField(
+        default=False,
+        help_text='True cuando este turno fue incluido en un pago al prestador',
+    )
+    pago_prestador = models.ForeignKey(
+        'pago_prestador.PagoPrestador',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='turnos',
+        help_text='Referencia al pago al prestador que incluye este turno',
+    )
 
     class Meta:
         db_table            = 'agenda'

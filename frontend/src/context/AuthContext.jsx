@@ -1,33 +1,57 @@
-import { createContext, useContext, useState } from "react"; // Importamos createContext, useContext y useState de React
-import apiClient from "../api/client"; // Importamos nuestro cliente API personalizado
+import { createContext, useContext, useState } from 'react'
+import apiClient from '../api/client'
 
-const AuthContext = createContext(null); // Creamos el contexto de autenticación
+const AuthContext = createContext(null)
+
+function decodeJwt(token) {
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return {}
+  }
+}
+
+function buildUser(token) {
+  if (!token) return null
+  const claims = decodeJwt(token)
+  return {
+    token,
+    username: claims.username || '',
+    rol: claims.rol || 'admin',
+    nombre: claims.nombre || claims.username || '',
+    iniciales: claims.iniciales || '',
+    activo: claims.activo !== false,
+    persona_rrhh_id: claims.persona_rrhh_id || null,
+    medico_asignado_id: claims.medico_asignado_id || null,
+  }
+}
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => { // Estado para almacenar el usuario autenticado
-    const token = localStorage.getItem("access_token") // Obtenemos el token de autenticación del almacenamiento local
-    return token ? { token } : null // Si hay un token, lo devolvemos, de lo contrario devolvemos null
+  const [user, setUser] = useState(() => {
+    const token = localStorage.getItem('access_token')
+    return buildUser(token)
   })
 
-  const login = async (username, password) => { // Función para manejar el inicio de sesión
-    const { data } = await apiClient.post('/auth/token/', { username, password})  
+  const login = async (username, password) => {
+    const { data } = await apiClient.post('/auth/token/', { username, password })
     localStorage.setItem('access_token', data.access)
     localStorage.setItem('refresh_token', data.refresh)
-    setUser({ token: data.access})
+    setUser(buildUser(data.access))
   }
 
-  const logout = () => { // Función para manejar el cierre de sesión
-    localStorage.clear() // Limpiamos el almacenamiento local
-    setUser(null) // Establecemos el usuario como null
+  const logout = () => {
+    localStorage.clear()
+    setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}> {/* Proveemos el contexto con el usuario, la función de login y logout */}
-      {children} {/* Renderizamos los componentes hijos */}
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() { // Hook personalizado para usar el contexto de autenticación
-  return useContext(AuthContext) // Devolvemos el contexto de autenticación
+export function useAuth() {
+  return useContext(AuthContext)
 }

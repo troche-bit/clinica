@@ -1,5 +1,5 @@
 # CLAUDE.md — Clínica Lichi
-_Versión 2.9 · Abril 2026 — Módulo Agenda implementado_
+_Versión 3.7 · Abril 2026 — Módulo Usuarios y Roles implementado_
 
 ---
 
@@ -214,17 +214,80 @@ Siempre usar `PATCH` para actualizaciones parciales. Nunca `PUT`. Aplica a hooks
 - `GET /api/agenda/stats-hoy/` → estadísticas del día actual
 - `GET /api/departamento/?pais=ID` → filtrado por país
 - `GET /api/ciudad/?departamento=ID` → filtrado por departamento
+- `POST /api/consultas/{id}/iniciar/` → estado en_espera→en_consulta, registra hora_desde
+- `POST /api/consultas/{id}/finalizar/` → estado en_consulta→finalizada, registra hora_hasta, agenda→realizado
+- `GET /api/consultas/stats-hoy/` → {total, en_espera, en_consulta, finalizadas} para hoy
+- `GET /api/consultas/?persona_rrhh=id&fecha=YYYY-MM-DD` → turnos del día de un médico
+- `GET /api/documentos/?consulta=id` → documentos de una consulta
+- `GET /api/recordatorios/proximas-citas/?periodo=vencidas|todos&dias=N&medico=id&estado=pendiente|agendado` → consultas con proxima_cita, anotadas con urgencia y estado agenda
+- `GET /api/recordatorios/stats/` → { vencidas, proximos_7_dias, proximos_30_dias, agendadas }
+- `POST /api/recordatorios/notificar/` → registra Notificacion con estado pendiente; stub listo para envío real
+- `GET /api/notificaciones/?paciente=id&consulta=id` → historial de notificaciones (solo lectura)
+- `GET /api/timbrado/?vigente=true|false&search=` → lista de timbrados con filtro de vigencia y búsqueda
+- `GET /api/timbrado/eliminados/` → timbrados con `is_deleted=True`
+- `GET /api/grupos/?activo=true|false&search=` → lista de grupos con conteo `total_productos` (anotado)
+- `GET /api/grupos/eliminados/` → grupos eliminados
+- `GET /api/productos/?grupo=id&activo=true|false&search=` → productos de un grupo; `grupo` filtra obligatoriamente por el drill-down
+- `GET /api/productos/eliminados/` → productos eliminados
+- `GET /api/cuentas-mcb/?search=` → cuentas con `saldo` anotado (Sum ingreso - Sum egreso) y `total_movimientos`
+- `GET /api/cuentas-mcb/eliminados/` → cuentas eliminadas
+- `GET /api/movimientos-caja/?cta=id&tipo=ingreso|egreso&fecha_desde=&fecha_hasta=&search=` → movimientos filtrados; `cta` es el filtro principal de drill-down
+- `GET /api/movimientos-caja/eliminados/` → movimientos eliminados
+- `GET /api/forma-pago/` → lista de formas de pago (solo lectura, seed: Efectivo/Tarjeta/Transferencia)
+- `POST /api/facturacion/validar-timbrado/` → `{establecimiento, expedicion, numero}` → valida que el número esté dentro del rango activo del timbrado vigente
+- `GET /api/facturacion/siguiente-numero/?establecimiento=&expedicion=` → retorna el próximo número disponible (MAX(nro_comprobante)+1 ó nro_desde si no hay comprobantes)
+- `POST /api/facturacion/` → crea VentaFactCab + VentaFactDet[] + (VentaFactDetCobranza[] + MovimientoCajaBanco[] si contado) ó (CtaCobrar[] si crédito) en `@transaction.atomic`
+- `PATCH /api/facturacion/{id}/` → edición post-emisión; solo permite cambiar `fecha`, `persona`, `observacion` (`VentaFactCabUpdateSerializer`); responde con `VentaFactCabDetalleSerializer` completo
+- `GET /api/facturacion/{id}/pdf/` → genera PDF con WeasyPrint desde `templates/informes/factura_print.html`; `permission_classes=[AllowAny]` (se abre en `_blank` sin token); devuelve `application/pdf` con `Content-Disposition: inline`
+- `DELETE /api/facturacion/{id}/` → borrado lógico; cascada manual a detalle, cobranza y cuotas; valida que no haya MovimientoCajaBanco vinculados
+- `GET /api/pago-prestador/siguiente-numero/` → MAX(id)+1 sobre pagos activos
+- `GET /api/pago-prestador/bloques-pendientes/?persona_rrhh=id&fecha_hasta=YYYY-MM-DD` → agrupa Agenda por (horario_prestador_id, fecha) donde pagado_prestador=False; devuelve horas (hora_hasta-hora_desde), especialidad, agenda_ids
+- `POST /api/pago-prestador/` → crea PagoPrestador + PagoPrestadorDetCobranza[] + MovimientoCajaBanco[]; marca Agenda.pagado_prestador=True + pago_prestador=FK; estado: pagado/parcial/pendiente según total pagado
+- `DELETE /api/pago-prestador/{id}/` → borrado lógico; revierte Agenda.pagado_prestador=False; valida que no haya MovimientoCajaBanco vinculados
+- `GET /api/usuarios/` → lista de perfiles (con filtros `search`, `rol`, `activo`)
+- `POST /api/usuarios/` → crea User + PerfilUsuario; `{username, password, first_name, last_name, email, rol, persona_rrhh}`
+- `PATCH /api/usuarios/{id}/` → actualiza perfil (sin cambiar username/password)
+- `POST /api/usuarios/{id}/cambiar-estado/` → toggle `activo` del perfil
+- `POST /api/usuarios/{id}/resetear-password/` → `{nueva_password}` — setea nueva contraseña
+- `GET /api/cobranzas/siguiente-numero/` → MAX(comprobante_nro)+1 sobre cobranzas activas
+- `GET /api/cobranzas/cuotas-pendientes/?persona=id` → CtaCobrar con saldo > 0 de facturas activas de esa persona; incluye datos de factura origen (nro formateado, fecha)
+- `POST /api/cobranzas/` → crea Cobranza + CobranzaDet[] + ValorRecibidoCob[] + MovimientoCajaBanco[] en `@transaction.atomic`; actualiza saldo de CtaCobrar; si saldo ≤ 0 → estado = pagado; valida monto_pagado ≤ saldo con `select_for_update`
+- `DELETE /api/cobranzas/{id}/` → borrado lógico; valida que no haya MovimientoCajaBanco vinculados
+- `GET /api/documentos/?paciente=id` → documentos de un paciente
+- `GET /api/documentos/pacientes/?search=` → pacientes con al menos un documento digitalizado activo
+- `GET /api/documentos/{id}/descargar/` → FileResponse del archivo desde /media/
+
+### Plantillas de informes (WeasyPrint)
+
+Las plantillas de impresión viven en `backend/templates/informes/`. WeasyPrint está instalado en el contenedor.
+
+| Archivo | Estado | Descripción |
+|---|---|---|
+| `base_informe.html` | ✅ | Estilos base (@page A4, reset, tipografía pt, media print) |
+| `factura_print.html` | ✅ | Factura paraguaya SET — header timbrado, condición, datos cliente, detalle, liquidación IVA, totales, firma |
+| `cobranza_print.html` | ❌ pendiente | Recibo de cobranza de cuotas |
+| `recibo_print.html` | ❌ pendiente | Recibo de pago general |
+| `estado_cuenta_print.html` | ❌ pendiente | Estado de cuenta por persona |
+| `informe_caja.html` | ❌ pendiente | Informe de caja diario |
+
+Templatetag custom: `apps/principal/facturacion/templatetags/factura_tags.py`
+- `|gs` — formatea valor como Guaraníes: entero con separador de miles con punto (ej: `1.234.567`)
+- `|minus` — resta decimal segura para templates
 
 ### Construcción de rutas de archivos
 ```python
-def build_storage_path(instance, filename):
-    ext    = filename.rsplit('.', 1)[-1].lower()
-    unique = uuid.uuid4().hex[:8]
-    year   = datetime.now().year
-    key    = instance.tip_doc_dig.storage_key
-    pac_id = instance.pac_id
-    return f'documentos/{key}/{year}/{pac_id}_{unique}.{ext}'
+def build_storage_path(tipo_doc_dig, paciente_id, filename):
+    ext       = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    year      = datetime.now().year
+    return f'documentos/{tipo_doc_dig.storage_key}/{year}/{timestamp}_{tipo_doc_dig.storage_key}.{ext}'
 ```
+Ejemplo de ruta generada: `documentos/historia_clinica/2026/20260414143022_historia_clinica.pdf`
+
+### Borrado de documentos digitalizados
+`perform_destroy` en `DocumentoDigPacienteViewSet` realiza dos operaciones en orden:
+1. **Borrado físico**: elimina el archivo del disco (`os.remove`). Si el directorio queda vacío, lo elimina también (`os.rmdir`).
+2. **Borrado lógico**: marca `is_deleted=True` en la base de datos (patrón estándar `BaseModel`).
 
 ---
 
@@ -391,6 +454,16 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `.frrhh-` | `components/rrhh/FormRRHH.jsx` |
 | `.hp-` | `pages/HorarioPrestadorPage.jsx` |
 | `.ag-` | `pages/AgendaPage.jsx` |
+| `.cs-` | `pages/ConsultasPage.jsx` |
+| `.dd-` | `pages/DocumentosPage.jsx` |
+| `.rec-` | `pages/RecordatoriosPage.jsx` |
+| `.tim-` | `pages/TimbradoPage.jsx` |
+| `.grp-` | `pages/GruposPage.jsx` |
+| `.cta-` | `pages/CuentasMcbPage.jsx` |
+| `.fac-` | `pages/FacturacionPage.jsx` |
+| `.cob-` | `pages/CobranzasPage.jsx` |
+| `.pp-`  | `pages/PagoPrestadorPage.jsx` |
+| `.usu-` | `pages/UsuariosPage.jsx` |
 | `.login-` | `pages/Login.jsx` |
 
 > **Al crear módulos nuevos:** asignar prefijo propio y registrarlo en esta tabla.
@@ -451,6 +524,72 @@ Disponibles en todas las páginas sin redefinir:
 | `useStatsHoy` | `hooks/useAgenda.js` | GET `/api/agenda/stats-hoy/` (staleTime 1 min) |
 | `useAsignarTurno` | `hooks/useAgenda.js` | PATCH `/api/agenda/{id}/asignar/` — asignar paciente |
 | `useCambiarEstado` | `hooks/useAgenda.js` | PATCH `/api/agenda/{id}/estado/` — cambiar estado |
+| `useConsultasDelDia` | `hooks/useConsultas.js` | GET `/api/consultas/?persona_rrhh=&fecha=` |
+| `useConsultasPaciente` | `hooks/useConsultas.js` | GET `/api/consultas/?paciente=id` — historial |
+| `useConsultaDetalle` | `hooks/useConsultas.js` | GET `/api/consultas/{id}/` |
+| `useIniciarConsulta` | `hooks/useConsultas.js` | POST `/api/consultas/{id}/iniciar/` |
+| `useFinalizarConsulta` | `hooks/useConsultas.js` | POST `/api/consultas/{id}/finalizar/` |
+| `useUpdateConsulta` | `hooks/useConsultas.js` | PATCH `/api/consultas/{id}/` |
+| `useCrearConsulta` | `hooks/useConsultas.js` | POST `/api/consultas/` |
+| `useStatsConsultasHoy` | `hooks/useConsultas.js` | GET `/api/consultas/stats-hoy/` |
+| `useConsultasHoy` | `hooks/useConsultas.js` | GET `/api/consultas/?fecha=hoy` (todas) |
+| `useProximasCitas` | `hooks/useRecordatorios.js` | GET `/api/recordatorios/proximas-citas/` — consultas con proxima_cita |
+| `useStatsRecordatorios` | `hooks/useRecordatorios.js` | GET `/api/recordatorios/stats/` — conteos por urgencia |
+| `useNotificar` | `hooks/useRecordatorios.js` | POST `/api/recordatorios/notificar/` — registra notificación |
+| `useHistorialNotificaciones` | `hooks/useRecordatorios.js` | GET `/api/notificaciones/?paciente=id` |
+| `useMedicosLista` | `hooks/useRecordatorios.js` | GET `/api/personarrhh/?cargo=medico` para filtro |
+| `useTimbrados` | `hooks/useTimbrado.js` | GET `/api/timbrado/` con filtros `search` y `vigente` |
+| `useCreateTimbrado` | `hooks/useTimbrado.js` | POST `/api/timbrado/` |
+| `useUpdateTimbrado` | `hooks/useTimbrado.js` | PATCH `/api/timbrado/{id}/` |
+| `useDeleteTimbrado` | `hooks/useTimbrado.js` | DELETE `/api/timbrado/{id}/` |
+| `useGrupos` | `hooks/useGrupos.js` | GET `/api/grupos/` con filtros `search` y `activo` |
+| `useCreateGrupo` | `hooks/useGrupos.js` | POST `/api/grupos/` |
+| `useUpdateGrupo` | `hooks/useGrupos.js` | PATCH `/api/grupos/{id}/` |
+| `useDeleteGrupo` | `hooks/useGrupos.js` | DELETE `/api/grupos/{id}/` |
+| `useProductos` | `hooks/useProductos.js` | GET `/api/productos/?grupo=id` con filtros `search` y `activo` |
+| `useCreateProducto` | `hooks/useProductos.js` | POST `/api/productos/` |
+| `useUpdateProducto` | `hooks/useProductos.js` | PATCH `/api/productos/{id}/` |
+| `useDeleteProducto` | `hooks/useProductos.js` | DELETE `/api/productos/{id}/` |
+| `useCuentasMcb` | `hooks/useCuentasMcb.js` | GET `/api/cuentas-mcb/` con filtro `search` |
+| `useCreateCuenta` | `hooks/useCuentasMcb.js` | POST `/api/cuentas-mcb/` |
+| `useUpdateCuenta` | `hooks/useCuentasMcb.js` | PATCH `/api/cuentas-mcb/{id}/` |
+| `useDeleteCuenta` | `hooks/useCuentasMcb.js` | DELETE `/api/cuentas-mcb/{id}/` |
+| `useMovimientos` | `hooks/useMovimientos.js` | GET `/api/movimientos-caja/?cta=id` con filtros tipo, fecha_desde, fecha_hasta, search |
+| `useCreateMovimiento` | `hooks/useMovimientos.js` | POST `/api/movimientos-caja/` |
+| `useUpdateMovimiento` | `hooks/useMovimientos.js` | PATCH `/api/movimientos-caja/{id}/` |
+| `useDeleteMovimiento` | `hooks/useMovimientos.js` | DELETE `/api/movimientos-caja/{id}/` |
+| `useFacturas` | `hooks/useFacturacion.js` | GET `/api/facturacion/` con filtros `search`, `condicion_vta`, `fecha_desde`, `fecha_hasta` |
+| `useFacturaDetalle` | `hooks/useFacturacion.js` | GET `/api/facturacion/{id}/` |
+| `useCreateFactura` | `hooks/useFacturacion.js` | POST `/api/facturacion/` — crea cabecera + detalle + cobranza/cuotas en transacción atómica |
+| `useUpdateFactura` | `hooks/useFacturacion.js` | PATCH `/api/facturacion/{id}/` — actualiza `fecha`, `persona`, `observacion`; invalida lista + detalle |
+| `useDeleteFactura` | `hooks/useFacturacion.js` | DELETE `/api/facturacion/{id}/` — borrado lógico + cascada |
+| `useValidarTimbrado` | `hooks/useFacturacion.js` | POST `/api/facturacion/validar-timbrado/` — valida `{establecimiento, expedicion, numero}` |
+| `useSiguienteNumero` | `hooks/useFacturacion.js` | GET `/api/facturacion/siguiente-numero/?establecimiento=&expedicion=` — habilitado cuando ambos tienen 3 dígitos |
+| `useFormaPago` | `hooks/useFacturacion.js` | GET `/api/forma-pago/` (staleTime 30 min) |
+| `useBuscarPersonas` | `hooks/useFacturacion.js` | GET `/api/persona/?search=` (page_size=8, habilitado con ≥ 2 chars) — para autocomplete factura |
+| `useBuscarProductos` | `hooks/useFacturacion.js` | GET `/api/productos/?search=&activo=true` (page_size=10, habilitado con ≥ 2 chars) — para autocomplete factura |
+| `usePagosPrestador` | `hooks/usePagoPrestador.js` | GET `/api/pago-prestador/` con filtros `persona_rrhh`, `estado`, `fecha_desde`, `fecha_hasta`, `search` |
+| `usePagoPrestadorDetalle` | `hooks/usePagoPrestador.js` | GET `/api/pago-prestador/{id}/` |
+| `useCreatePagoPrestador` | `hooks/usePagoPrestador.js` | POST `/api/pago-prestador/` — transacción atómica; invalida pagos, movimientos y cuentas-mcb |
+| `useDeletePagoPrestador` | `hooks/usePagoPrestador.js` | DELETE `/api/pago-prestador/{id}/` — borrado lógico; revierte `pagado_prestador` en Agenda |
+| `useSiguienteNumeroPago` | `hooks/usePagoPrestador.js` | GET `/api/pago-prestador/siguiente-numero/` — MAX(id)+1 |
+| `useBloquesPendientes` | `hooks/usePagoPrestador.js` | GET `/api/pago-prestador/bloques-pendientes/?persona_rrhh=id&fecha_hasta=` — bloques agrupados por (horario_prestador_id, fecha) con horas y agenda_ids |
+| `useCobranzas` | `hooks/useCobranzas.js` | GET `/api/cobranzas/` con filtros `search`, `fecha_desde`, `fecha_hasta` |
+| `useCobranzaDetalle` | `hooks/useCobranzas.js` | GET `/api/cobranzas/{id}/` — detalle con cuotas cobradas y valores recibidos |
+| `useCreateCobranza` | `hooks/useCobranzas.js` | POST `/api/cobranzas/` — transacción atómica; invalida cobranzas, movimientos, cuentas-mcb y facturas |
+| `useDeleteCobranza` | `hooks/useCobranzas.js` | DELETE `/api/cobranzas/{id}/` — borrado lógico |
+| `useSiguienteNumeroCob` | `hooks/useCobranzas.js` | GET `/api/cobranzas/siguiente-numero/` — autoincremental propio de cobranzas (staleTime 0) |
+| `useCuotasPendientes` | `hooks/useCobranzas.js` | GET `/api/cobranzas/cuotas-pendientes/?persona=id` — CtaCobrar con saldo > 0 de facturas activas de esa persona |
+| `useUsuarios` | `hooks/useUsuarios.js` | GET `/api/usuarios/` con filtros `search`, `rol`, `activo` |
+| `useCreateUsuario` | `hooks/useUsuarios.js` | POST `/api/usuarios/` — crea User + PerfilUsuario |
+| `useUpdateUsuario` | `hooks/useUsuarios.js` | PATCH `/api/usuarios/{id}/` — actualiza perfil |
+| `useCambiarEstadoUsuario` | `hooks/useUsuarios.js` | POST `/api/usuarios/{id}/cambiar-estado/` — toggle activo |
+| `useResetearPassword` | `hooks/useUsuarios.js` | POST `/api/usuarios/{id}/resetear-password/` |
+| `useDocumentosPorConsulta` | `hooks/useDocumentos.js` | GET `/api/documentos/?consulta=id` |
+| `useDocumentosPorPaciente` | `hooks/useDocumentos.js` | GET `/api/documentos/?paciente=id` — historial completo |
+| `usePacientesConDocumentos` | `hooks/useDocumentos.js` | GET `/api/documentos/pacientes/?search=` — pacientes con al menos un doc |
+| `useSubirDocumento` | `hooks/useDocumentos.js` | POST `/api/documentos/` multipart/form-data |
+| `useDeleteDocumento` | `hooks/useDocumentos.js` | DELETE `/api/documentos/{id}/` — borrado lógico |
 
 ---
 
@@ -468,30 +607,46 @@ Disponibles en todas las páginas sin redefinir:
 | Evento Clínico | EventoClinicoPage (migrado a PanelSimple ✅) | EventoClinicoViewSet |
 | Tipo doc. digitalizado | TipoDocDigPage | TipoDocDigitalViewSet |
 | Días de semana | — (dato de referencia, sin página) | DiaSemanaViewSet (ReadOnly) |
+| Formas de pago | — (dato de referencia, sin página) | FormaPagoViewSet (ReadOnly) — seed: 1=Efectivo, 2=Tarjeta, 3=Transferencia |
 | PersonaRRHH | PersonaRRHHPage + FormRRHH (selector especialidades con teclado) | PersonaRRHHViewSet (M2M especialidades, /buscar/, /eliminados/) |
 | HorarioPrestador | HorarioPrestadorPage (master-detail, preview turnos) | HorarioPrestadorViewSet (/generar/, /eliminados/) |
 | Agenda | AgendaPage (layout 3 columnas: médicos, calendario, panel día) | AgendaViewSet (/asignar/, /cambiar_estado/, /resumen-mes/, /stats-hoy/) |
+| Consultas | ConsultasPage (pestañas: Vista médico + Vista recepcionista) | ConsultaViewSet (/iniciar/, /finalizar/, /stats-hoy/) |
+| Documentos digitalizados (consulta) | integrado en ConsultasPage (drag-and-drop, descarga) | DocumentoDigPacienteViewSet (/descargar/) |
+| Documentos digitalizados (módulo) | DocumentosPage — lista de pacientes + tabla de docs + visualizar | DocumentoDigPacienteViewSet (/pacientes/, /descargar/) |
+| Recordatorios | RecordatoriosPage — stats + tabla urgencia + panel notificación | RecordatorioViewSet (/proximas-citas/, /stats/, /notificar/) + NotificacionViewSet |
+| Timbrado | TimbradoPage — tabla con barra de progreso + PanelVer + PanelForm (toggle Talonario/Autoimpresor) | TimbradoViewSet (/eliminados/) |
+| Grupos y Productos | GruposPage — grilla de cards (Vista 1) con drill-down a lista de productos (Vista 2) + panel lateral | GrupoViewSet + ProductoServicioViewSet (/eliminados/) |
+| Cuentas Caja/Banco | CuentasMcbPage — grilla de cards con saldo (Vista 1) + drill-down a movimientos con filtros (Vista 2) | CuentaMcbViewSet + MovimientoCajaBancoViewSet (/eliminados/) |
+| Pago a prestadores | PagoPrestadorPage — tabla con filtros médico/estado/fecha; modal 2 pestañas (bloques con selección masiva + forma de pago); buscador médico con debounce; cálculo en tiempo real (horas × monto_hora); indicador de cobertura | PagoPrestadorViewSet (/bloques-pendientes/, /siguiente-numero/); campos `pagado_prestador` y `pago_prestador` FK en Agenda (migración 0003); `PagoPrestadorDetCobranza.id` → `MovimientoCajaBanco.ppdc_id` |
+| Cobranzas | CobranzasPage — tabla con filtros fecha/cliente; modal emisión 2 pestañas (Cabecera+cuotas / Valores recibidos); autocomplete persona; cuotas vencidas resaltadas; vuelto en tiempo real; modal ver detalle + eliminar | CobranzaViewSet (/siguiente-numero/, /cuotas-pendientes/) — actualiza saldo CtaCobrar, genera MovimientoCajaBanco |
+| Facturación / Ventas | FacturacionPage — modal emisión 3 pestañas (Cabecera+Detalle / Cobranza / Cuotas), autocomplete persona/producto con teclado, cálculo IVA en tiempo real, validación timbrado; tabla con botones Editar/Imprimir/Eliminar por fila; `ModalVerFactura` para ver/editar/eliminar con modo edición inline (fecha, persona, observación) | VentaFactCabViewSet (/validar-timbrado/, /siguiente-numero/) + services.py con cálculo Decimal SET Paraguay; `VentaFactCab` guarda `establecimiento` y `expedicion` (migración 0002) para número formateado independiente del timbrado |
+| Usuarios y Roles | UsuariosPage — tabla con filtros rol/activo/search; modal crear (username+password+rol+prestador+médico asignado) y editar; modal resetear contraseña; toggle activar/desactivar; campo médico asignado visible solo cuando rol=secretaria_medico | `PerfilUsuario` OneToOne → User; `medico_asignado` FK → PersonaRRHH (secretaria asignada a un médico); signal post_save crea perfil; JWT incluye `rol`, `nombre`, `iniciales`, `activo`, `persona_rrhh_id`, `medico_asignado_id`; `AuthContext` decodifica claims del token |
 
 ### En progreso ⚠️
 | Módulo | Estado |
 |---|---|
 | Dashboard | `Dashboard.jsx` existe pero no está conectado al router |
+| ConsultasPage | Funcional pero con mejoras pendientes (ver sección abajo) |
 
 ### Pendiente ❌
 | Módulo | Notas |
 |---|---|
-| Agenda / Recordatorios | Solo en sidebar, sin ruta ni página |
-| Agenda / Recordatorios | Solo en sidebar (`/agenda/recordatorios`), sin ruta ni página |
-| Consulta médica | Solo en sidebar, sin ruta ni página |
-| Documentos digitalizados | Solo en sidebar, sin ruta ni página |
+| Agenda / Recordatorios | ✅ Implementado — `/agenda/recordatorios` |
+| Consulta médica | ✅ Implementado — `/consultas` |
+| Documentos digitalizados | ✅ Implementado — integrado en ConsultasPage + módulo propio `/pacientes/documentos` |
 | Tipo doc. digitalizado | Solo en sidebar, sin ruta ni página |
-| Facturación / Ventas | Solo en sidebar, sin ruta ni página |
-| Facturación / Timbrado | Solo en sidebar, sin ruta ni página |
+| Facturación / Ventas | ✅ Implementado — `/facturacion/ventas` |
+| Facturación / Timbrado | ✅ Implementado — `/facturacion/timbrado` |
+| Facturación / Grupos y Productos | ✅ Implementado — `/facturacion/grupos` |
+| Finanzas / Cuentas Caja/Banco | ✅ Implementado — `/finanzas/cuentas` |
 | Facturación / Caja | Solo en sidebar, sin ruta ni página |
 | Facturación / Cobranzas | Solo en sidebar, sin ruta ni página |
-| Gestión de usuarios | `apps/users/` en INSTALLED_APPS sin implementación |
+| Anulación de facturas | Endpoint + UI para anular VentaFactCab (reverso de movimientos, estado=anulado) |
+| Impresión / PDF de facturas | ✅ Implementado — `GET /api/facturacion/{id}/pdf/` — WeasyPrint, plantilla SET Paraguay |
+| Módulo de cobranzas | ✅ Implementado — `/finanzas/cobranzas` |
+| Módulo de pagos a prestadores | ✅ Implementado — `/finanzas/pago-prestador` |
 | Informes | Solo en sidebar, sin ruta ni página |
-| Roles y permisos reales | `user?.rol` siempre retorna `'admin'` — AuthContext no guarda el rol |
 | Pagos | Ruta `/pagos` con placeholder |
 
 ---
@@ -520,6 +675,45 @@ Núcleo del sistema. Requiere RRHH completo. FK a Paciente, Prestador, Consultor
 
 ### Paso 5 — Consulta médica / Historia clínica
 Depende de Agenda.
+
+### Integración real de notificaciones (pendiente)
+El endpoint `POST /api/recordatorios/notificar/` ya existe y registra en DB con `estado=pendiente`.
+Para activar envío real, agregar la lógica en `apps/notificaciones/views.py` antes del `return Response(...)`.
+El frontend **no cambia** — el modal y los hooks ya están implementados.
+
+#### Email — Resend
+- Servicio: **Resend** (https://resend.com) — opción gratuita disponible, SDK Python simple.
+- Instalar: `pip install resend`
+- Variables a agregar en `.env`: `RESEND_API_KEY=re_xxxxx`, `EMAIL_FROM=noreply@clinicalichi.com`
+- Lógica a agregar en `notificar()`:
+  ```python
+  import resend
+  resend.api_key = settings.RESEND_API_KEY
+  try:
+      resend.Emails.send({ "from": settings.EMAIL_FROM, "to": destinatario, "subject": "Recordatorio - Clínica Lichi", "text": mensaje })
+      notif.estado = 'enviado'
+  except Exception:
+      notif.estado = 'fallido'
+  notif.fecha_envio = timezone.now()
+  notif.save()
+  ```
+
+#### WhatsApp — Twilio
+- Servicio: **Twilio** (https://twilio.com/whatsapp) — opción de paga, sandbox gratuito para pruebas.
+- Instalar: `pip install twilio`
+- Variables a agregar en `.env`: `TWILIO_ACCOUNT_SID=`, `TWILIO_AUTH_TOKEN=`, `TWILIO_WHATSAPP_FROM=whatsapp:+14155238886`
+- Lógica a agregar en `notificar()`:
+  ```python
+  from twilio.rest import Client
+  client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+  try:
+      client.messages.create(body=mensaje, from_=settings.TWILIO_WHATSAPP_FROM, to=f'whatsapp:{destinatario}')
+      notif.estado = 'enviado'
+  except Exception:
+      notif.estado = 'fallido'
+  notif.fecha_envio = timezone.now()
+  notif.save()
+  ```
 
 ### Paso 6 — Documentos digitalizados
 Panel en perfil del paciente. Depende de Consulta y TipoDocDigital.
@@ -555,7 +749,7 @@ Depende de todos los módulos anteriores.
 | 7 | `components/paciente/FormPaciente.jsx:72` | `console.log('form.responsable:', form.responsable)` — debug sin limpiar. ✅ eliminado |
 | 8 | — | CSS `.con-*` y `.panel-*` duplicado corregido. `ConsultorioPage`, `EspecialidadPage` y `EventoClinicoPage` migrados a `<PanelSimple>` ✅ |
 | 9 | — | Todos los viewsets filtran `is_deleted=False` ✅ |
-| 10 | `Sidebar.jsx` | `user?.rol \|\| 'admin'` — AuthContext solo guarda el token, no el rol. Siempre retorna `'admin'`. |
+| 10 | `Sidebar.jsx` | `user?.rol \|\| 'admin'` — AuthContext solo guarda el token, no el rol. ✅ Corregido — `AuthContext` ahora decodifica JWT y expone `rol`, `nombre`, `iniciales`, `persona_rrhh_id`. |
 | 11 | `pages/Dashboard.jsx` | Existe pero sin ruta en `App.jsx`. Inaccesible. |
 | 12 | `apps/appointments/urls.py` | Router vacío. Sin modelos, serializers ni views. |
 
@@ -569,6 +763,40 @@ Depende de todos los módulos anteriores.
 | `<Toast />` | `components/ui/Toast.jsx` | ✅ Creado — en uso en ConsultorioPage |
 | `useToast()` | `hooks/useToast.js` | ✅ Creado — en uso en ConsultorioPage |
 | `<ConfirmDialog />` | `components/ui/ConfirmDialog.jsx` | ❌ Pendiente — reemplaza `window.confirm()` |
+
+---
+
+## Mejoras Pendientes — ConsultasPage (próxima sesión)
+
+Estas mejoras fueron acordadas con el usuario y deben implementarse juntas en la siguiente sesión dedicada a ConsultasPage. No modificar el resto del sistema al implementarlas.
+
+### 1 — Subida de documentos ✅ corregido
+- **Causa raíz**: `apiClient` tiene `Content-Type: application/json` por defecto. Axios detecta FormData + application/json y convierte el archivo a JSON (`{}`), que el servidor rechaza.
+- **Fix**: `useSubirDocumento` ahora usa `fetch` nativo (sin Content-Type → browser pone `multipart/form-data; boundary=...` automáticamente).
+- **Archivo**: `hooks/useDocumentos.js`
+
+### 2 — Próxima cita → módulo de Recordatorios
+- El campo `proxima_cita` (fecha) ya existe en el modelo `Consulta` y se guarda desde `PanelConsultaActiva`.
+- En el futuro módulo de Recordatorios, se debe usar `proxima_cita` para generar recordatorios automáticos.
+- Las "últimas consultas" del historial también alimentarán ese módulo.
+- **No hacer nada en este punto ahora** — solo tenerlo en cuenta al diseñar Recordatorios.
+
+### 3 — Datos clínicos del paciente visibles durante la consulta ✅ implementado
+- **Backend**: `ConsultaPacienteSerializer` ampliado con `grupo_sanguineo`, `alergias_conocidas`, `enfermedades_cronicas`, `responsable_nombre`, `responsable_telefono`.
+- `ConsultaViewSet.get_queryset` agrega `select_related('agenda__paciente__responsable__persona')`.
+- **Frontend**: sección "Datos clínicos" en columna izquierda de `PanelConsultaActiva`. Alergias en amarillo/naranja de advertencia. Tipo de sangre como badge rojo. Responsable con link `tel:` al teléfono. Campos vacíos muestran "No registrados" en gris.
+
+### 5 — Finalizar consulta de días anteriores (PENDIENTE)
+- **Problema**: `VistaMedico` y `VistaRecepcionista` solo muestran turnos del día actual (`fechaLocal()`). Si una consulta quedó `en_consulta` sin finalizar el día anterior, no aparece en ninguna vista y no puede finalizarse.
+- **Solución propuesta**: agregar un filtro de fecha a `VistaMedico` (no solo "hoy") o una vista separada "Consultas pendientes" que liste consultas con `estado=en_consulta` sin filtro de fecha. El endpoint ya soporta filtrado por `estado` sin `fecha`.
+- **Prioridad**: media — no bloquea el flujo normal del día.
+
+### 4 — Botón Historia Clínica en la consulta activa
+- Agregar un botón "Historia Clínica" en `PanelConsultaActiva`.
+- Al hacer clic, abrir un `<Modal size="xl">` que liste las consultas previas del paciente (`useConsultasPaciente(pacienteId)`).
+- Al hacer clic sobre una consulta de la lista, mostrar el detalle completo **en modo solo lectura** (sin posibilidad de editar).
+- Las "Últimas consultas" en la vista actual del panel pueden mantenerse como resumen rápido; el modal es la vista completa.
+- Componente sugerido: `ModalHistoriaClinica` dentro de `ConsultasPage.jsx` (función interna) usando `<Modal>` de `components/ui/Modal.jsx`.
 
 ---
 
@@ -599,4 +827,24 @@ Al completar un módulo nuevo, actualizar este archivo reflejando:
 - Bugs o deuda técnica nueva detectada
 - Cualquier patrón nuevo que difiera de los documentados aquí
 
-_Clínica Lichi — CLAUDE.md · Versión 2.8 · Abril 2026_
+## Arquitectura JWT — Claims del token
+
+El token JWT incluye los siguientes campos custom (además de los estándar de simplejwt):
+
+| Campo | Tipo | Fuente |
+|---|---|---|
+| `rol` | string | `PerfilUsuario.rol` |
+| `nombre` | string | `PerfilUsuario.nombre_completo` (first+last name, o username si vacío) |
+| `iniciales` | string | `PerfilUsuario.iniciales` (primeras 2 letras del nombre completo) |
+| `activo` | bool | `PerfilUsuario.activo` |
+| `persona_rrhh_id` | int\|null | `PerfilUsuario.persona_rrhh_id` |
+
+`AuthContext.jsx` decodifica el payload del JWT (sin librería externa — base64 manual) y expone todos estos campos en `user`. El Sidebar lee `user.rol` para filtrar el menú según el rol.
+
+Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`.
+
+## Notas sobre BuscadorMedico (PagoPrestadorPage)
+
+`PersonaRRHHListSerializer` retorna campos planos `nombre` (→ `persona.razon_social`) y `documento` (→ `persona.nro_documento`). El BuscadorMedico usa `m.nombre` y `m.documento` directamente — **no** `m.persona?.razon_social` ni `m.persona?.nro_documento`.
+
+_Clínica Lichi — CLAUDE.md · Versión 3.8 · Abril 2026_

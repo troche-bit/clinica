@@ -86,6 +86,14 @@ class PersonaRRHH(BaseModel):
         help_text="Estado del prestador",
     )
 
+    honorario = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Monto de honorario referencial del prestador",
+    )
+
     observacion = models.TextField(
         blank=True,
         null=True,

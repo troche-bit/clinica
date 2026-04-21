@@ -1,0 +1,261 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+/* ── Layout factura ─────────────────────────────── */
+.fac-wrap       { width: 100%; }
+
+/* Header */
+.hdr            { display: table; width: 100%; border-bottom: 2px solid #000; padding-bottom: 6pt; margin-bottom: 6pt; }
+.hdr-left       { display: table-cell; width: 60%; vertical-align: top; }
+.hdr-right      { display: table-cell; width: 40%; vertical-align: top; text-align: right; }
+.clinica-nombre { font-size: 13pt; font-weight: bold; text-transform: uppercase; }
+.clinica-sub    { font-size: 8pt; color: #333; margin-top: 2pt; }
+.timbrado-box   { border: 1.5px solid #000; display: inline-block; padding: 5pt 8pt; text-align: center; min-width: 160pt; }
+.timbrado-titulo { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .05em; color: #555; }
+.timbrado-nro   { font-size: 10pt; font-weight: bold; font-family: 'Courier New', monospace; margin: 2pt 0; }
+.timbrado-vig   { font-size: 7.5pt; color: #444; }
+.nro-comprobante { font-size: 14pt; font-weight: bold; font-family: 'Courier New', monospace; margin-top: 5pt; }
+
+/* Tipo de comprobante */
+.tipo-comprobante { text-align: center; font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: .12em; padding: 5pt 0; border-bottom: 1px solid #000; margin-bottom: 5pt; }
+
+/* Condición */
+.condicion-row  { display: table; width: 100%; margin-bottom: 5pt; font-size: 9pt; }
+.condicion-left { display: table-cell; vertical-align: middle; }
+.condicion-fecha { display: table-cell; vertical-align: middle; text-align: right; font-size: 9pt; }
+.chk            { display: inline-block; width: 10pt; height: 10pt; border: 1px solid #000; margin-right: 3pt; vertical-align: middle; text-align: center; font-size: 8pt; line-height: 10pt; }
+.chk-lbl        { vertical-align: middle; margin-right: 14pt; }
+
+/* Datos cliente */
+.cliente-box    { border: 1px solid #000; padding: 5pt 8pt; margin-bottom: 6pt; }
+.cliente-row    { display: table; width: 100%; margin-bottom: 3pt; }
+.cliente-lbl    { display: table-cell; width: 70pt; font-weight: bold; font-size: 8.5pt; }
+.cliente-val    { display: table-cell; border-bottom: 1px dotted #888; padding-bottom: 1pt; font-size: 9pt; }
+.cliente-mid    { display: table-cell; width: 60pt; font-weight: bold; font-size: 8.5pt; padding-left: 12pt; }
+
+/* Tabla detalle */
+.det-table      { margin-bottom: 4pt; }
+.det-table th   { background: #f0f0f0; font-size: 8pt; text-transform: uppercase; border: 1px solid #bbb; font-weight: bold; padding: 3pt 5pt; }
+.det-table td   { border: 1px solid #ccc; font-size: 9pt; padding: 3pt 5pt; }
+.det-table .fila-vacia td { border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-top: none; border-bottom: none; color: transparent; font-size: 8pt; }
+.col-cant       { width: 8%; text-align: center; }
+.col-desc       { width: 48%; }
+.col-precio     { width: 15%; text-align: right; }
+.col-iva        { width: 8%; text-align: center; }
+.col-total      { width: 15%; text-align: right; font-weight: bold; }
+.col-exenta     { width: 6%; text-align: center; }
+
+/* Liquidación IVA */
+.liq-wrap       { display: table; width: 100%; margin-bottom: 5pt; border: 1px solid #000; }
+.liq-titulo     { background: #e8e8e8; font-weight: bold; font-size: 8pt; text-transform: uppercase; padding: 3pt 8pt; border-bottom: 1px solid #000; letter-spacing: .05em; }
+.liq-grid       { display: table-row; }
+.liq-cell       { display: table-cell; width: 33.33%; padding: 4pt 8pt; vertical-align: top; }
+.liq-cell + .liq-cell { border-left: 1px solid #ccc; }
+.liq-item       { display: table; width: 100%; margin-bottom: 2pt; }
+.liq-lbl        { display: table-cell; font-size: 8pt; }
+.liq-val        { display: table-cell; text-align: right; font-family: 'Courier New', monospace; font-size: 8.5pt; font-weight: bold; }
+
+/* Totales */
+.totales-wrap   { display: table; width: 100%; margin-bottom: 8pt; }
+.totales-left   { display: table-cell; width: 55%; vertical-align: top; }
+.totales-right  { display: table-cell; width: 45%; vertical-align: top; }
+.total-row      { display: table; width: 100%; border-bottom: 1px dotted #ccc; margin-bottom: 2pt; padding-bottom: 2pt; }
+.total-lbl      { display: table-cell; font-size: 8.5pt; }
+.total-val      { display: table-cell; text-align: right; font-family: 'Courier New', monospace; font-size: 9pt; }
+.total-general  { background: #000; color: #fff; padding: 5pt 8pt; display: table; width: 100%; margin-top: 4pt; }
+.tg-lbl         { display: table-cell; font-weight: bold; font-size: 10pt; }
+.tg-val         { display: table-cell; text-align: right; font-family: 'Courier New', monospace; font-size: 11pt; font-weight: bold; }
+
+/* Pie */
+.obs-row        { margin-bottom: 16pt; }
+.obs-lbl        { font-weight: bold; font-size: 8.5pt; }
+.obs-val        { border-bottom: 1px solid #888; min-height: 14pt; display: block; margin-top: 3pt; font-size: 9pt; }
+.firma-row      { display: table; width: 100%; margin-bottom: 6pt; }
+.firma-cell     { display: table-cell; width: 45%; text-align: center; }
+.firma-linea    { border-top: 1px solid #000; padding-top: 3pt; font-size: 8pt; }
+.pie-legal      { text-align: center; font-size: 7pt; color: #555; border-top: 1px solid #ccc; padding-top: 5pt; margin-top: 8pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="fac-wrap">
+
+  {# ── Header ──────────────────────────────────────────── #}
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="clinica-nombre">Clínica Lichi</div>
+      <div class="clinica-sub">RUC: {{ factura.persona.nro_documento }} &nbsp;|&nbsp; Asunción, Paraguay</div>
+      <div class="clinica-sub" style="margin-top:3pt;">Tel: (021) 000-0000</div>
+    </div>
+    <div class="hdr-right">
+      <div class="timbrado-box">
+        <div class="timbrado-titulo">Timbrado N°</div>
+        <div class="timbrado-nro">{{ factura.timbrado.nro_timbrado }}</div>
+        <div class="timbrado-vig small">
+          Vigencia: {{ factura.timbrado.inicio_vigencia|date:"d/m/Y" }} al {{ factura.timbrado.fin_vigencia|date:"d/m/Y" }}
+        </div>
+      </div>
+      <div class="nro-comprobante">{{ nro_formateado }}</div>
+    </div>
+  </div>
+
+  {# ── Tipo de comprobante ──────────────────────────────── #}
+  <div class="tipo-comprobante">Factura</div>
+
+  {# ── Condición de venta ───────────────────────────────── #}
+  <div class="condicion-row">
+    <div class="condicion-left">
+      <span class="bold" style="margin-right:8pt;">Condición de venta:</span>
+      <span class="chk-lbl">
+        <span class="chk">{% if factura.condicion_vta %}✓{% endif %}</span>Contado
+      </span>
+      <span class="chk-lbl">
+        <span class="chk">{% if not factura.condicion_vta %}✓{% endif %}</span>Crédito
+      </span>
+    </div>
+    <div class="condicion-fecha">
+      <span class="bold">Fecha:</span> {{ factura.fecha|date:"d/m/Y" }}
+    </div>
+  </div>
+
+  {# ── Datos del cliente ────────────────────────────────── #}
+  <div class="cliente-box">
+    <div class="cliente-row">
+      <span class="cliente-lbl">Señor(es):</span>
+      <span class="cliente-val upper bold">{{ factura.persona.razon_social }}</span>
+    </div>
+    <div class="cliente-row" style="margin-top:3pt;">
+      <span class="cliente-lbl">RUC / CI:</span>
+      <span class="cliente-val mono">{{ factura.persona.nro_documento }}</span>
+      <span class="cliente-mid">Dirección:</span>
+      <span class="cliente-val">{{ factura.persona.direccion|default:"—" }}</span>
+    </div>
+  </div>
+
+  {# ── Tabla de detalle ─────────────────────────────────── #}
+  <table class="det-table">
+    <thead>
+      <tr>
+        <th class="col-cant">Cant.</th>
+        <th class="col-desc">Descripción</th>
+        <th class="col-precio">P. Unitario</th>
+        <th class="col-iva">IVA</th>
+        <th class="col-exenta">Exenta</th>
+        <th class="col-total">Total Gs.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in detalle %}
+      <tr>
+        <td class="col-cant center">{{ item.cantidad|floatformat:0 }}</td>
+        <td class="col-desc">{{ item.prs.descripcion }}</td>
+        <td class="col-precio right mono">{{ item.precio_unitario|gs }}</td>
+        <td class="col-iva center">
+          {% if item.impuesto == "exenta" %}Exenta{% else %}{{ item.impuesto }}%{% endif %}
+        </td>
+        <td class="col-exenta center">{% if item.impuesto == "exenta" %}X{% endif %}</td>
+        <td class="col-total right mono">{{ item.monto|gs }}</td>
+      </tr>
+      {% endfor %}
+      {# Filas vacías hasta completar mínimo 8 visibles #}
+      {% for i in filas_vacias %}
+      <tr class="fila-vacia">
+        <td class="col-cant">&nbsp;</td>
+        <td class="col-desc">&nbsp;</td>
+        <td class="col-precio">&nbsp;</td>
+        <td class="col-iva">&nbsp;</td>
+        <td class="col-exenta">&nbsp;</td>
+        <td class="col-total">&nbsp;</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# ── Liquidación IVA ──────────────────────────────────── #}
+  <div class="liq-wrap">
+    <div class="liq-titulo">Liquidación del IVA</div>
+    <div class="liq-grid">
+      <div class="liq-cell">
+        <div class="liq-item">
+          <span class="liq-lbl">Gravada 10%:</span>
+          <span class="liq-val">{{ factura.grav_10|gs }}</span>
+        </div>
+        <div class="liq-item">
+          <span class="liq-lbl">Gravada 5%:</span>
+          <span class="liq-val">{{ factura.grav_5|gs }}</span>
+        </div>
+        <div class="liq-item">
+          <span class="liq-lbl">Exenta:</span>
+          <span class="liq-val">
+            {{ factura.monto_total|minus:factura.total_gravada|gs }}
+          </span>
+        </div>
+      </div>
+      <div class="liq-cell">
+        <div class="liq-item">
+          <span class="liq-lbl">IVA 10%:</span>
+          <span class="liq-val">{{ factura.iva_10|gs }}</span>
+        </div>
+        <div class="liq-item">
+          <span class="liq-lbl">IVA 5%:</span>
+          <span class="liq-val">{{ factura.iva_5|gs }}</span>
+        </div>
+      </div>
+      <div class="liq-cell">
+        <div class="liq-item">
+          <span class="liq-lbl">Total IVA:</span>
+          <span class="liq-val">{{ factura.total_iva|gs }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Totales ──────────────────────────────────────────── #}
+  <div class="totales-wrap">
+    <div class="totales-left">
+      {% if factura.observacion %}
+      <div class="obs-row">
+        <span class="obs-lbl">Observación:</span>
+        <span class="obs-val">{{ factura.observacion }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="totales-right">
+      {% if factura.grav_10 %}
+      <div class="total-row">
+        <span class="total-lbl">Subtotal gravada 10%:</span>
+        <span class="total-val">{{ factura.grav_10|gs }}</span>
+      </div>
+      {% endif %}
+      {% if factura.grav_5 %}
+      <div class="total-row">
+        <span class="total-lbl">Subtotal gravada 5%:</span>
+        <span class="total-val">{{ factura.grav_5|gs }}</span>
+      </div>
+      {% endif %}
+      <div class="total-general">
+        <span class="tg-lbl">TOTAL GENERAL</span>
+        <span class="tg-val">Gs. {{ factura.monto_total|gs }}</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Firma ────────────────────────────────────────────── #}
+  <div class="firma-row">
+    <div class="firma-cell">
+      <div class="firma-linea">Firma del cliente</div>
+    </div>
+    <div class="firma-cell"></div>
+    <div class="firma-cell">
+      <div class="firma-linea">Aclaración</div>
+    </div>
+  </div>
+
+  {# ── Pie legal ────────────────────────────────────────── #}
+  <div class="pie-legal">
+    Resolución Gral. N° 22/2014 — SET — Ministerio de Hacienda · República del Paraguay<br>
+    Documento válido como comprobante de pago. Conserve este comprobante.
+  </div>
+
+</div>
+{% endblock %}

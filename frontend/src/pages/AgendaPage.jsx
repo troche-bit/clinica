@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Search, Calendar, X, Check, CalendarDays } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '../api/client'
@@ -126,9 +127,19 @@ function usePacienteSearch(q) {
 // ── Componente principal ─────────────────────────────────────────────────────
 export default function AgendaPage() {
   const hoy = new Date()
-  const [mesVista, setMesVista] = useState({ mes: hoy.getMonth() + 1, anio: hoy.getFullYear() })
+  const [searchParams] = useSearchParams()
+
+  const fechaParam = searchParams.get('fecha')  // 'YYYY-MM-DD' desde recordatorios
+
+  const [mesVista, setMesVista] = useState(() => {
+    if (fechaParam) {
+      const d = new Date(fechaParam + 'T00:00:00')
+      return { mes: d.getMonth() + 1, anio: d.getFullYear() }
+    }
+    return { mes: hoy.getMonth() + 1, anio: hoy.getFullYear() }
+  })
   const [medicoSel, setMedicoSel]       = useState(null)
-  const [fechaSel,  setFechaSel]        = useState(null)         // 'YYYY-MM-DD'
+  const [fechaSel,  setFechaSel]        = useState(fechaParam || null)  // pre-seleccionada si viene de recordatorios
   const [modo,      setModo]            = useState('todos')      // todos|fecha|especialidad
   const [filtroFecha,    setFiltroFecha]    = useState('')
   const [filtroEsp,      setFiltroEsp]      = useState('')

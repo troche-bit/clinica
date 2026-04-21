@@ -4,14 +4,15 @@ import {
   Users, Calendar, FileText, DollarSign, BarChart2,
   Settings, ChevronLeft, ChevronRight, LogOut,
   ChevronDown, ChevronUp, UserCheck, Stethoscope,
-  Building2, MapPin, UserCog
+  Building2, MapPin, UserCog, Wallet
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const PERMISOS = {
-  admin:          ['pacientes', 'agenda', 'consultas', 'facturacion', 'rrhh', 'informes', 'mantenimiento'],
-  recepcionista:  ['pacientes', 'agenda', 'facturacion', 'informes'],
-  medico:         ['pacientes', 'agenda', 'consultas', 'informes'],
+  admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'usuarios', 'mantenimiento'],
+  recepcionista:     ['pacientes', 'agenda', 'facturacion', 'finanzas', 'informes'],
+  medico:            ['pacientes', 'agenda', 'consultas', 'informes'],
+  secretaria_medico: ['pacientes', 'agenda', 'consultas', 'informes'],
 }
 
 const MENU = [
@@ -54,13 +55,22 @@ const MENU = [
     items: [
       {
         id: 'facturacion',
-        label: 'Facturación y Finanzas',
+        label: 'Facturación',
         icon: DollarSign,
         sub: [
           { to: '/facturacion/ventas',      label: 'Ventas / Facturas' },
+          { to: '/facturacion/grupos',      label: 'Grupos y Productos' },
           { to: '/facturacion/timbrado',    label: 'Config. timbrado' },
-          { to: '/facturacion/caja',        label: 'Caja y bancos' },
-          { to: '/facturacion/cobranzas',   label: 'Cobranzas y pagos' },
+        ],
+      },
+      {
+        id: 'finanzas',
+        label: 'Finanzas',
+        icon: Wallet,
+        sub: [
+          { to: '/finanzas/cuentas',         label: 'Cuentas Caja/Banco' },
+          { to: '/finanzas/cobranzas',       label: 'Cobranzas' },
+          { to: '/finanzas/pago-prestador',  label: 'Pago a prestadores' },
         ],
       },
       {
@@ -86,6 +96,14 @@ const MENU = [
   {
     section: 'Sistema',
     items: [
+      {
+        id: 'usuarios',
+        label: 'Usuarios',
+        icon: UserCog,
+        sub: [
+          { to: '/sistema/usuarios', label: 'Gestión de usuarios' },
+        ],
+      },
       {
         id: 'mantenimiento',
         label: 'Mantenimiento',
@@ -431,9 +449,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         {/* Footer */}
         <div className="sb-footer">
           <div className="sb-user">
-            <div className="sb-avatar">{iniciales(user?.username || user?.nombre)}</div>
+            <div className="sb-avatar">{user?.iniciales || iniciales(user?.nombre || user?.username)}</div>
             <div className="sb-user-info">
-              <div className="sb-user-name">{user?.username || 'Usuario'}</div>
+              <div className="sb-user-name">{user?.nombre || user?.username || 'Usuario'}</div>
               <div className="sb-user-rol">{rol}</div>
             </div>
           </div>

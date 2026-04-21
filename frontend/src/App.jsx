@@ -13,6 +13,16 @@ import TipoDocDigPage from './pages/TipoDocDigPage'
 import PersonaRRHHPage from './pages/PersonaRRHHPage'
 import HorarioPrestadorPage from './pages/HorarioPrestadorPage'
 import AgendaPage from './pages/AgendaPage'
+import ConsultasPage from './pages/ConsultasPage'
+import DocumentosPage from './pages/DocumentosPage'
+import RecordatoriosPage from './pages/RecordatoriosPage'
+import TimbradoPage from './pages/TimbradoPage'
+import GruposPage from './pages/GruposPage'
+import CuentasMcbPage from './pages/CuentasMcbPage'
+import FacturacionPage from './pages/FacturacionPage'
+import CobranzasPage from './pages/CobranzasPage'
+import PagoPrestadorPage from './pages/PagoPrestadorPage'
+import UsuariosPage from './pages/UsuariosPage'
 
 export default function App() {
   return (
@@ -147,6 +157,126 @@ export default function App() {
             <PrivateRoute>
               <Layout>
                 <AgendaPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para consultas médicas */}
+        <Route
+          path="/consultas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <ConsultasPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para recordatorios */}
+        <Route
+          path="/agenda/recordatorios"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <RecordatoriosPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para documentos digitalizados */}
+        <Route
+          path="/pacientes/documentos"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DocumentosPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para cuentas caja/banco */}
+        <Route
+          path="/finanzas/cuentas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <CuentasMcbPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para cobranzas */}
+        <Route
+          path="/finanzas/cobranzas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <CobranzasPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para pago a prestadores */}
+        <Route
+          path="/finanzas/pago-prestador"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <PagoPrestadorPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para grupos y productos */}
+        <Route
+          path="/facturacion/grupos"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <GruposPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para facturación / ventas */}
+        <Route
+          path="/facturacion/ventas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <FacturacionPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para timbrado */}
+        <Route
+          path="/facturacion/timbrado"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <TimbradoPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para gestión de usuarios */}
+        <Route
+          path="/sistema/usuarios"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <UsuariosPage />
               </Layout>
             </PrivateRoute>
           }

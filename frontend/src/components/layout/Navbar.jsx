@@ -12,8 +12,6 @@ const BREADCRUMBS = {
   '/consultas/eventos':           ['Consultas', 'Evento clínico'],
   '/facturacion/ventas':          ['Facturación', 'Ventas / Facturas'],
   '/facturacion/timbrado':        ['Facturación', 'Config. timbrado'],
-  '/facturacion/caja':            ['Facturación', 'Caja y bancos'],
-  '/facturacion/cobranzas':       ['Facturación', 'Cobranzas y pagos'],
   '/rrhh/personas':               ['RRHH', 'Persona RRHH'],
   '/rrhh/especialidades':         ['RRHH', 'Especialidades'],
   '/informes/modulos':            ['Informes', 'Por módulo'],

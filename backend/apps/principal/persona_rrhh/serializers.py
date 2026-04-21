@@ -20,6 +20,7 @@ class PersonaRRHHSerializer(serializers.ModelSerializer):
             "cargo",
             "tipo_contrato",
             "estado",
+            "honorario",
             "observacion",
         ]
         read_only_fields = ["fecha_creacion", "fecha_modificacion"]
@@ -47,6 +48,7 @@ class PersonaRRHHListSerializer(serializers.ModelSerializer):
             "cargo",
             "tipo_contrato",
             "estado",
+            "honorario",
             "observacion",
             "persona_detalle",
         ]

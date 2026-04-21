@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'apps.principal.paciente_responsable',
     'apps.principal.paciente',
     'apps.diasemana',
+    'apps.forma_pago',
     # Módulos de administración agrupados bajo apps.administracion/
     'apps.administracion.consultorio',
     'apps.administracion.especialidad',
@@ -37,8 +38,20 @@ INSTALLED_APPS = [
     'apps.principal.persona_rrhh',
     'apps.principal.horario_prestador',
     'apps.principal.agenda',
+    # Módulos clínicos
+    'apps.principal.consultas',
+    'apps.principal.documentos',
+    # Módulos de notificaciones
+    'apps.notificaciones',
+    # Módulos de mantenimiento del sistema
+    'apps.principal.caja_banco',
+    'apps.principal.facturacion',
+    'apps.principal.cobranzas',
+    'apps.principal.pago_prestador',
     # Módulos de mantenimiento del sistema
     'apps.mantenimiento.tipo_doc_dig',
+    'apps.mantenimiento.timbrado',
+    'apps.mantenimiento.productos',
 ]
  
 MIDDLEWARE = [

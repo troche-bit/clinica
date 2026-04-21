@@ -160,6 +160,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
     cargo:            '',
     tipo_contrato:    '',
     estado:           'activo',
+    honorario:        '',
     observacion:      '',
     especialidades:   [],
   })
@@ -173,6 +174,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
         cargo:            prestador.cargo             ?? '',
         tipo_contrato:    prestador.tipo_contrato     ?? '',
         estado:           prestador.estado            ?? 'activo',
+        honorario:        prestador.honorario         ?? '',
         observacion:      prestador.observacion       ?? '',
         especialidades:   (prestador.especialidades   ?? []).map(e => typeof e === 'object' ? e.id : e),
       })
@@ -318,6 +320,19 @@ export default function FormRRHH({ prestador = null, onChange }) {
             onChange={(ids) => set('especialidades', ids)}
           />
           <span className="se-hint">↓ / ↑ navegar · Enter seleccionar · Backspace quitar último</span>
+        </div>
+
+        <div className="fr-group">
+          <label className="fr-label">Honorario referencial</label>
+          <input
+            type="number"
+            min="0"
+            step="1000"
+            className="fr-input"
+            placeholder="Ej: 500000"
+            value={form.honorario}
+            onChange={e => set('honorario', e.target.value)}
+          />
         </div>
 
         <div className="fr-group-full">
