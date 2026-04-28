@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from apps.forma_pago.models import FormaPago
 from apps.principal.caja_banco.models import CuentaMcb, MovimientoCajaBanco
 from apps.principal.agenda.models import Agenda
-from apps.principal.persona_rrhh.models import PersonaRRHH
+from apps.administracion.persona_rrhh.models import PersonaRRHH
 
 from .models import PagoPrestador, PagoPrestadorDetCobranza
 from .serializers import (

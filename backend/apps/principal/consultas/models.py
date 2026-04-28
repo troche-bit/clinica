@@ -1,7 +1,7 @@
 from django.db import models
 from apps.core.models import BaseModel
 from apps.principal.agenda.models import Agenda
-from apps.principal.eventoclinico.models import EventoClinico
+from apps.clinica.configuracion.eventoclinico.models import EventoClinico
 
 
 class Consulta(BaseModel):

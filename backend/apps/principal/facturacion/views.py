@@ -17,7 +17,7 @@ from apps.mantenimiento.timbrado.models import Timbrado
 from apps.mantenimiento.productos.models import ProductoServicio
 from apps.forma_pago.models import FormaPago
 from apps.principal.caja_banco.models import CuentaMcb, MovimientoCajaBanco
-from apps.persona.models import Persona
+from apps.administracion.persona.models import Persona
 
 from .models import VentaFactCab, VentaFactDet, VentaFactDetCobranza, CtaCobrar
 from .serializers import (

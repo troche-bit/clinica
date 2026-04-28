@@ -82,7 +82,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         if not paciente_id:
             raise ValidationError({'paciente_id': 'Requerido.'})
 
-        from apps.principal.paciente.models import Paciente
+        from apps.clinica.paciente.models import Paciente
         try:
             paciente = Paciente.objects.get(id=paciente_id, is_deleted=False)
         except Paciente.DoesNotExist:

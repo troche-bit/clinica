@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.persona.models import Persona
+from apps.administracion.persona.models import Persona
 from apps.forma_pago.models import FormaPago
 from apps.principal.caja_banco.models import CuentaMcb, MovimientoCajaBanco
 from apps.principal.facturacion.models import CtaCobrar

@@ -1,7 +1,7 @@
 from datetime import datetime
 from django.db import models
 from apps.core.models import BaseModel
-from apps.principal.paciente.models import Paciente
+from apps.clinica.paciente.models import Paciente
 from apps.mantenimiento.tipo_doc_dig.models import TipoDocDigital
 from apps.principal.consultas.models import Consulta
 

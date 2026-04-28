@@ -1,88 +1,10 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight, MapPin } from 'lucide-react'
-import { usePaises, useDepartamentos, useCiudades } from '../hooks/useUbicacion'
-import { useQueryClient, useMutation } from '@tanstack/react-query'
-import apiClient from '../api/client'
+import { usePaises, useDepartamentos, useCiudades, useUbicacionMutations } from '../hooks/useUbicacion'
 import Toast from '../components/ui/Toast'
 import { useToast } from '../hooks/useToast'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 
-// Extrae el primer mensaje de error de una respuesta DRF (400/403/500)
-function extraerMensajeError(err) {
-  const data = err?.response?.data
-  if (!data) return 'Ocurrió un error inesperado.'
-  if (typeof data === 'string') return data
-  const valores = Object.values(data)
-  if (valores.length === 0) return 'Error al guardar.'
-  const primero = valores[0]
-  if (Array.isArray(primero)) return primero[0]
-  if (typeof primero === 'object') {
-    const sub = Object.values(primero)[0]
-    return Array.isArray(sub) ? sub[0] : String(sub)
-  }
-  return String(primero)
-}
-
-// Hook de mutaciones para las tres entidades de ubicación.
-// Recibe showToast para notificar éxito/error directamente desde las mutaciones.
-function useUbicacionMutations(showToast) {
-  const qc = useQueryClient()
-
-  const crearPais = useMutation({
-    mutationFn: (d) => apiClient.post('/pais/', d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['paises'] }); showToast('País creado.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-  const actualizarPais = useMutation({
-    mutationFn: ({ id, ...d }) => apiClient.patch(`/pais/${id}/`, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['paises'] }); showToast('País actualizado.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-  const eliminarPais = useMutation({
-    mutationFn: (id) => apiClient.delete(`/pais/${id}/`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['paises'] }); showToast('País eliminado.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-
-  const crearDepto = useMutation({
-    mutationFn: (d) => apiClient.post('/departamento/', d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); showToast('Departamento creado.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-  const actualizarDepto = useMutation({
-    mutationFn: ({ id, ...d }) => apiClient.patch(`/departamento/${id}/`, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); showToast('Departamento actualizado.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-  const eliminarDepto = useMutation({
-    mutationFn: (id) => apiClient.delete(`/departamento/${id}/`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); showToast('Departamento eliminado.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-
-  const crearCiudad = useMutation({
-    mutationFn: (d) => apiClient.post('/ciudad/', d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ciudades'] }); showToast('Ciudad creada.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-  const actualizarCiudad = useMutation({
-    mutationFn: ({ id, ...d }) => apiClient.patch(`/ciudad/${id}/`, d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ciudades'] }); showToast('Ciudad actualizada.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-  const eliminarCiudad = useMutation({
-    mutationFn: (id) => apiClient.delete(`/ciudad/${id}/`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ciudades'] }); showToast('Ciudad eliminada.', 'success') },
-    onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-  })
-
-  return {
-    crearPais, actualizarPais, eliminarPais,
-    crearDepto, actualizarDepto, eliminarDepto,
-    crearCiudad, actualizarCiudad, eliminarCiudad,
-  }
-}
-
-// Fila editable inline para crear o editar un registro directamente en la tabla
 function FilaEditable({ valor, onGuardar, onCancelar }) {
   const [texto, setTexto] = useState(valor || '')
   return (
@@ -133,7 +55,6 @@ function FilaEditable({ valor, onGuardar, onCancelar }) {
   )
 }
 
-// Componente genérico de tabla para cada nivel de ubicación (País, Departamento, Ciudad)
 function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditandoId, agregando, setAgregando, onGuardar, onActualizar, onEliminar, deshabilitada = false, mensajeDeshabilitada = '', onSeleccionar, seleccionadoId }) {
 
   if (deshabilitada) {
@@ -230,18 +151,14 @@ function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditan
                 <td style={{ padding: '10px 16px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                     <button
-                      onClick={() => setEditandoId(item.id)}
-                      style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#1a3a5c'; e.currentTarget.style.borderColor = '#bfdbfe' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
+                      className="ub-action-btn edit"
+                      onClick={(e) => { e.stopPropagation(); setEditandoId(item.id) }}
                     >
                       <Pencil size={13} />
                     </button>
                     <button
-                      onClick={() => onEliminar(item.id)}
-                      style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fecaca' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
+                      className="ub-action-btn trash"
+                      onClick={(e) => { e.stopPropagation(); onEliminar(item.id) }}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -256,7 +173,6 @@ function TablaUbicacion({ titulo, color, datos, isLoading, editandoId, setEditan
   )
 }
 
-// Página principal de gestión de ubicaciones — jerarquía País → Departamento → Ciudad
 export default function UbicacionesPage() {
   const [paisSeleccionado,  setPaisSeleccionado]  = useState(null)
   const [deptoSeleccionado, setDeptoSeleccionado] = useState(null)
@@ -269,43 +185,82 @@ export default function UbicacionesPage() {
   const [agregandoDepto, setAgregandoDepto] = useState(false)
   const [agregandoCiud,  setAgregandoCiud]  = useState(false)
 
+  const [confirmPendiente, setConfirmPendiente] = useState(null)
+
   const { toast, showToast } = useToast()
 
   const { data: paises,        isLoading: loadPaises } = usePaises()
   const { data: departamentos, isLoading: loadDeptos } = useDepartamentos(paisSeleccionado?.id)
   const { data: ciudades,      isLoading: loadCiuds  } = useCiudades(deptoSeleccionado?.id)
 
-  // Las mutaciones reciben showToast para notificar éxito y error
   const {
     crearPais, actualizarPais, eliminarPais,
     crearDepto, actualizarDepto, eliminarDepto,
     crearCiudad, actualizarCiudad, eliminarCiudad,
   } = useUbicacionMutations(showToast)
 
-  // Al seleccionar un país se resetean departamento y ciudad
   const handleSeleccionarPais = (pais) => {
     setPaisSeleccionado(pais)
     setDeptoSeleccionado(null)
   }
 
+  const confirmarEliminar = () => {
+    const { tipo, id } = confirmPendiente
+    const opciones = {
+      onSuccess: () => {
+        if (tipo === 'pais' && paisSeleccionado?.id === id) handleSeleccionarPais(null)
+        if (tipo === 'depto' && deptoSeleccionado?.id === id) setDeptoSeleccionado(null)
+        setConfirmPendiente(null)
+      },
+    }
+    if (tipo === 'pais') eliminarPais.mutate(id, opciones)
+    else if (tipo === 'depto') eliminarDepto.mutate(id, opciones)
+    else eliminarCiudad.mutate(id, opciones)
+  }
+
   return (
     <>
       <style>{`
-        /* ── UbicacionesPage — layout jerárquico de ubicaciones ── */
         .ub-root { font-family: 'DM Sans', sans-serif; }
         .ub-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
         .ub-title { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
         .ub-subtitle { font-size: 13px; color: #6b7280; }
-        /* Grid responsive de 3 columnas */
         .ub-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
         @media (max-width: 900px) { .ub-grid { grid-template-columns: 1fr; } }
         @media (min-width: 901px) and (max-width: 1100px) { .ub-grid { grid-template-columns: 1fr 1fr; } }
         .ub-arrow { display: none; align-items: center; justify-content: center; color: #d1d5db; }
         @media (min-width: 901px) { .ub-arrow { display: flex; } }
+        .ub-action-btn {
+          width: 28px; height: 28px; border-radius: 7px; border: 1px solid #e8edf2;
+          background: none; cursor: pointer; display: flex; align-items: center;
+          justify-content: center; color: #6b7280;
+        }
+        .ub-action-btn.edit:hover { background: #eff6ff; color: #1a3a5c; border-color: #bfdbfe; }
+        .ub-action-btn.trash:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
       `}</style>
 
-      {/* Notificación flotante */}
       <Toast toast={toast} />
+
+      <ConfirmDialog
+        isOpen={!!confirmPendiente}
+        title={
+          confirmPendiente?.tipo === 'pais'  ? '¿Eliminar este país?' :
+          confirmPendiente?.tipo === 'depto' ? '¿Eliminar este departamento?' :
+                                               '¿Eliminar esta ciudad?'
+        }
+        description={
+          confirmPendiente?.tipo === 'pais'  ? 'Si tiene departamentos vinculados no se podrá eliminar.' :
+          confirmPendiente?.tipo === 'depto' ? 'Si tiene ciudades vinculadas no se podrá eliminar.' :
+                                               'Si tiene personas vinculadas no se podrá eliminar.'
+        }
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmPendiente(null)}
+        loading={
+          confirmPendiente?.tipo === 'pais'  ? eliminarPais.isPending :
+          confirmPendiente?.tipo === 'depto' ? eliminarDepto.isPending :
+                                               eliminarCiudad.isPending
+        }
+      />
 
       <div className="ub-root">
         <div className="ub-header">
@@ -315,7 +270,6 @@ export default function UbicacionesPage() {
           </div>
         </div>
 
-        {/* Breadcrumb de selección activa */}
         {(paisSeleccionado || deptoSeleccionado) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontSize: '13px', color: '#6b7280' }}>
             <MapPin size={13} />
@@ -326,7 +280,6 @@ export default function UbicacionesPage() {
 
         <div className="ub-grid">
 
-          {/* ── PAÍSES ── */}
           <div>
             <TablaUbicacion
               titulo="Países"
@@ -341,16 +294,10 @@ export default function UbicacionesPage() {
               seleccionadoId={paisSeleccionado?.id}
               onGuardar={(desc) => crearPais.mutate({ descripcion: desc })}
               onActualizar={(id, desc) => actualizarPais.mutate({ id, descripcion: desc })}
-              onEliminar={(id) => {
-                if (window.confirm('¿Eliminar este país?')) {
-                  eliminarPais.mutate(id)
-                  if (paisSeleccionado?.id === id) handleSeleccionarPais(null)
-                }
-              }}
+              onEliminar={(id) => setConfirmPendiente({ tipo: 'pais', id })}
             />
           </div>
 
-          {/* ── DEPARTAMENTOS ── */}
           <div>
             <TablaUbicacion
               titulo={paisSeleccionado ? `Departamentos — ${paisSeleccionado.descripcion}` : 'Departamentos'}
@@ -367,16 +314,10 @@ export default function UbicacionesPage() {
               seleccionadoId={deptoSeleccionado?.id}
               onGuardar={(desc) => crearDepto.mutate({ descripcion: desc, pais: paisSeleccionado.id })}
               onActualizar={(id, desc) => actualizarDepto.mutate({ id, descripcion: desc, pais: paisSeleccionado.id })}
-              onEliminar={(id) => {
-                if (window.confirm('¿Eliminar este departamento?')) {
-                  eliminarDepto.mutate(id)
-                  if (deptoSeleccionado?.id === id) setDeptoSeleccionado(null)
-                }
-              }}
+              onEliminar={(id) => setConfirmPendiente({ tipo: 'depto', id })}
             />
           </div>
 
-          {/* ── CIUDADES ── */}
           <div>
             <TablaUbicacion
               titulo={deptoSeleccionado ? `Ciudades — ${deptoSeleccionado.descripcion}` : 'Ciudades'}
@@ -391,9 +332,7 @@ export default function UbicacionesPage() {
               mensajeDeshabilitada="Seleccioná un departamento para ver sus ciudades"
               onGuardar={(desc) => crearCiudad.mutate({ descripcion: desc, departamento: deptoSeleccionado.id })}
               onActualizar={(id, desc) => actualizarCiudad.mutate({ id, descripcion: desc, departamento: deptoSeleccionado.id })}
-              onEliminar={(id) => {
-                if (window.confirm('¿Eliminar esta ciudad?')) eliminarCiudad.mutate(id)
-              }}
+              onEliminar={(id) => setConfirmPendiente({ tipo: 'ciudad', id })}
             />
           </div>
 

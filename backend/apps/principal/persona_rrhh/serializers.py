@@ -1,11 +1,11 @@
 from rest_framework import serializers
 from .models import PersonaRRHH
-from apps.persona.serializers import PersonaSerializer
-from apps.administracion.especialidad.serializers import EspecialidadSerializer
+from apps.administracion.persona.serializers import PersonaListSerializer
+from apps.clinica.configuracion.especialidad.serializers import EspecialidadListSerializer
 
 
 class PersonaRRHHSerializer(serializers.ModelSerializer):
-    persona_detalle = PersonaSerializer(source="persona", read_only=True)
+    persona_detalle = PersonaListSerializer(source="persona", read_only=True)
 
     class Meta:
         model  = PersonaRRHH
@@ -30,8 +30,8 @@ class PersonaRRHHListSerializer(serializers.ModelSerializer):
     nombre              = serializers.CharField(source="persona.razon_social",  read_only=True)
     documento           = serializers.CharField(source="persona.nro_documento", read_only=True)
     telefono            = serializers.CharField(source="persona.telefono",      read_only=True)
-    persona_detalle     = PersonaSerializer(source="persona", read_only=True)
-    especialidades_detalle = EspecialidadSerializer(source="especialidades", many=True, read_only=True)
+    persona_detalle     = PersonaListSerializer(source="persona", read_only=True)
+    especialidades_detalle = EspecialidadListSerializer(source="especialidades", many=True, read_only=True)
 
     class Meta:
         model  = PersonaRRHH

@@ -25,19 +25,20 @@ urlpatterns = [
     # Módulos de la aplicación
     path('api/', include('apps.users.urls')),
     path('api/', include('apps.appointments.urls')),
-    path('api/', include('apps.administracion.ubicacion.urls')),
-    path('api/', include('apps.persona.urls')),
-    path('api/', include('apps.principal.paciente_responsable.urls')),
-    path('api/', include('apps.principal.paciente.urls')),
-    # Módulos de administración (movidos a apps/administracion/)
-    path('api/', include('apps.administracion.consultorio.urls')),
-    path('api/', include('apps.administracion.especialidad.urls')),
+    path('api/', include('apps.mantenimiento.ubicacion.urls')),
+    path('api/', include('apps.administracion.persona.urls')),
+    path('api/', include('apps.clinica.paciente_responsable.urls')),
+    path('api/', include('apps.clinica.paciente.urls')),
+    # Módulos de administración
+    path('api/', include('apps.administracion.auditoria.urls')),
     # Módulos principales
-    path('api/', include('apps.principal.eventoclinico.urls')),
-    path('api/', include('apps.principal.persona_rrhh.urls')),
-    path('api/', include('apps.principal.horario_prestador.urls')),
+    path('api/', include('apps.clinica.configuracion.eventoclinico.urls')),
+    path('api/', include('apps.administracion.persona_rrhh.urls')),
+    path('api/', include('apps.clinica.configuracion.horario_prestador.urls')),
     path('api/', include('apps.principal.agenda.urls')),
     # Módulos clínicos
+    path('api/', include('apps.clinica.configuracion.consultorio.urls')),
+    path('api/', include('apps.clinica.configuracion.especialidad.urls')),
     path('api/', include('apps.principal.consultas.urls')),
     path('api/', include('apps.principal.documentos.urls')),
     # Módulos de notificaciones

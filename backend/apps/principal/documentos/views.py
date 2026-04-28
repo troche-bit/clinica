@@ -104,7 +104,7 @@ class DocumentoDigPacienteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='pacientes')
     def pacientes_con_documentos(self, request):
         """Pacientes que tienen al menos un documento digitalizado."""
-        from apps.principal.paciente.models import Paciente
+        from apps.clinica.paciente.models import Paciente
 
         search = request.query_params.get('search', '').strip()
 

@@ -2,35 +2,25 @@ import { useState } from 'react'
 import { Plus, Search, Building2, Pencil, Trash2 } from 'lucide-react'
 import PanelSimple from '../components/ui/PanelSimple'
 import Toast from '../components/ui/Toast'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { useConsultorios, useConsultorioMutations } from '../hooks/useConsultorios'
 import { useToast } from '../hooks/useToast'
+import { extraerMensajeError } from '../utils/errores'
 
-// Definición de los campos del formulario de consultorio
 const CAMPOS_CONSULTORIO = [
   { name: 'nro_consultorio', label: 'Nro. consultorio', placeholder: 'Ej: 01, A2...', requerido: true  },
   { name: 'descripcion',     label: 'Descripción',      placeholder: 'Descripción opcional...',        requerido: false },
 ]
 
-// Títulos del panel según el modo activo
 const TITULOS_PANEL = { nuevo: 'Nuevo consultorio', editar: 'Editar consultorio', ver: 'Detalle' }
 
-// Extrae el primer mensaje de error de una respuesta 400 de DRF
-function extraerMensajeError(err) {
-  const data = err?.response?.data
-  if (!data) return 'Ocurrió un error inesperado.'
-  if (typeof data === 'string') return data
-  // DRF devuelve { campo: [mensajes] } o { detail: 'msg' }
-  const valores = Object.values(data)
-  if (valores.length === 0) return 'Error al guardar.'
-  const primero = valores[0]
-  return Array.isArray(primero) ? primero[0] : String(primero)
-}
 
 export default function ConsultorioPage() {
   const [search,       setSearch]       = useState('')
   const [searchInput,  setSearchInput]  = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
-  const [modo,         setModo]         = useState(null) // 'ver' | 'editar' | 'crear'
+  const [modo,         setModo]         = useState(null)
+  const [confirmId,    setConfirmId]    = useState(null)
 
   const { data, isLoading }             = useConsultorios(search)
   const { crear, actualizar, eliminar } = useConsultorioMutations()
@@ -59,28 +49,25 @@ export default function ConsultorioPage() {
       }
       cerrarPanel()
     } catch (err) {
-      // Mostrar el error del backend al usuario sin cerrar el panel
       showToast(extraerMensajeError(err), 'error')
     }
   }
 
-  const handleEliminar = (id) => {
-    if (window.confirm('¿Eliminar este consultorio?')) {
-      eliminar.mutate(id, {
-        onSuccess: () => showToast('Consultorio eliminado.', 'success'),
-        onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-      })
-      cerrarPanel()
-    }
+  const handleEliminar = (id) => setConfirmId(id)
+
+  const confirmarEliminar = () => {
+    eliminar.mutate(confirmId, {
+      onSuccess: () => { showToast('Consultorio eliminado.', 'success'); cerrarPanel() },
+      onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+    })
+    setConfirmId(null)
   }
 
-  // Estado de carga para deshabilitar el botón Guardar mientras se procesa la petición
   const guardando = crear.isPending || actualizar.isPending
 
   return (
     <>
       <style>{`
-        /* ── ConsultorioPage — layout, encabezado y tabla ── */
         .con-root { font-family: 'DM Sans', sans-serif; }
         .con-header {
           display: flex; align-items: flex-start; justify-content: space-between;
@@ -96,7 +83,6 @@ export default function ConsultorioPage() {
           transition: background 0.15s, box-shadow 0.15s;
         }
         .con-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        /* Barra de búsqueda */
         .con-search-row  { display: flex; gap: 8px; margin-bottom: 16px; }
         .con-search-wrap { position: relative; flex: 1; max-width: 380px; }
         .con-search-icon {
@@ -115,13 +101,11 @@ export default function ConsultorioPage() {
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #374151; cursor: pointer;
         }
         .con-btn-search:hover { background: #f0f4f8; }
-        /* Layout tabla + panel */
         .con-layout { display: flex; gap: 16px; align-items: flex-start; }
         .con-table-card {
           flex: 1; background: #fff; border: 1px solid #e8edf2;
           border-radius: 12px; overflow: hidden; min-width: 0;
         }
-        /* Tabla de consultorios */
         .con-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
         .con-table thead { background: #f8fafc; border-bottom: 1px solid #e8edf2; }
         .con-table th {
@@ -134,26 +118,38 @@ export default function ConsultorioPage() {
         .con-table tbody tr:hover  { background: #f8fafc; }
         .con-table tbody tr.activo { background: #eff6ff; }
         .con-table tbody tr.activo td { color: #1a3a5c; }
-        /* Badge para el número de consultorio */
         .con-nro {
           display: inline-flex; align-items: center; justify-content: center;
           min-width: 32px; height: 32px; background: #dbeafe; border-radius: 8px;
           font-size: 12px; font-weight: 600; color: #1a3a5c; padding: 0 10px;
         }
         .con-hint  { font-size: 12px; color: #9ca3af; margin-top: 4px; font-style: italic; }
-        /* Estado vacío */
         .con-empty { text-align: center; padding: 48px 16px; color: #9ca3af; font-size: 13.5px; }
         .con-empty-icon {
           width: 40px; height: 40px; margin: 0 auto 12px; background: #f3f4f6;
           border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d1d5db;
         }
+        .con-action-btn {
+          width: 28px; height: 28px; border-radius: 7px; border: 1px solid #e8edf2;
+          background: none; cursor: pointer; display: flex; align-items: center;
+          justify-content: center; color: #6b7280; transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .con-action-btn.edit:hover  { background: #eff6ff; color: #1a3a5c; border-color: #bfdbfe; }
+        .con-action-btn.trash:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
       `}</style>
 
-      {/* Notificación flotante */}
       <Toast toast={toast} />
 
+      <ConfirmDialog
+        isOpen={confirmId !== null}
+        title="Eliminar consultorio"
+        description="¿Estás seguro de que querés eliminar este consultorio? Esta acción no se puede deshacer."
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmId(null)}
+        loading={eliminar.isPending}
+      />
+
       <div className="con-root">
-        {/* Encabezado de la página */}
         <div className="con-header">
           <div>
             <div className="con-title">Consultorios</div>
@@ -168,13 +164,12 @@ export default function ConsultorioPage() {
           </button>
         </div>
 
-        {/* Buscador */}
         <form onSubmit={handleSearch} className="con-search-row">
           <div className="con-search-wrap">
             <Search size={15} className="con-search-icon" />
             <input
               type="text"
-              placeholder="Buscar por número de consultorio..."
+              placeholder="Buscar por número o descripción..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="con-search-input"
@@ -183,7 +178,6 @@ export default function ConsultorioPage() {
           <button type="submit" className="con-btn-search">Buscar</button>
         </form>
 
-        {/* Tabla + Panel lateral */}
         <div className="con-layout">
           <div className="con-table-card">
             <table className="con-table">
@@ -222,18 +216,14 @@ export default function ConsultorioPage() {
                     <td onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
+                          className="con-action-btn edit"
                           onClick={(e) => { e.stopPropagation(); setSeleccionado(c); setModo('editar') }}
-                          style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#1a3a5c'; e.currentTarget.style.borderColor = '#bfdbfe' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
                         >
                           <Pencil size={13} />
                         </button>
                         <button
+                          className="con-action-btn trash"
                           onClick={(e) => { e.stopPropagation(); handleEliminar(c.id) }}
-                          style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fecaca' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.borderColor = '#e8edf2' }}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -245,7 +235,6 @@ export default function ConsultorioPage() {
             </table>
           </div>
 
-          {/* Panel lateral — se muestra cuando hay un modo activo */}
           {modo && (
             <PanelSimple
               titulos={TITULOS_PANEL}

@@ -24,9 +24,9 @@ const MENU = [
         label: 'Pacientes',
         icon: Users,
         sub: [
-          { to: '/paciente',              label: 'Datos del paciente' },
-          { to: '/pacienteresponsable', label: 'Responsables' },
-          { to: '/pacientes/documentos',   label: 'Documentos digitalizados' },
+          { to: '/paciente',             label: 'Datos del paciente' },
+          { to: '/pacienteresponsable',  label: 'Responsables' },
+          { to: '/pacientes/documentos', label: 'Documentos digitalizados' },
         ],
       },
       {
@@ -48,6 +48,12 @@ const MENU = [
           { to: '/consultas/eventos', label: 'Evento clínico' },
         ],
       },
+      {
+        id: 'informes',
+        label: 'Informes',
+        icon: BarChart2,
+        to: '/informes',
+      },
     ],
   },
   {
@@ -68,9 +74,9 @@ const MENU = [
         label: 'Finanzas',
         icon: Wallet,
         sub: [
-          { to: '/finanzas/cuentas',         label: 'Cuentas Caja/Banco' },
-          { to: '/finanzas/cobranzas',       label: 'Cobranzas' },
-          { to: '/finanzas/pago-prestador',  label: 'Pago a prestadores' },
+          { to: '/finanzas/cuentas',        label: 'Cuentas Caja/Banco' },
+          { to: '/finanzas/cobranzas',      label: 'Cobranzas' },
+          { to: '/finanzas/pago-prestador', label: 'Pago a prestadores' },
         ],
       },
       {
@@ -78,17 +84,8 @@ const MENU = [
         label: 'RRHH / Prestadores',
         icon: UserCog,
         sub: [
-          { to: '/rrhh/personal',      label: 'Persona RRHH' },
+          { to: '/rrhh/personal',       label: 'Persona RRHH' },
           { to: '/rrhh/especialidades', label: 'Especialidades' },
-        ],
-      },
-      {
-        id: 'informes',
-        label: 'Informes',
-        icon: BarChart2,
-        sub: [
-          { to: '/informes/modulos',  label: 'Por módulo' },
-          { to: '/informes/cruzados', label: 'Reportes cruzados' },
         ],
       },
     ],
@@ -375,6 +372,26 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           z-index: 999;
           font-family: 'DM Sans', sans-serif;
         }
+
+        .sb-link-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 9px 10px;
+          border-radius: 8px;
+          margin-bottom: 1px;
+          color: rgba(255,255,255,0.5);
+          font-size: 13.5px;
+          font-weight: 400;
+          white-space: nowrap;
+          overflow: hidden;
+          text-decoration: none;
+          transition: background 0.15s, color 0.15s;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .sb-link-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.85); }
+        .sb-link-item.active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 500; }
+        .collapsed .sb-link-item .sb-item-label { display: none; }
       `}</style>
 
       <aside className={`sb-root ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -407,7 +424,23 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             return (
               <div key={section}>
                 <div className="sb-section-label">{section}</div>
-                {itemsVisibles.map(({ id, label, icon: Icon, sub }) => {
+                {itemsVisibles.map(({ id, label, icon: Icon, sub, to }) => {
+                  if (to) {
+                    return (
+                      <NavLink
+                        key={id}
+                        to={to}
+                        onClick={onMobileClose}
+                        data-tip={label}
+                        className={({ isActive }) =>
+                          `sb-link-item sb-tooltip ${isActive ? 'active' : ''}`
+                        }
+                      >
+                        <Icon size={17} className="sb-item-icon" />
+                        <span className="sb-item-label">{label}</span>
+                      </NavLink>
+                    )
+                  }
                   const isOpen = openMenus[id]
                   return (
                     <div key={id}>
@@ -424,10 +457,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                         }
                       </button>
                       <div className={`sb-sub ${isOpen ? 'open' : ''}`}>
-                        {sub.map(({ to, label: subLabel }) => (
+                        {sub.map(({ to: subTo, label: subLabel }) => (
                           <NavLink
-                            key={to}
-                            to={to}
+                            key={subTo}
+                            to={subTo}
                             onClick={onMobileClose}
                             className={({ isActive }) =>
                               `sb-sublink ${isActive ? 'active' : ''}`

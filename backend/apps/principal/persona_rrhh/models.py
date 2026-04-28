@@ -1,8 +1,8 @@
 from django.db import models
 from django.db.models import Index
 from apps.core.models import BaseModel
-from apps.persona.models import Persona
-from apps.administracion.especialidad.models import Especialidad
+from apps.administracion.persona.models import Persona
+from apps.clinica.configuracion.especialidad.models import Especialidad
 
 
 class PersonaRRHH(BaseModel):

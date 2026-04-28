@@ -1,38 +1,29 @@
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.utils import timezone
+from rest_framework.exceptions import ValidationError
+from apps.administracion.auditoria.mixins import AuditoriaMixin
 from .models import TipoDocDigital
-from .serializers import TipoDocDigitalSerializer
+from .serializers import TipoDocDigitalListSerializer, TipoDocDigitalSerializer
 
 
-class TipoDocDigitalViewSet(viewsets.ModelViewSet):
-    # Solo muestra registros activos (no eliminados lógicamente)
+class TipoDocDigitalViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     queryset = TipoDocDigital.objects.filter(is_deleted=False)
     serializer_class = TipoDocDigitalSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["descripcion", "storage_key"]
     ordering_fields = ["descripcion", "storage_key"]
 
-    # ── Auditoría ─────────────────────────────────────────────
-    def perform_create(self, serializer):
-        serializer.save(id_usu_creator=self.request.user)
+    def get_serializer_class(self):
+        if self.action in ('list', 'retrieve', 'eliminados'):
+            return TipoDocDigitalListSerializer
+        return TipoDocDigitalSerializer
 
-    def perform_update(self, serializer):
-        serializer.save(id_usu_modificator=self.request.user)
-
-    # ── Borrado lógico ────────────────────────────────────────
     def perform_destroy(self, instance):
-        # PENDIENTE: cuando se implemente Documentos Digitalizados, verificar
-        # que no existan documentos activos de este tipo antes de eliminar.
-        instance.is_deleted = True
-        instance.fecha_eliminacion = timezone.now()
-        instance.id_usu_modificator = self.request.user
-        instance.save()
+        if instance.documentos.filter(is_deleted=False).exists():
+            raise ValidationError('No se puede eliminar: tiene documentos activos vinculados.')
+        super().perform_destroy(instance)
 
-    # ── Endpoint para ver registros eliminados ─────────────────
     @action(detail=False, methods=["get"], url_path="eliminados")
     def eliminados(self, request):
         qs = TipoDocDigital.objects.filter(is_deleted=True)

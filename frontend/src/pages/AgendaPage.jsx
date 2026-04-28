@@ -9,7 +9,7 @@ import {
 } from '../hooks/useAgenda'
 import { usePersonasRRHH } from '../hooks/usePersonaRRHH'
 import { useEspecialidades } from '../hooks/useEspecialidades'
-import { useHorariosPrestador, useGenerarTurnos } from '../hooks/useHorarioPrestador'
+import { useHorariosPrestador, useGenerarTurnos } from '../hooks/clinica/useHorarioPrestador'
 import Modal from '../components/ui/Modal'
 import Toast from '../components/ui/Toast'
 import { useToast } from '../hooks/useToast'

@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from .models import PacienteResponsable
-from apps.persona.serializers import PersonaSerializer
+from apps.administracion.persona.serializers import PersonaListSerializer
 
 
 class PacienteResponsableSerializer(serializers.ModelSerializer):
-    persona_detalle = PersonaSerializer(source="persona", read_only=True)
+    persona_detalle = PersonaListSerializer(source="persona", read_only=True)
 
     class Meta:
         model = PacienteResponsable
@@ -24,7 +24,7 @@ class PacienteResponsableListSerializer(serializers.ModelSerializer):
     nombre    = serializers.CharField(source="persona.razon_social", read_only=True)
     documento = serializers.CharField(source="persona.nro_documento", read_only=True)
     telefono  = serializers.CharField(source="persona.telefono",     read_only=True)
-    persona_detalle = PersonaSerializer(source="persona", read_only=True)
+    persona_detalle = PersonaListSerializer(source="persona", read_only=True)
 
     class Meta:
         model = PacienteResponsable

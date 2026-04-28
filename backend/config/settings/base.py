@@ -23,22 +23,24 @@ INSTALLED_APPS = [
     # Propias
     'apps.users',
     'apps.appointments',
-    'apps.administracion.ubicacion',
-    'apps.persona',
+    'apps.mantenimiento.ubicacion',
+    'apps.administracion.persona',
     # paciente_responsable antes que paciente por la dependencia FK
-    'apps.principal.paciente_responsable',
-    'apps.principal.paciente',
+    'apps.clinica.paciente_responsable',
+    'apps.clinica.paciente',
     'apps.diasemana',
     'apps.forma_pago',
     # Módulos de administración agrupados bajo apps.administracion/
-    'apps.administracion.consultorio',
-    'apps.administracion.especialidad',
+    'apps.administracion.auditoria',
+    
     # Módulos principales
-    'apps.principal.eventoclinico',
-    'apps.principal.persona_rrhh',
-    'apps.principal.horario_prestador',
+    'apps.administracion.persona_rrhh',
+    'apps.clinica.configuracion.horario_prestador',
     'apps.principal.agenda',
     # Módulos clínicos
+    'apps.clinica.configuracion.consultorio',
+    'apps.clinica.configuracion.especialidad',
+    'apps.clinica.configuracion.eventoclinico',
     'apps.principal.consultas',
     'apps.principal.documentos',
     # Módulos de notificaciones

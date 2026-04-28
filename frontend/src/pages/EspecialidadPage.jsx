@@ -2,37 +2,24 @@ import { useState } from 'react'
 import { Plus, Search, Stethoscope, Pencil, Trash2 } from 'lucide-react'
 import PanelSimple from '../components/ui/PanelSimple'
 import Toast from '../components/ui/Toast'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import { useEspecialidades, useEspecialidadMutations } from '../hooks/useEspecialidades'
 import { useToast } from '../hooks/useToast'
+import { extraerMensajeError } from '../utils/errores'
 
-// Campos del formulario de especialidad
 const CAMPOS_ESPECIALIDAD = [
   { name: 'descripcion', label: 'Descripción', placeholder: 'Ej: Cardiología, Pediatría...', requerido: true },
 ]
 
-// Títulos del panel según el modo activo
 const TITULOS_PANEL = { nuevo: 'Nueva especialidad', editar: 'Editar especialidad', ver: 'Detalle' }
 
-// Extrae el primer mensaje de error de una respuesta 400 de DRF
-function extraerMensajeError(err) {
-  const data = err?.response?.data
-  if (!data) return 'Ocurrió un error inesperado.'
-  if (typeof data === 'string') return data
-  const valores = Object.values(data)
-  if (valores.length === 0) return 'Error al guardar.'
-  const primero = valores[0]
-  if (typeof primero === 'object' && !Array.isArray(primero)) {
-    const sub = Object.values(primero)[0]
-    return Array.isArray(sub) ? sub[0] : String(sub)
-  }
-  return Array.isArray(primero) ? primero[0] : String(primero)
-}
 
 export default function EspecialidadPage() {
   const [search,       setSearch]       = useState('')
   const [searchInput,  setSearchInput]  = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
-  const [modo,         setModo]         = useState(null) // 'ver' | 'editar' | 'crear'
+  const [modo,         setModo]         = useState(null)
+  const [confirmId,    setConfirmId]    = useState(null)
 
   const { data, isLoading }             = useEspecialidades(search)
   const { crear, actualizar, eliminar } = useEspecialidadMutations()
@@ -61,28 +48,25 @@ export default function EspecialidadPage() {
       }
       cerrarPanel()
     } catch (err) {
-      // Muestra el error del backend sin cerrar el panel
       showToast(extraerMensajeError(err), 'error')
     }
   }
 
-  const handleEliminar = (id) => {
-    if (window.confirm('¿Eliminar esta especialidad?')) {
-      eliminar.mutate(id, {
-        onSuccess: () => showToast('Especialidad eliminada.', 'success'),
-        onError:   (err) => showToast(extraerMensajeError(err), 'error'),
-      })
-      cerrarPanel()
-    }
+  const handleEliminar = (id) => setConfirmId(id)
+
+  const confirmarEliminar = () => {
+    eliminar.mutate(confirmId, {
+      onSuccess: () => { showToast('Especialidad eliminada.', 'success'); cerrarPanel() },
+      onError:   (err) => showToast(extraerMensajeError(err), 'error'),
+    })
+    setConfirmId(null)
   }
 
-  // Estado de carga para deshabilitar el botón Guardar mientras se procesa la petición
   const guardando = crear.isPending || actualizar.isPending
 
   return (
     <>
       <style>{`
-        /* ── EspecialidadPage — layout, encabezado y tabla ── */
         .esp-root { font-family: 'DM Sans', sans-serif; }
         .esp-header {
           display: flex; align-items: flex-start; justify-content: space-between;
@@ -98,7 +82,6 @@ export default function EspecialidadPage() {
           transition: background 0.15s, box-shadow 0.15s;
         }
         .esp-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        /* Barra de búsqueda */
         .esp-search-row  { display: flex; gap: 8px; margin-bottom: 16px; }
         .esp-search-wrap { position: relative; flex: 1; max-width: 380px; }
         .esp-search-icon {
@@ -117,13 +100,11 @@ export default function EspecialidadPage() {
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #374151; cursor: pointer;
         }
         .esp-btn-search:hover { background: #f0f4f8; }
-        /* Layout tabla + panel */
         .esp-layout { display: flex; gap: 16px; align-items: flex-start; }
         .esp-table-card {
           flex: 1; background: #fff; border: 1px solid #e8edf2;
           border-radius: 12px; overflow: hidden; min-width: 0;
         }
-        /* Tabla de especialidades */
         .esp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
         .esp-table thead { background: #f8fafc; border-bottom: 1px solid #e8edf2; }
         .esp-table th {
@@ -137,19 +118,32 @@ export default function EspecialidadPage() {
         .esp-table tbody tr.activo { background: #eff6ff; }
         .esp-table tbody tr.activo td { color: #1a3a5c; }
         .esp-hint  { font-size: 12px; color: #9ca3af; margin-top: 4px; font-style: italic; }
-        /* Estado vacío */
         .esp-empty { text-align: center; padding: 48px 16px; color: #9ca3af; font-size: 13.5px; }
         .esp-empty-icon {
           width: 40px; height: 40px; margin: 0 auto 12px; background: #f3f4f6;
           border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d1d5db;
         }
+        .esp-action-btn {
+          width: 28px; height: 28px; border-radius: 7px; border: 1px solid #e8edf2;
+          background: none; cursor: pointer; display: flex; align-items: center;
+          justify-content: center; color: #6b7280; transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .esp-action-btn.edit:hover  { background: #eff6ff; color: #1a3a5c; border-color: #bfdbfe; }
+        .esp-action-btn.trash:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
       `}</style>
 
-      {/* Notificación flotante */}
       <Toast toast={toast} />
 
+      <ConfirmDialog
+        isOpen={confirmId !== null}
+        title="Eliminar especialidad"
+        description="¿Estás seguro de que querés eliminar esta especialidad? Si tiene prestadores asignados no se podrá eliminar."
+        onConfirm={confirmarEliminar}
+        onCancel={() => setConfirmId(null)}
+        loading={eliminar.isPending}
+      />
+
       <div className="esp-root">
-        {/* Encabezado de la página */}
         <div className="esp-header">
           <div>
             <div className="esp-title">Especialidades</div>
@@ -164,7 +158,6 @@ export default function EspecialidadPage() {
           </button>
         </div>
 
-        {/* Buscador */}
         <form onSubmit={handleSearch} className="esp-search-row">
           <div className="esp-search-wrap">
             <Search size={15} className="esp-search-icon" />
@@ -179,7 +172,6 @@ export default function EspecialidadPage() {
           <button type="submit" className="esp-btn-search">Buscar</button>
         </form>
 
-        {/* Tabla + Panel lateral */}
         <div className="esp-layout">
           <div className="esp-table-card">
             <table className="esp-table">
@@ -216,18 +208,14 @@ export default function EspecialidadPage() {
                     <td onClick={(ev) => ev.stopPropagation()}>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
+                          className="esp-action-btn edit"
                           onClick={(ev) => { ev.stopPropagation(); setSeleccionado(e); setModo('editar') }}
-                          style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                          onMouseEnter={(ev) => { ev.currentTarget.style.background = '#eff6ff'; ev.currentTarget.style.color = '#1a3a5c'; ev.currentTarget.style.borderColor = '#bfdbfe' }}
-                          onMouseLeave={(ev) => { ev.currentTarget.style.background = 'none'; ev.currentTarget.style.color = '#6b7280'; ev.currentTarget.style.borderColor = '#e8edf2' }}
                         >
                           <Pencil size={13} />
                         </button>
                         <button
+                          className="esp-action-btn trash"
                           onClick={(ev) => { ev.stopPropagation(); handleEliminar(e.id) }}
-                          style={{ width: '28px', height: '28px', borderRadius: '7px', border: '1px solid #e8edf2', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}
-                          onMouseEnter={(ev) => { ev.currentTarget.style.background = '#fef2f2'; ev.currentTarget.style.color = '#dc2626'; ev.currentTarget.style.borderColor = '#fecaca' }}
-                          onMouseLeave={(ev) => { ev.currentTarget.style.background = 'none'; ev.currentTarget.style.color = '#6b7280'; ev.currentTarget.style.borderColor = '#e8edf2' }}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -239,7 +227,6 @@ export default function EspecialidadPage() {
             </table>
           </div>
 
-          {/* Panel lateral — se muestra cuando hay un modo activo */}
           {modo && (
             <PanelSimple
               titulos={TITULOS_PANEL}

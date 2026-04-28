@@ -6,8 +6,8 @@ from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import PersonaRRHH
 from .serializers import PersonaRRHHSerializer, PersonaRRHHListSerializer
-from apps.persona.models import Persona
-from apps.persona.serializers import PersonaSerializer
+from apps.administracion.persona.models import Persona
+from apps.administracion.persona.serializers import PersonaListSerializer
 from config.pagination import StandardPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
@@ -92,7 +92,7 @@ class PersonaRRHHViewSet(viewsets.ModelViewSet):
             return Response({"error": "nro_documento es requerido"}, status=400)
         try:
             persona = Persona.objects.get(nro_documento=nro_documento, is_deleted=False)
-            persona_data = PersonaSerializer(persona).data
+            persona_data = PersonaListSerializer(persona).data
             try:
                 prestador = PersonaRRHH.objects.get(persona=persona, is_deleted=False)
                 prestador_data = PersonaRRHHSerializer(prestador).data

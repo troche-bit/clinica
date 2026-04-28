@@ -3,18 +3,8 @@ import BuscadorPersona  from '../persona/BuscadorPersona'
 import FormPersona      from '../persona/FormPersona'
 import FormResponsable  from '../responsable/FormResponsable'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/usePersona'
-import { useCreateResponsable, useUpdateResponsable } from '../../hooks/useResponsable'
-
-// Extrae el primer mensaje de error legible de una respuesta DRF
-function extraerMensajeError(err) {
-  const data = err?.response?.data
-  if (!data) return 'Ocurrió un error inesperado.'
-  if (typeof data === 'string') return data
-  const valores = Object.values(data)
-  if (valores.length === 0) return 'Error al guardar.'
-  const primero = valores[0]
-  return Array.isArray(primero) ? primero[0] : String(primero)
-}
+import { useCreateResponsable, useUpdateResponsable } from '../../hooks/clinica/useResponsable'
+import { extraerMensajeError } from '../../utils/errores'
 
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },

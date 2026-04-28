@@ -6,8 +6,8 @@ from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from .models import PacienteResponsable
 from .serializers import PacienteResponsableSerializer, PacienteResponsableListSerializer
-from apps.persona.models import Persona
-from apps.persona.serializers import PersonaSerializer
+from apps.administracion.persona.models import Persona
+from apps.administracion.persona.serializers import PersonaListSerializer
 from config.pagination import StandardPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
@@ -44,7 +44,7 @@ class PacienteResponsableViewSet(viewsets.ModelViewSet):
     # Borrado lógico con validación de dependencia
     def perform_destroy(self, instance):
         # Importación local para evitar importación circular con apps.principal.paciente
-        from apps.principal.paciente.models import Paciente
+        from apps.clinica.paciente.models import Paciente
         pacientes_activos = Paciente.objects.filter(
             responsable=instance, is_deleted=False
         ).count()
@@ -82,7 +82,7 @@ class PacienteResponsableViewSet(viewsets.ModelViewSet):
             return Response({"error": "nro_documento es requerido"}, status=400)
         try:
             persona = Persona.objects.get(nro_documento=nro_documento, is_deleted=False)
-            persona_data = PersonaSerializer(persona).data
+            persona_data = PersonaListSerializer(persona).data
             try:
                 responsable = PacienteResponsable.objects.get(persona=persona, is_deleted=False)
                 responsable_data = PacienteResponsableSerializer(responsable).data

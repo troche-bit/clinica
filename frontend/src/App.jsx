@@ -3,15 +3,17 @@ import { AuthProvider } from './context/AuthContext'
 import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
 import Layout from './components/layout/Layout'
-import Paciente from './pages/Paciente'
-import PacienteResponsablePage from './pages/PacienteResponsablePage'
+import PacientePage from './pages/clinica/PacientePage'
+import InformesPacientePage from './pages/clinica/InformesPacientePage'
+import DashboardPacientesPage from './pages/clinica/DashboardPacientesPage'
+import PacienteResponsablePage from './pages/clinica/PacienteResponsablePage'
 import UbicacionesPage from './pages/UbicacionesPage'
 import ConsultorioPage from './pages/ConsultorioPage'
 import EspecialidadPage from './pages/EspecialidadPage'
 import EventoClinicoPage from './pages/EventoClinicoPage'
 import TipoDocDigPage from './pages/TipoDocDigPage'
-import PersonaRRHHPage from './pages/PersonaRRHHPage'
-import HorarioPrestadorPage from './pages/HorarioPrestadorPage'
+import PersonaRRHHPage from './pages/administracion/PersonaRRHHPage'
+import HorarioPrestadorPage from './pages/clinica/configuracion/HorarioPrestadorPage'
 import AgendaPage from './pages/AgendaPage'
 import ConsultasPage from './pages/ConsultasPage'
 import DocumentosPage from './pages/DocumentosPage'
@@ -38,7 +40,7 @@ export default function App() {
           element={
             <PrivateRoute>
               <Layout>
-                <Paciente />
+                <PacientePage />
               </Layout>
             </PrivateRoute>
           }
@@ -181,6 +183,28 @@ export default function App() {
             <PrivateRoute>
               <Layout>
                 <RecordatoriosPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <InformesPacientePage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/pacientes"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardPacientesPage />
               </Layout>
             </PrivateRoute>
           }

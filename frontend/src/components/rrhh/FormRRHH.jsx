@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useEspecialidades } from '../../hooks/useEspecialidades'
 import { X, Search } from 'lucide-react'
+import apiClient from '../../api/client'
 
 const CARGOS = [
   { value: 'medico',         label: 'Médico' },
@@ -164,6 +165,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
     observacion:      '',
     especialidades:   [],
   })
+  const [matriculaError, setMatriculaError] = useState('')
 
   useEffect(() => {
     if (prestador) {
@@ -184,6 +186,18 @@ export default function FormRRHH({ prestador = null, onChange }) {
   useEffect(() => { onChange(form) }, [form])
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+
+  const checkMatricula = async (nro) => {
+    if (!nro.trim()) { setMatriculaError(''); return }
+    try {
+      const params = new URLSearchParams({ nro_matricula: nro.trim() })
+      if (prestador?.id) params.append('exclude_id', prestador.id)
+      const res = await apiClient.get('/personarrhh/validar-matricula/?' + params)
+      setMatriculaError(res.data.disponible ? '' : 'Esta matrícula ya está registrada.')
+    } catch {
+      setMatriculaError('')
+    }
+  }
 
   return (
     <>
@@ -262,6 +276,8 @@ export default function FormRRHH({ prestador = null, onChange }) {
         .se-hint {
           font-size: 11px; color: #9ca3af; margin-top: 4px;
         }
+        .fr-input-error { border-color: #fca5a5 !important; }
+        .fr-field-error { font-size: 11px; color: #dc2626; margin-top: 3px; }
       `}</style>
 
       <div className="fr-title">Datos del Prestador</div>
@@ -307,9 +323,15 @@ export default function FormRRHH({ prestador = null, onChange }) {
 
         <div className="fr-group">
           <label className="fr-label">Nro. matrícula</label>
-          <input type="text" className="fr-input" placeholder="Ej: 12345"
+          <input
+            type="text"
+            className={`fr-input${matriculaError ? ' fr-input-error' : ''}`}
+            placeholder="Ej: 12345"
             value={form.nro_matricula}
-            onChange={e => set('nro_matricula', e.target.value)} />
+            onChange={e => { set('nro_matricula', e.target.value); setMatriculaError('') }}
+            onBlur={e => checkMatricula(e.target.value)}
+          />
+          {matriculaError && <span className="fr-field-error">{matriculaError}</span>}
         </div>
 
         {/* Especialidades — columna izquierda, fila nueva */}

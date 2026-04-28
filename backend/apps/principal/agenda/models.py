@@ -1,8 +1,8 @@
 from django.db import models
 from django.db.models import Q
 from apps.core.models import BaseModel
-from apps.principal.horario_prestador.models import HorarioPrestador
-from apps.principal.paciente.models import Paciente
+from apps.clinica.configuracion.horario_prestador.models import HorarioPrestador
+from apps.clinica.paciente.models import Paciente
 
 
 class Agenda(BaseModel):

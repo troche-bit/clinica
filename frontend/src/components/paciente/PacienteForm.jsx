@@ -3,7 +3,7 @@ import BuscadorPersona from '../persona/BuscadorPersona'
 import FormPersona     from '../persona/FormPersona'
 import FormPaciente    from '../paciente/FormPaciente'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/usePersona'
-import { useCreatePatient, useUpdatePatient } from '../../hooks/usePatients'
+import { useCreatePatient, useUpdatePatient } from '../../hooks/clinica/usePatients'
 
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },

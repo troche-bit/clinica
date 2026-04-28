@@ -1,6 +1,6 @@
 from django.db import models
 from apps.core.models import BaseModel
-from apps.principal.paciente.models import Paciente
+from apps.clinica.paciente.models import Paciente
 from apps.principal.consultas.models import Consulta
 from apps.principal.agenda.models import Agenda
 

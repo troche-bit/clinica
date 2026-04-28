@@ -1,0 +1,98 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left  { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right { display: table-cell; vertical-align: bottom; text-align: right; }
+
+.rpt-clinica { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo  { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-meta    { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-table { margin-top: 4pt; }
+.rpt-table th {
+  background: #1a3a5c;
+  color: #fff;
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 4pt 5pt;
+  text-align: left;
+}
+.rpt-table td {
+  font-size: 9pt;
+  padding: 4pt 5pt;
+  border-bottom: 1px solid #e8e8e8;
+  vertical-align: middle;
+}
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+.col-nro       { width: 4%;  text-align: center; }
+.col-nombre    { width: 28%; }
+.col-doc       { width: 13%; }
+.col-tel       { width: 14%; }
+.col-ocupacion { width: 16%; }
+.col-emerg     { width: 9%;  text-align: center; }
+.col-obs       { width: 16%; }
+
+.rpt-footer {
+  margin-top: 10pt;
+  text-align: right;
+  font-size: 7.5pt;
+  color: #777;
+  border-top: 1px solid #ccc;
+  padding-top: 5pt;
+}
+{% endblock %}
+
+{% block content %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Listado de Responsables</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }}</div>
+      <div class="rpt-meta">Total: {{ total }} responsable{{ total|pluralize:",s" }}</div>
+    </div>
+  </div>
+
+  <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+    <thead>
+      <tr>
+        <th class="col-nro">#</th>
+        <th class="col-nombre">Nombre</th>
+        <th class="col-doc">Documento</th>
+        <th class="col-tel">Teléfono</th>
+        <th class="col-ocupacion">Ocupación</th>
+        <th class="col-emerg">Contacto emergencia</th>
+        <th class="col-obs">Observación</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fila in filas %}
+      <tr>
+        <td class="col-nro">{{ fila.nro }}</td>
+        <td class="col-nombre">{{ fila.nombre }}</td>
+        <td class="col-doc">{{ fila.documento }}</td>
+        <td class="col-tel">{{ fila.telefono }}</td>
+        <td class="col-ocupacion">{{ fila.ocupacion }}</td>
+        <td class="col-emerg">{{ fila.contacto_emergencia }}</td>
+        <td class="col-obs">{{ fila.observacion }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center; color:#888; padding: 10pt;">Sin registros</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="rpt-footer">
+    Generado el {{ fecha|date:"d/m/Y" }} — Sistema de Gestión Clínica Lichi
+  </div>
+
+</div>
+{% endblock %}

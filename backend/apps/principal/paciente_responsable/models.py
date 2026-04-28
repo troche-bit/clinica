@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import Index
 from apps.core.models import BaseModel
-from apps.persona.models import Persona
+from apps.administracion.persona.models import Persona
 
 
 class PacienteResponsable(BaseModel):

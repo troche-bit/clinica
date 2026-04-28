@@ -1,0 +1,299 @@
+# CLAUDE.md — Backend
+_Clínica Lichi · Versión 4.0 · Abril 2026_
+
+Ver también: `../CLAUDE.md` (convenciones globales)
+
+---
+
+## Estructura de Apps
+
+```
+backend/apps/
+├── core/                          ← BaseModel abstracto + utilidades base
+│
+├── administracion/
+│   ├── persona/                   ← tabla raíz del sistema
+│   ├── users/                     ← autenticación y perfiles
+│   ├── persona_rrhh/              ← prestadores
+│   └── auditoria/                 ← registro de cambios (solo admin)
+│
+├── mantenimiento/
+│   ├── diasemana/                 ← dato de referencia fijo, sin BaseModel
+│   ├── tipo_doc_dig/
+│   ├── ubicacion/
+│   ├── forma_pago/
+│   └── notificaciones/
+│
+├── clinica/
+│   ├── configuracion/
+│   │   ├── consultorio/
+│   │   ├── especialidad/
+│   │   ├── eventoclinico/
+│   │   ├── documentos/
+│   │   └── horario_prestador/
+│   ├── paciente/
+│   ├── paciente_responsable/
+│   ├── agenda/
+│   └── consultas/
+│
+├── facturacion/
+│   ├── configuracion/
+│   │   └── timbrado/
+│   └── ventas/
+│
+├── stock/
+│   ├── configuracion/             ← futuro: categorías, unidades de medida
+│   └── productos/
+│
+└── finanzas/
+    ├── caja_banco/
+    ├── cobranzas/
+    └── pago_prestador/
+```
+
+---
+
+## Orden de construcción por app
+`modelo → migraciones → admin → serializers → viewsets → urls`
+
+---
+
+## Checklist de Auditoría — Por App
+
+Al auditar cada app aplicar **todos** estos puntos sin excepción:
+
+### models.py
+- [ ] `db_table` explícito en `Meta` — nombre corto sin prefijo de app (ej: `'consultorio'`, `'especialidad'`)
+- [ ] `label` explícito en `apps.py` para proteger migraciones externas al mover el módulo
+- [ ] Sin comentarios descriptivos — solo los que explican el por qué
+- [ ] `__str__` sin campos duplicados
+
+### serializers.py
+- [ ] Doble serializer: `XListSerializer` (lectura) + `XSerializer` (escritura)
+- [ ] `get_serializer_class()` en el ViewSet elige según `self.action`
+- [ ] Validaciones case-insensitive con `Lower()` para campos de texto únicos
+- [ ] Sin docstrings ni comentarios del qué
+
+### views.py
+- [ ] Hereda de `AuditoriaMixin` **antes** del ViewSet base
+- [ ] Sin `perform_create`, `perform_update`, `perform_destroy` propios salvo para validar dependencias
+- [ ] Si valida dependencias en `perform_destroy`, llama `super().perform_destroy(instance)` al final
+- [ ] Sin imports no usados (`status`, `timezone` si ya lo maneja el mixin, etc.)
+- [ ] Sin comentarios de sección (`# ── Auditoría ──`, `# ── Borrado lógico ──`, etc.)
+- [ ] `search_fields` incluye todos los campos por los que tiene sentido buscar
+
+### urls.py
+- [ ] Sin comentarios descriptivos
+- [ ] Prefijo de URL en snake_case corto (ej: `r'consultorio'`, `r'especialidad'`)
+
+### Ubicación
+- [ ] App en la ruta objetivo según estructura del CLAUDE.md raíz
+- [ ] `name` en `apps.py` refleja la ruta actual
+
+### Frontend — aplicar en el mismo paso
+- [ ] `window.confirm` reemplazado por `ConfirmDialog` en la página correspondiente
+- [ ] `extraerMensajeError` importado desde `utils/errores`, no definido inline
+- [ ] Botones Editar/Eliminar usan clases CSS, no `onMouseEnter/Leave` inline
+- [ ] Comentarios descriptivos eliminados de la página
+- [ ] Ver checklist completo en `../frontend/CLAUDE.md`
+
+---
+
+## Convenciones Críticas
+
+### Borrado lógico
+Ver `../CLAUDE.md` — aplica a todas las apps.
+
+**Tablas que requieren validación de dependencias antes de borrar:**
+- `Pais` → verificar departamentos activos y personas activas ✅
+- `Departamento` → verificar ciudades activas y personas activas ✅
+- `Ciudad` → verificar personas activas ✅
+- `PacienteResponsable` → verificar pacientes activos ✅
+- `Especialidad` → verificar prestadores activos en `PersonaRRHH.especialidades` ✅
+- `EventoClinico` → verificar `consultas.filter(is_deleted=False)` ✅
+- `Consultorio` → verificar turnos activos en `HorarioPrestador` ⏳ pendiente — FK no implementada
+- `TipoDocDigital` → verificar documentos activos ✅
+- `Paciente` → verificar citas activas en `Agenda` (disponible/ocupado/realizado) ✅
+- `Persona` → no eliminable — `MethodNotAllowed` en `perform_destroy` ✅
+
+### Doble serializer (list vs write)
+- `XListSerializer` — campos anidados expandidos (para `list` y `retrieve`)
+- `XSerializer` — solo IDs para escritura (para `create` y `update`)
+- El ViewSet usa `get_serializer_class()` para elegir según la acción
+- El orden de definición en el archivo importa — definir primero los referenciados
+
+### Unicidad case-insensitive
+- Usar `Lower('campo')` en las `UniqueConstraint`
+- Crear índices con `Lower('campo')` para rendimiento
+
+### Construcción de rutas de archivos
+```python
+def build_storage_path(tipo_doc_dig, paciente_id, filename):
+    ext       = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    year      = datetime.now().year
+    return f'documentos/{tipo_doc_dig.storage_key}/{year}/{timestamp}_{tipo_doc_dig.storage_key}.{ext}'
+```
+Ejemplo: `documentos/historia_clinica/2026/20260414143022_historia_clinica.pdf`
+
+### Borrado de documentos digitalizados
+`perform_destroy` en `DocumentoDigPacienteViewSet`:
+1. Borrado físico del archivo en disco (`os.remove`). Si directorio vacío, eliminarlo (`os.rmdir`).
+2. Borrado lógico — marca `is_deleted=True` (patrón estándar `BaseModel`).
+
+### Almacenamiento
+```python
+MEDIA_ROOT = '/app/media'
+MEDIA_URL  = '/media/'
+```
+Volumen Docker: `./media:/app/media` — persiste entre reinicios.
+Listo para migrar a S3 con `django-storages` sin cambiar modelos ni lógica.
+
+---
+
+## Módulo Auditoría ✅
+
+Ubicación: `apps/administracion/auditoria/`
+
+### Modelo
+`RegistroAuditoria` — tabla `auditoria_registro`. Campos: `tabla`, `registro_id`, `accion`
+(CREAR/EDITAR/ELIMINAR), `datos_antes`, `datos_despues`, `usuario` FK, `fecha`, `ip`.
+Sin BaseModel — nunca se borra, todo queda trazado.
+
+### AuditoriaMixin — `mixins.py`
+Absorbe `perform_create`, `perform_update` y `perform_destroy`. Maneja en cada uno:
+- `id_usu_creator` / `id_usu_modificator` en el `serializer.save()`
+- Borrado lógico completo (`is_deleted`, `fecha_eliminacion`, `id_usu_modificator`)
+- Registro en `RegistroAuditoria` dentro de `try/except` — nunca bloquea la operación principal
+
+Ver `../CLAUDE.md` para la convención de uso en ViewSets.
+
+### ViewSet
+`RegistroAuditoriaViewSet` — solo lectura. Acceso restringido a `rol == 'admin'`.
+Filtros: `tabla`, `accion`, `usuario`, `fecha_desde`, `fecha_hasta`.
+
+### Pendiente
+- `AuditoriaPage` frontend (`pages/administracion/AuditoriaPage.jsx`) — solo rol admin
+
+---
+
+## Arquitectura JWT
+
+Claims custom del token (además de los estándar de simplejwt):
+
+| Campo | Tipo | Fuente |
+|---|---|---|
+| `rol` | string | `PerfilUsuario.rol` |
+| `nombre` | string | `PerfilUsuario.nombre_completo` |
+| `iniciales` | string | Primeras 2 letras del nombre completo |
+| `activo` | bool | `PerfilUsuario.activo` |
+| `persona_rrhh_id` | int\|null | `PerfilUsuario.persona_rrhh_id` |
+| `medico_asignado_id` | int\|null | Solo para rol `secretaria_medico` |
+
+Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`
+
+---
+
+## Endpoints Personalizados
+
+### Administración
+| Endpoint | Descripción |
+|---|---|
+| `GET /api/persona/buscar/?nro_documento=X` | `{persona, paciente, es_paciente}` |
+| `GET /api/pacienteresponsable/buscar/?nro_documento=X` | `{persona, pacienteresponsable, es_responsable}` |
+| `GET /api/personarrhh/buscar/?nro_documento=X` | `{persona, personarrhh, es_prestador}` |
+| `GET /api/usuarios/` | Lista con filtros `search`, `rol`, `activo` |
+| `POST /api/usuarios/` | Crea User + PerfilUsuario |
+| `PATCH /api/usuarios/{id}/` | Actualiza perfil |
+| `POST /api/usuarios/{id}/cambiar-estado/` | Toggle `activo` |
+| `POST /api/usuarios/{id}/resetear-password/` | `{nueva_password}` |
+
+### Eliminados (todos los módulos con borrado lógico)
+`GET /api/{modulo}/eliminados/` — disponible en: paciente, pacienteresponsable, consultorio, pais, departamento, ciudad, especialidad, eventoclinico, tipo-doc-dig, personarrhh, horario-prestador, timbrado, grupos, productos, cuentas-mcb, movimientos-caja, cobranzas
+
+### Clínica
+| Endpoint | Descripción |
+|---|---|
+| `GET /api/departamento/?pais=ID` | Filtrado por país |
+| `GET /api/ciudad/?departamento=ID` | Filtrado por departamento |
+| `POST /api/horario-prestador/{id}/generar/` | Genera turnos Agenda para un rango de fechas |
+| `PATCH /api/agenda/{id}/asignar/` | Asigna paciente a turno disponible |
+| `PATCH /api/agenda/{id}/estado/` | Cambia estado disponible/inactivo/cancelado |
+| `GET /api/agenda/resumen-mes/` | Conteo por fecha de disponibles/ocupados/inactivos/total |
+| `GET /api/agenda/stats-hoy/` | Estadísticas del día actual |
+| `POST /api/consultas/{id}/iniciar/` | Estado en_espera→en_consulta, registra hora_desde |
+| `POST /api/consultas/{id}/finalizar/` | Estado en_consulta→finalizada, registra hora_hasta |
+| `GET /api/consultas/stats-hoy/` | `{total, en_espera, en_consulta, finalizadas}` |
+| `GET /api/consultas/?persona_rrhh=id&fecha=YYYY-MM-DD` | Turnos del día de un médico |
+| `GET /api/documentos/?consulta=id` | Documentos de una consulta |
+| `GET /api/documentos/?paciente=id` | Historial completo de documentos |
+| `GET /api/documentos/pacientes/?search=` | Pacientes con al menos un documento |
+| `GET /api/documentos/{id}/descargar/` | FileResponse del archivo |
+| `GET /api/paciente/reporte-lista/` | PDF WeasyPrint — listado con nombre, documento, edad, sexo, teléfono, responsable. Filtros: `sexo`, `grupo_sanguineo`, `pais`, `departamento`, `ciudad`, `fecha_desde`, `fecha_hasta` |
+| `GET /api/paciente/reporte-lista-excel/` | Excel openpyxl — mismos campos y filtros. Descarga `.xlsx` |
+| `GET /api/paciente/dashboard-mensual/` | Estadísticas del mes en curso sin filtros: `total_mes`, `por_dia` (todos los días con `es_futuro`), `por_semana`, `por_sexo`, `por_grupo_etario` (6 rangos + sin fecha), `por_departamento` (top 5 + otros con total restante, indica país), `tendencia_6meses` |
+
+### Recordatorios
+| Endpoint | Descripción |
+|---|---|
+| `GET /api/recordatorios/proximas-citas/` | Consultas con proxima_cita, anotadas con urgencia |
+| `GET /api/recordatorios/stats/` | `{vencidas, proximos_7_dias, proximos_30_dias, agendadas}` |
+| `POST /api/recordatorios/notificar/` | Registra Notificacion con estado pendiente |
+| `GET /api/notificaciones/?paciente=id` | Historial de notificaciones |
+
+### Facturación y Finanzas
+| Endpoint | Descripción |
+|---|---|
+| `POST /api/facturacion/validar-timbrado/` | Valida número dentro del rango activo |
+| `GET /api/facturacion/siguiente-numero/` | Próximo número disponible |
+| `POST /api/facturacion/` | Crea VentaFactCab + VentaFactDet[] en `@transaction.atomic` |
+| `PATCH /api/facturacion/{id}/` | Solo permite cambiar fecha, persona, observacion |
+| `GET /api/facturacion/{id}/pdf/` | PDF con WeasyPrint — `permission_classes=[AllowAny]` |
+| `GET /api/timbrado/?vigente=true\|false` | Lista con filtro de vigencia |
+| `GET /api/grupos/?activo=true\|false` | Lista con conteo `total_productos` |
+| `GET /api/productos/?grupo=id` | Productos de un grupo |
+| `GET /api/cuentas-mcb/` | Cuentas con `saldo` anotado |
+| `GET /api/movimientos-caja/?cta=id` | Movimientos filtrados por cuenta |
+| `GET /api/forma-pago/` | Lista de formas de pago (solo lectura) |
+| `GET /api/cobranzas/cuotas-pendientes/?persona=id` | CtaCobrar con saldo > 0 |
+| `POST /api/cobranzas/` | Crea Cobranza + movimientos en `@transaction.atomic` |
+| `GET /api/pago-prestador/bloques-pendientes/?persona_rrhh=id` | Bloques agrupados por horario+fecha |
+| `POST /api/pago-prestador/` | Crea PagoPrestador + movimientos en `@transaction.atomic` |
+
+---
+
+## Plantillas de Informes (WeasyPrint)
+
+Ubicación: `backend/templates/informes/`
+
+| Archivo | Estado |
+|---|---|
+| `base_informe.html` | ✅ |
+| `factura_print.html` | ✅ |
+| `paciente_lista.html` | ✅ |
+| `cobranza_print.html` | ❌ pendiente |
+| `recibo_print.html` | ❌ pendiente |
+| `estado_cuenta_print.html` | ❌ pendiente |
+| `informe_caja.html` | ❌ pendiente |
+
+Templatetags custom: `apps/principal/facturacion/templatetags/factura_tags.py`
+- `|gs` — formatea valor como Guaraníes (entero con separador de miles con punto)
+- `|minus` — resta decimal segura para templates
+
+---
+
+## Notas Especiales
+
+### BuscadorMedico (PagoPrestadorPage)
+`PersonaRRHHListSerializer` retorna campos planos `nombre` y `documento`.
+Usar `m.nombre` y `m.documento` directamente — **no** `m.persona?.razon_social`.
+
+### storage_key en TipoDocDigital
+SlugField único que desacopla el nombre visible de la ruta física.
+Permite renombrar el tipo sin romper rutas existentes.
+
+### DiaSemana
+- No hereda `BaseModel`
+- IDs fijos: 1=Lunes ... 7=Domingo
+- Solo lectura — `ReadOnlyModelViewSet`
+- Requiere migración de datos con IDs fijos
