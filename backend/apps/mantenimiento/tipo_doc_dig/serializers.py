@@ -26,7 +26,7 @@ class TipoDocDigitalSerializer(serializers.ModelSerializer):
         )
         if existe:
             raise serializers.ValidationError("Ya existe un tipo de documento con esa descripción.")
-        return value
+        return value.strip()
 
     def validate_storage_key(self, value):
         valor = value.strip().lower()

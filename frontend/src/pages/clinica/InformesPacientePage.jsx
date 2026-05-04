@@ -4,7 +4,7 @@ import { FileSpreadsheet, FileText, Users, BarChart2 } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import { useToast } from '../../hooks/useToast'
 import Toast from '../../components/ui/Toast'
-import { usePaises, useDepartamentos, useCiudades } from '../../hooks/useUbicacion'
+import { usePaises, useDepartamentos, useCiudades } from '../../hooks/mantenimiento/useUbicacion'
 import apiClient from '../../api/client'
 
 const SEXO_OPCIONES = [

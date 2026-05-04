@@ -2,7 +2,7 @@ import { useState } from 'react'
 import BuscadorPersona from '../persona/BuscadorPersona'
 import FormPersona     from '../persona/FormPersona'
 import FormPaciente    from '../paciente/FormPaciente'
-import { useCreatePersona, useUpdatePersona } from '../../hooks/usePersona'
+import { useCreatePersona, useUpdatePersona } from '../../hooks/administracion/usePersona'
 import { useCreatePatient, useUpdatePatient } from '../../hooks/clinica/usePatients'
 
 const MODO_INFO = {
@@ -34,13 +34,6 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
   const { mutateAsync: updatePaciente } = useUpdatePatient()
 
   const handleGuardar = async () => {
-    if (!formPaciente.fecha_nacimiento && !formPaciente.sexo) {
-      const confirmar = window.confirm(
-        'Datos del paciente incompletos. ¿Desea guardar solo los datos de la persona?'
-      )
-      if (!confirmar) return
-    }
-
     setError('')
     setGuardando(true)
 

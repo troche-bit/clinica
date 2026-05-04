@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from .models import Especialidad
 from .serializers import EspecialidadListSerializer, EspecialidadSerializer
 
@@ -11,10 +12,16 @@ from .serializers import EspecialidadListSerializer, EspecialidadSerializer
 class EspecialidadViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     queryset = Especialidad.objects.filter(is_deleted=False)
     serializer_class = EspecialidadSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['descripcion']
     ordering_fields = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve'):
@@ -32,6 +39,5 @@ class EspecialidadViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='eliminados')
     def eliminados(self, request):
-        qs = Especialidad.objects.filter(is_deleted=True)
-        serializer = EspecialidadListSerializer(qs, many=True)
-        return Response(serializer.data)
+        qs = Especialidad.objects.filter(is_deleted=True).order_by('descripcion')
+        return Response(EspecialidadListSerializer(qs, many=True).data)

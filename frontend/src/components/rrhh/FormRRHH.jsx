@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useEspecialidades } from '../../hooks/useEspecialidades'
+import { useEspecialidades } from '../../hooks/clinica/useEspecialidades'
 import { X, Search } from 'lucide-react'
 import apiClient from '../../api/client'
 
@@ -155,7 +155,6 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
 
 export default function FormRRHH({ prestador = null, onChange }) {
   const [form, setForm] = useState({
-    fecha_nacimiento: '',
     fecha_ingreso:    '',
     nro_matricula:    '',
     cargo:            '',
@@ -170,7 +169,6 @@ export default function FormRRHH({ prestador = null, onChange }) {
   useEffect(() => {
     if (prestador) {
       setForm({
-        fecha_nacimiento: prestador.fecha_nacimiento  ?? '',
         fecha_ingreso:    prestador.fecha_ingreso     ?? '',
         nro_matricula:    prestador.nro_matricula     ?? '',
         cargo:            prestador.cargo             ?? '',
@@ -282,12 +280,6 @@ export default function FormRRHH({ prestador = null, onChange }) {
 
       <div className="fr-title">Datos del Prestador</div>
       <div className="fr-grid">
-
-        <div className="fr-group">
-          <label className="fr-label">Fecha de nacimiento</label>
-          <input type="date" className="fr-input" value={form.fecha_nacimiento}
-            onChange={e => set('fecha_nacimiento', e.target.value)} />
-        </div>
 
         <div className="fr-group">
           <label className="fr-label">Fecha de ingreso</label>

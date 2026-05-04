@@ -30,6 +30,17 @@ export function useUpdatePersonaRRHH() {
   })
 }
 
+export function useBuscarPersonasRRHH(q) {
+  return useQuery({
+    queryKey: ['buscar-rrhh', q],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/personarrhh/', { params: { search: q, page_size: 8 } })
+      return data?.results ?? data ?? []
+    },
+    enabled: !!q && q.length >= 2,
+  })
+}
+
 export function usePersonaRRHHMutations(showToast) {
   const qc = useQueryClient()
   const eliminar = useMutation({

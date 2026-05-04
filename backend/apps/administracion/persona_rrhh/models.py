@@ -31,7 +31,6 @@ class PersonaRRHH(BaseModel):
         blank=False,
         null=False,
     )
-    fecha_nacimiento = models.DateField(blank=True, null=True)
     fecha_ingreso    = models.DateField(blank=True, null=True)
     nro_matricula    = models.CharField(max_length=50, blank=True, null=True)
     especialidades   = models.ManyToManyField(

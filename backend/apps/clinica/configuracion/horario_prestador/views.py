@@ -40,7 +40,7 @@ class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return HorarioPrestadorSerializer
 
     def perform_destroy(self, instance):
-        from apps.principal.agenda.models import Agenda
+        from apps.clinica.agenda.models import Agenda
         tiene_turnos = Agenda.objects.filter(
             horario_prestador=instance,
             is_deleted=False,
@@ -73,7 +73,7 @@ class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='generar')
     def generar(self, request, pk=None):
-        from apps.principal.agenda.models import Agenda
+        from apps.clinica.agenda.models import Agenda
 
         horario       = self.get_object()
         fecha_desde_s = request.data.get('fecha_desde')

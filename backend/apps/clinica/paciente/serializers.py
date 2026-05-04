@@ -13,7 +13,6 @@ class PacienteSerializer(serializers.ModelSerializer):
             "id",
             "persona",
             "persona_detalle",
-            "fecha_nacimiento",
             "sexo",
             "observacion",
             "alergias_conocidas",
@@ -28,6 +27,7 @@ class PacienteSerializer(serializers.ModelSerializer):
 class PacienteListSerializer(serializers.ModelSerializer):
     nombre              = serializers.CharField(source="persona.razon_social",  read_only=True)
     documento           = serializers.CharField(source="persona.nro_documento", read_only=True)
+    fecha_nacimiento    = serializers.DateField(source="persona.fecha_nacimiento", read_only=True)
     persona_detalle     = PersonaListSerializer(source="persona", read_only=True)
     responsable_detalle = PacienteResponsableListSerializer(source="responsable", read_only=True)
 

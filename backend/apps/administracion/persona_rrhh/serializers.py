@@ -8,6 +8,7 @@ class PersonaRRHHListSerializer(serializers.ModelSerializer):
     nombre                 = serializers.CharField(source="persona.razon_social",  read_only=True)
     documento              = serializers.CharField(source="persona.nro_documento", read_only=True)
     telefono               = serializers.CharField(source="persona.telefono",      read_only=True)
+    fecha_nacimiento       = serializers.DateField(source="persona.fecha_nacimiento", read_only=True)
     persona_detalle        = PersonaListSerializer(source="persona", read_only=True)
     especialidades_detalle = EspecialidadListSerializer(source="especialidades", many=True, read_only=True)
 
@@ -38,7 +39,6 @@ class PersonaRRHHSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "persona",
-            "fecha_nacimiento",
             "fecha_ingreso",
             "nro_matricula",
             "especialidades",

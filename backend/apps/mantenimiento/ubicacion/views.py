@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from .models import Pais, Departamento, Ciudad
 from .serializers import (
     PaisListSerializer, PaisSerializer,
@@ -15,10 +16,16 @@ from .serializers import (
 class PaisViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     queryset = Pais.objects.filter(is_deleted=False)
     serializer_class = PaisSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['descripcion']
     ordering_fields = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve'):
@@ -34,7 +41,7 @@ class PaisViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='eliminados')
     def eliminados(self, request):
-        qs = Pais.objects.filter(is_deleted=True)
+        qs = Pais.objects.filter(is_deleted=True).order_by('descripcion')
         serializer = PaisListSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -42,10 +49,16 @@ class PaisViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 class DepartamentoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     queryset = Departamento.objects.filter(is_deleted=False).select_related('pais')
     serializer_class = DepartamentoSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['descripcion']
     ordering_fields = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -68,7 +81,7 @@ class DepartamentoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='eliminados')
     def eliminados(self, request):
-        qs = Departamento.objects.filter(is_deleted=True).select_related('pais')
+        qs = Departamento.objects.filter(is_deleted=True).select_related('pais').order_by('descripcion')
         serializer = DepartamentoListSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -76,10 +89,16 @@ class DepartamentoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 class CiudadViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     queryset = Ciudad.objects.filter(is_deleted=False).select_related('departamento__pais')
     serializer_class = CiudadSerializer
-    permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['descripcion']
     ordering_fields = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -100,6 +119,6 @@ class CiudadViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='eliminados')
     def eliminados(self, request):
-        qs = Ciudad.objects.filter(is_deleted=True).select_related('departamento__pais')
+        qs = Ciudad.objects.filter(is_deleted=True).select_related('departamento__pais').order_by('descripcion')
         serializer = CiudadListSerializer(qs, many=True)
         return Response(serializer.data)

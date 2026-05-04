@@ -1,16 +1,20 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   Users, Calendar, FileText, DollarSign, BarChart2,
   Settings, ChevronLeft, ChevronRight, LogOut,
   ChevronDown, ChevronUp, UserCheck, Stethoscope,
-  Building2, MapPin, UserCog, Wallet
+  Building2, MapPin, UserCog, Wallet, Lock, Eye, EyeOff, X,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import Toast from '../ui/Toast'
+import { useCambiarPassword } from '../../hooks/administracion/useUsuarios'
+import { useToast } from '../../hooks/useToast'
+import { extraerMensajeError } from '../../utils/errores'
 
 const PERMISOS = {
   admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'usuarios', 'mantenimiento'],
-  recepcionista:     ['pacientes', 'agenda', 'facturacion', 'finanzas', 'informes'],
+  recepcionista:     ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'mantenimiento', 'informes'],
   medico:            ['pacientes', 'agenda', 'consultas', 'informes'],
   secretaria_medico: ['pacientes', 'agenda', 'consultas', 'informes'],
 }
@@ -84,8 +88,7 @@ const MENU = [
         label: 'RRHH / Prestadores',
         icon: UserCog,
         sub: [
-          { to: '/rrhh/personal',       label: 'Persona RRHH' },
-          { to: '/rrhh/especialidades', label: 'Especialidades' },
+          { to: '/rrhh/personal', label: 'Persona RRHH' },
         ],
       },
     ],
@@ -106,21 +109,145 @@ const MENU = [
         label: 'Mantenimiento',
         icon: Settings,
         sub: [
-          { to: '/ubicaciones',  label: 'Ubicaciones' },
-          { to: '/mantenimiento/consultorios', label: 'Consultorios' },
-          { to: '/mantenimiento/tipo-doc',     label: 'Tipo doc. digitalizado' },
+          { to: '/mantenimiento/ubicaciones',  label: 'Ubicaciones' },
+          { to: '/mantenimiento/consultorios',             label: 'Consultorios' },
+          { to: '/clinica/configuracion/especialidades',   label: 'Especialidades' },
+          { to: '/mantenimiento/tipo-doc',                 label: 'Tipo doc. digitalizado' },
         ],
       },
     ],
   },
 ]
 
+function calcularFuerza(pwd) {
+  if (!pwd) return null
+  if (pwd.length < 8) return { label: 'Débil', color: '#dc2626', pct: 25 }
+  const tipos = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter(r => r.test(pwd)).length
+  if (tipos >= 3 && pwd.length >= 10) return { label: 'Fuerte', color: '#16a34a', pct: 100 }
+  if (tipos >= 2) return { label: 'Media', color: '#d97706', pct: 60 }
+  return { label: 'Débil', color: '#dc2626', pct: 30 }
+}
+
+function ModalCambiarPassword({ onClose, showToast }) {
+  const [current, setCurrent] = useState('')
+  const [nueva, setNueva] = useState('')
+  const [confirmar, setConfirmar] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNueva, setShowNueva] = useState(false)
+  const [showConfirmar, setShowConfirmar] = useState(false)
+  const [error, setError] = useState('')
+  const mutation = useCambiarPassword()
+
+  const handleGuardar = async () => {
+    setError('')
+    if (!current) { setError('La contraseña actual es requerida.'); return }
+    if (nueva.length < 8) { setError('La nueva contraseña debe tener al menos 8 caracteres.'); return }
+    if (nueva !== confirmar) { setError('Las contraseñas no coinciden.'); return }
+    try {
+      await mutation.mutateAsync({ current_password: current, nueva_password: nueva })
+      showToast('Contraseña actualizada correctamente.', 'success')
+      onClose()
+    } catch (err) {
+      setError(extraerMensajeError(err))
+    }
+  }
+
+  return (
+    <div className="sb-pwd-overlay">
+      <div className="sb-pwd-modal">
+        <div className="sb-pwd-header">
+          <div className="sb-pwd-title">
+            <Lock size={18} color="#1a3a5c" />
+            <span>Cambiar mi contraseña</span>
+          </div>
+          <button className="sb-pwd-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="sb-pwd-body">
+          {error && <div className="sb-pwd-error">{error}</div>}
+          <div className="form-group">
+            <label className="form-label">Contraseña actual</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showCurrent ? 'text' : 'password'} value={current}
+                onChange={e => setCurrent(e.target.value)} placeholder="Tu contraseña actual"
+                style={{ paddingRight: 40 }} />
+              <button type="button" onClick={() => setShowCurrent(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Nueva contraseña</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showNueva ? 'text' : 'password'} value={nueva}
+                onChange={e => setNueva(e.target.value)} placeholder="Mínimo 8 caracteres"
+                style={{ paddingRight: 40 }} />
+              <button type="button" onClick={() => setShowNueva(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                {showNueva ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {(() => {
+              const f = calcularFuerza(nueva)
+              if (!f) return null
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ height: 3, borderRadius: 2, background: '#e5e7eb', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${f.pct}%`, background: f.color, transition: 'width .3s, background .3s' }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: f.color, marginTop: 2, display: 'block' }}>{f.label}</span>
+                </div>
+              )
+            })()}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Confirmar nueva contraseña</label>
+            <div style={{ position: 'relative' }}>
+              <input className="input" type={showConfirmar ? 'text' : 'password'} value={confirmar}
+                onChange={e => setConfirmar(e.target.value)} placeholder="Repetí la nueva contraseña"
+                style={{ paddingRight: 40 }} />
+              <button type="button" onClick={() => setShowConfirmar(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+                {showConfirmar ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {confirmar && nueva !== confirmar && (
+              <span style={{ fontSize: 11, color: '#dc2626', marginTop: 2, display: 'block' }}>Las contraseñas no coinciden</span>
+            )}
+          </div>
+        </div>
+        <div className="sb-pwd-footer">
+          <button className="btn btn-secondary" onClick={onClose} disabled={mutation.isPending}>Cancelar</button>
+          <button className="btn btn-primary" onClick={handleGuardar} disabled={mutation.isPending}>
+            {mutation.isPending ? 'Guardando...' : 'Cambiar contraseña'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const { logout, user } = useAuth()
   const [openMenus, setOpenMenus] = useState({})
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [showPwd, setShowPwd] = useState(false)
+  const { toast, showToast } = useToast()
+  const profileRef = useRef(null)
 
   const rol = user?.rol || 'admin'
   const permisosRol = PERMISOS[rol] || PERMISOS.admin
+
+  useEffect(() => {
+    if (!profileOpen) return
+    const handleClick = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [profileOpen])
 
   const toggleMenu = (id) => {
     if (collapsed) return
@@ -184,9 +311,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           justify-content: center;
           flex-shrink: 0;
         }
-        .collapsed .sb-logo-icon { 
-          display: none; 
-        }
+        .collapsed .sb-logo-icon { display: none; }
         .sb-logo-text {
           font-family: 'DM Serif Display', serif;
           font-size: 16px;
@@ -210,9 +335,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           flex-shrink: 0;
           transition: background 0.15s;
         }
-        .collapsed .sb-toggle-btn {
-          margin-left: 0;
-        }
+        .collapsed .sb-toggle-btn { margin-left: 0; }
         .sb-toggle-btn:hover { background: rgba(255,255,255,0.13); color: #fff; }
 
         .sb-nav {
@@ -307,6 +430,38 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           padding: 10px 8px;
           flex-shrink: 0;
         }
+
+        .sb-user-wrap { position: relative; }
+
+        .sb-profile-dropdown {
+          position: absolute;
+          bottom: calc(100% + 6px);
+          left: 0; right: 0;
+          background: #0f2540;
+          border-radius: 8px;
+          padding: 4px;
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+          z-index: 60;
+        }
+        .sb-profile-item {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          width: 100%;
+          padding: 8px 10px;
+          border-radius: 6px;
+          background: none;
+          border: none;
+          color: rgba(255,255,255,0.7);
+          font-size: 13px;
+          font-family: 'DM Sans', sans-serif;
+          cursor: pointer;
+          text-align: left;
+          transition: background 0.15s, color 0.15s;
+        }
+        .sb-profile-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
         .sb-user {
           display: flex;
           align-items: center;
@@ -353,9 +508,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         .sb-logout:hover { background: rgba(255,80,80,0.1); color: #fca5a5; }
         .collapsed .sb-logout span { display: none; }
 
-        .sb-tooltip {
-          position: relative;
-        }
+        .sb-tooltip { position: relative; }
         .collapsed .sb-tooltip:hover::after {
           content: attr(data-tip);
           position: absolute;
@@ -392,10 +545,52 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         .sb-link-item:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.85); }
         .sb-link-item.active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 500; }
         .collapsed .sb-link-item .sb-item-label { display: none; }
+
+        /* Modal cambiar contraseña */
+        .sb-pwd-overlay {
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.45);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 200; padding: 16px;
+        }
+        .sb-pwd-modal {
+          background: #fff; border-radius: 14px;
+          width: 100%; max-width: 400px;
+          display: flex; flex-direction: column;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .sb-pwd-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 18px 20px; border-bottom: 1px solid #f3f4f6;
+        }
+        .sb-pwd-title {
+          display: flex; align-items: center; gap: 10px;
+          font-size: 15px; font-weight: 600; color: #111827;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .sb-pwd-close {
+          width: 28px; height: 28px; border-radius: 7px;
+          border: 1px solid #e5e7eb; background: #fff;
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          color: #6b7280;
+        }
+        .sb-pwd-close:hover { background: #f3f4f6; }
+        .sb-pwd-body { padding: 20px; }
+        .sb-pwd-footer {
+          display: flex; justify-content: flex-end; gap: 10px;
+          padding: 14px 20px; border-top: 1px solid #f3f4f6;
+        }
+        .sb-pwd-error {
+          background: #fef2f2; border: 1px solid #fecaca;
+          border-radius: 8px; padding: 10px 14px;
+          font-size: 13px; color: #dc2626; margin-bottom: 14px;
+          font-family: 'DM Sans', sans-serif;
+        }
       `}</style>
 
+      <Toast toast={toast} />
+
       <aside className={`sb-root ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
-        {/* Header */}
         <div className="sb-header">
           <div className="sb-logo">
             <div className="sb-logo-icon">
@@ -407,16 +602,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           </div>
           <button className="sb-toggle-btn" onClick={() => {
             if (window.innerWidth < 768) {
-              onMobileClose()   // en móvil cierra el drawer
+              onMobileClose()
             } else {
-              onToggle()        // en PC colapsa el sidebar
+              onToggle()
             }
           }}>
             {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
         </div>
 
-        {/* Nav */}
         <nav className="sb-nav">
           {MENU.map(({ section, items }) => {
             const itemsVisibles = items.filter(i => permisosRol.includes(i.id))
@@ -479,13 +673,29 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           })}
         </nav>
 
-        {/* Footer */}
         <div className="sb-footer">
-          <div className="sb-user">
-            <div className="sb-avatar">{user?.iniciales || iniciales(user?.nombre || user?.username)}</div>
-            <div className="sb-user-info">
-              <div className="sb-user-name">{user?.nombre || user?.username || 'Usuario'}</div>
-              <div className="sb-user-rol">{rol}</div>
+          <div className="sb-user-wrap" ref={profileRef}>
+            {profileOpen && !collapsed && (
+              <div className="sb-profile-dropdown">
+                <button
+                  className="sb-profile-item"
+                  onClick={() => { setShowPwd(true); setProfileOpen(false) }}
+                >
+                  <Lock size={14} />
+                  <span>Mi contraseña</span>
+                </button>
+              </div>
+            )}
+            <div
+              className="sb-user"
+              onClick={() => { if (!collapsed) setProfileOpen(v => !v) }}
+              title={collapsed ? user?.nombre || user?.username || 'Usuario' : undefined}
+            >
+              <div className="sb-avatar">{user?.iniciales || iniciales(user?.nombre || user?.username)}</div>
+              <div className="sb-user-info">
+                <div className="sb-user-name">{user?.nombre || user?.username || 'Usuario'}</div>
+                <div className="sb-user-rol">{rol}</div>
+              </div>
             </div>
           </div>
           <button className="sb-logout" onClick={logout}>
@@ -494,6 +704,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           </button>
         </div>
       </aside>
+
+      {showPwd && (
+        <ModalCambiarPassword
+          onClose={() => setShowPwd(false)}
+          showToast={showToast}
+        />
+      )}
     </>
   )
 }

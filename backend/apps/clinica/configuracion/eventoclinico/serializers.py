@@ -20,4 +20,4 @@ class EventoClinicoSerializer(serializers.ModelSerializer):
             qs = qs.exclude(pk=self.instance.pk)
         if qs.annotate(tipo_lower=Lower('tipo_evento')).filter(tipo_lower=value.strip().lower()).exists():
             raise serializers.ValidationError('Ya existe un evento clínico con ese nombre.')
-        return value
+        return value.strip()

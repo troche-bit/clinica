@@ -2,7 +2,7 @@ from django.db import models
 from django.db.models import Q
 from apps.core.models import BaseModel
 from apps.administracion.persona_rrhh.models import PersonaRRHH
-from apps.diasemana.models import DiaSemana
+from apps.mantenimiento.diasemana.models import DiaSemana
 from apps.clinica.configuracion.especialidad.models import Especialidad
 
 INTERVALOS = [(15, '15 min'), (20, '20 min'), (30, '30 min'), (45, '45 min'), (60, '60 min')]
@@ -19,6 +19,14 @@ class HorarioPrestador(BaseModel):
         on_delete=models.PROTECT,
         related_name='horarios',
         help_text='Prestador al que pertenece el horario',
+    )
+    consultorio = models.ForeignKey(
+        'consultorio.Consultorio',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='horarios',
+        help_text='Consultorio donde se atiende',
     )
     dia_semana = models.ForeignKey(
         DiaSemana,

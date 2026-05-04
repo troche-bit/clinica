@@ -23,7 +23,7 @@ function buildUser(token) {
     iniciales: claims.iniciales || '',
     activo: claims.activo !== false,
     persona_rrhh_id: claims.persona_rrhh_id || null,
-    medico_asignado_id: claims.medico_asignado_id || null,
+    medicos_asignados: claims.medicos_asignados || [],
   }
 }
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import BuscadorPersona from '../persona/BuscadorPersona'
 import FormPersona     from '../persona/FormPersona'
 import FormRRHH        from '../rrhh/FormRRHH'
-import { useCreatePersona, useUpdatePersona } from '../../hooks/usePersona'
+import { useCreatePersona, useUpdatePersona } from '../../hooks/administracion/usePersona'
 import { useCreatePersonaRRHH, useUpdatePersonaRRHH } from '../../hooks/administracion/usePersonaRRHH'
 import { extraerMensajeError } from '../../utils/errores'
 

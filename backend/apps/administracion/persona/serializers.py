@@ -22,7 +22,7 @@ class PersonaListSerializer(serializers.ModelSerializer):
         model = Persona
         fields = [
             'id', 'tipo_documento', 'tipo_documento_detalle', 'nro_documento',
-            'ruc_dv', 'razon_social', 'telefono', 'correo_electronico',
+            'ruc_dv', 'razon_social', 'fecha_nacimiento', 'telefono', 'correo_electronico',
             'pais', 'pais_detalle', 'departamento', 'departamento_detalle',
             'ciudad', 'ciudad_detalle', 'direccion',
         ]
@@ -33,7 +33,8 @@ class PersonaSerializer(serializers.ModelSerializer):
         model = Persona
         fields = [
             'id', 'tipo_documento', 'nro_documento', 'ruc_dv', 'razon_social',
-            'telefono', 'correo_electronico', 'pais', 'departamento', 'ciudad', 'direccion',
+            'fecha_nacimiento', 'telefono', 'correo_electronico',
+            'pais', 'departamento', 'ciudad', 'direccion',
         ]
 
     def validate_nro_documento(self, value):
@@ -49,3 +50,15 @@ class PersonaSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError("El número de documento ya existe.")
         return valor
+
+    def validate_razon_social(self, value):
+        return value.strip()
+
+    def validate_telefono(self, value):
+        return value.strip() if value else value
+
+    def validate_correo_electronico(self, value):
+        return value.strip() if value else value
+
+    def validate_direccion(self, value):
+        return value.strip() if value else value

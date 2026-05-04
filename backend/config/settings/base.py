@@ -21,14 +21,13 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'rest_framework_simplejwt.token_blacklist',
     # Propias
-    'apps.users',
-    'apps.appointments',
+    'apps.administracion.users',
     'apps.mantenimiento.ubicacion',
     'apps.administracion.persona',
     # paciente_responsable antes que paciente por la dependencia FK
     'apps.clinica.paciente_responsable',
     'apps.clinica.paciente',
-    'apps.diasemana',
+    'apps.mantenimiento.diasemana',
     'apps.forma_pago',
     # Módulos de administración agrupados bajo apps.administracion/
     'apps.administracion.auditoria',
@@ -36,24 +35,24 @@ INSTALLED_APPS = [
     # Módulos principales
     'apps.administracion.persona_rrhh',
     'apps.clinica.configuracion.horario_prestador',
-    'apps.principal.agenda',
+    'apps.clinica.agenda',
     # Módulos clínicos
     'apps.clinica.configuracion.consultorio',
     'apps.clinica.configuracion.especialidad',
     'apps.clinica.configuracion.eventoclinico',
-    'apps.principal.consultas',
-    'apps.principal.documentos',
-    # Módulos de notificaciones
-    'apps.notificaciones',
+    'apps.clinica.consultas',
+    'apps.clinica.configuracion.documentos',
+    'apps.mantenimiento.notificaciones',
     # Módulos de mantenimiento del sistema
-    'apps.principal.caja_banco',
-    'apps.principal.facturacion',
-    'apps.principal.cobranzas',
-    'apps.principal.pago_prestador',
+    'apps.finanzas.caja_banco',
+    'apps.facturacion.ventas',
+    'apps.finanzas.estadocuenta',
+    'apps.finanzas.cobranzas',
+    'apps.finanzas.pago_prestador',
     # Módulos de mantenimiento del sistema
     'apps.mantenimiento.tipo_doc_dig',
     'apps.mantenimiento.timbrado',
-    'apps.mantenimiento.productos',
+    'apps.stock.productos',
 ]
  
 MIDDLEWARE = [

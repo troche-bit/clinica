@@ -1,9 +1,11 @@
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from apps.clinica.paciente.models import Paciente
 from apps.clinica.paciente.serializers import PacienteSerializer
 from .models import TipoDocumento, Persona
@@ -15,6 +17,11 @@ class TipoDocumentoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     serializer_class = TipoDocumentoSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ["descripcion"]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdminRole()]
 
     def perform_destroy(self, instance):
         if instance.personas.filter(is_deleted=False).exists():
@@ -30,6 +37,13 @@ class PersonaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     search_fields = ["razon_social", "nro_documento", "correo_electronico"]
     ordering_fields = ["razon_social", "fecha_creacion"]
 
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'buscar'):
+            return [IsAuthenticated()]
+        if self.action == 'destroy':
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
+
     def get_queryset(self):
         return Persona.objects.filter(
             is_deleted=False
@@ -41,8 +55,6 @@ class PersonaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return PersonaSerializer
 
     def perform_destroy(self, instance):
-        # Persona nunca se elimina — es registro de identidad compartido
-        # por paciente, responsable y prestador.
         raise MethodNotAllowed(
             "DELETE",
             detail="Los datos de persona no pueden eliminarse. Eliminar el paciente o responsable vinculado."

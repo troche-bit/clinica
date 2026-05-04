@@ -2,14 +2,6 @@ import { useState } from 'react'
 import { Search, Loader2 } from 'lucide-react'
 import apiClient from '../../api/client'
 
-/**
- * Buscador por documento. Acepta el prop `tipo`:
- *   'paciente'    → llama /persona/buscar/ y evalúa es_paciente
- *   'responsable' → llama /pacienteresponsable/buscar/ y evalúa es_responsable
- *   'rrhh'        → llama /personarrhh/buscar/ y evalúa es_prestador
- * El resultado normalizado siempre devuelve: { documento, persona, paciente, es_paciente, modo }
- * donde `paciente` es la entidad principal según el tipo.
- */
 export default function BuscadorPersona({ onResultado, tipo = 'paciente' }) {
   const [documento, setDocumento] = useState('')
   const [loading, setLoading]     = useState(false)

@@ -9,7 +9,6 @@ class PacienteAdmin(admin.ModelAdmin):
         "id",
         "get_nombre_completo",
         "get_documento",
-        "fecha_nacimiento",
         "responsable",
         "sexo",
         "grupo_sanguineo",
@@ -22,7 +21,7 @@ class PacienteAdmin(admin.ModelAdmin):
         ("Persona", {"fields": ("persona",)}),
         ("Datos del Paciente", {
             "fields": (
-                "fecha_nacimiento", "responsable", "sexo",
+                "responsable", "sexo",
                 "observacion", "alergias_conocidas",
                 "enfermedades_cronicas", "grupo_sanguineo", "parentesco",
             )

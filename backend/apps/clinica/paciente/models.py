@@ -16,12 +16,6 @@ class Paciente(BaseModel):
         help_text="Persona a la que se le asigna el paciente",
     )
 
-    fecha_nacimiento = models.DateField(
-        blank=False,
-        null=False,
-        help_text="Fecha de nacimiento del paciente",
-    )
-
     responsable = models.ForeignKey(
         PacienteResponsable,
         on_delete=models.PROTECT,

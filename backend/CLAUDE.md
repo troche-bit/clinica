@@ -111,10 +111,61 @@ Ver `../CLAUDE.md` — aplica a todas las apps.
 - `PacienteResponsable` → verificar pacientes activos ✅
 - `Especialidad` → verificar prestadores activos en `PersonaRRHH.especialidades` ✅
 - `EventoClinico` → verificar `consultas.filter(is_deleted=False)` ✅
-- `Consultorio` → verificar turnos activos en `HorarioPrestador` ⏳ pendiente — FK no implementada
+- `Consultorio` → verificar horarios activos en `HorarioPrestador` ✅
 - `TipoDocDigital` → verificar documentos activos ✅
 - `Paciente` → verificar citas activas en `Agenda` (disponible/ocupado/realizado) ✅
 - `Persona` → no eliminable — `MethodNotAllowed` en `perform_destroy` ✅
+
+### Permisos de rol — clases compartidas en `apps/core/permissions.py`
+Importar siempre desde ahí — **no** redefinir inline.
+
+| Clase | Roles permitidos |
+|---|---|
+| `IsAdminRole` | `admin` |
+| `IsAdminOrRecepcionista` | `admin`, `recepcionista` |
+
+**Patrón de tres niveles** (catálogos con escritura restringida):
+```python
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
+
+def get_permissions(self):
+    if self.action in ('list', 'retrieve'):
+        return [IsAuthenticated()]
+    if self.action in ('destroy', 'eliminados'):
+        return [IsAuthenticated(), IsAdminRole()]
+    return [IsAuthenticated(), IsAdminOrRecepcionista()]
+```
+
+Actualmente aplicado en: `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `PersonaViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy), `TipoDocumentoViewSet` (IsAdminRole para todo CUD).
+`PerfilUsuarioViewSet` usa `IsAdminRole` directamente (lógica propia por ser gestión de usuarios).
+
+### Módulos sin BaseModel — auditoría manual con _log()
+`PerfilUsuario` y `DiaSemana` no heredan `BaseModel`, por lo que `AuditoriaMixin` no aplica.
+Para `PerfilUsuario` se usa un helper `_log()` local en `views.py`:
+
+```python
+def _log(request, registro_id, accion, datos_antes=None, datos_despues=None):
+    try:
+        x_fwd = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip = x_fwd.split(',')[0].strip() if x_fwd else request.META.get('REMOTE_ADDR')
+        RegistroAuditoria.objects.create(
+            tabla='PerfilUsuario', registro_id=registro_id, accion=accion,
+            datos_antes=datos_antes, datos_despues=datos_despues,
+            usuario=request.user, ip=ip,
+        )
+    except Exception:
+        pass
+```
+
+Las contraseñas se registran siempre como `'***'` — nunca en claro. El campo `datos_despues`
+agrega contexto: `'*** (modificada por el propio usuario)'` o `'*** (reseteada por administrador: X)'`.
+
+### Protecciones del usuario master y auto-protección
+Reglas implementadas en `PerfilUsuarioViewSet`:
+- `cambiar_estado`: no se puede desactivar a `is_superuser`, ni a uno mismo
+- `partial_update`: no se puede cambiar el `rol` de `is_superuser`
+- `cambiar_password` y `resetear_password`: la nueva contraseña no puede ser igual a la actual
+  (`user.check_password(nueva)` antes de `set_password`)
 
 ### Doble serializer (list vs write)
 - `XListSerializer` — campos anidados expandidos (para `list` y `retrieve`)
@@ -202,11 +253,14 @@ Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`
 | `GET /api/persona/buscar/?nro_documento=X` | `{persona, paciente, es_paciente}` |
 | `GET /api/pacienteresponsable/buscar/?nro_documento=X` | `{persona, pacienteresponsable, es_responsable}` |
 | `GET /api/personarrhh/buscar/?nro_documento=X` | `{persona, personarrhh, es_prestador}` |
-| `GET /api/usuarios/` | Lista con filtros `search`, `rol`, `activo` |
-| `POST /api/usuarios/` | Crea User + PerfilUsuario |
-| `PATCH /api/usuarios/{id}/` | Actualiza perfil |
-| `POST /api/usuarios/{id}/cambiar-estado/` | Toggle `activo` |
-| `POST /api/usuarios/{id}/resetear-password/` | `{nueva_password}` |
+| `GET /api/usuarios/` | Lista con filtros `search`, `rol`, `activo` — solo admin |
+| `POST /api/usuarios/` | Crea User + PerfilUsuario — solo admin |
+| `GET /api/usuarios/{id}/` | Detalle de un perfil — solo admin |
+| `PATCH /api/usuarios/{id}/` | Actualiza perfil — solo admin; no cambia rol del master |
+| `GET /api/usuarios/me/` | Perfil del usuario autenticado — cualquier rol |
+| `POST /api/usuarios/cambiar-password/` | `{current_password, nueva_password}` — cualquier rol; valida que no coincidan |
+| `POST /api/usuarios/{id}/cambiar-estado/` | Toggle `activo` — solo admin; bloquea master y auto-desactivación |
+| `POST /api/usuarios/{id}/resetear-password/` | `{nueva_password}` — solo admin; valida que no coincida con la actual |
 
 ### Eliminados (todos los módulos con borrado lógico)
 `GET /api/{modulo}/eliminados/` — disponible en: paciente, pacienteresponsable, consultorio, pais, departamento, ciudad, especialidad, eventoclinico, tipo-doc-dig, personarrhh, horario-prestador, timbrado, grupos, productos, cuentas-mcb, movimientos-caja, cobranzas

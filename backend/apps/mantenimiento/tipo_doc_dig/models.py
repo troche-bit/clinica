@@ -11,9 +11,7 @@ class TipoDocDigital(BaseModel):
         null=False,
         help_text="Nombre descriptivo del tipo de documento (ej: Historia Clínica, Receta)"
     )
-    # Clave usada para construir rutas de almacenamiento de archivos.
-    # IMPORTANTE: no modificar una vez que existen documentos de este tipo.
-    # Ejemplo: "historia_clinica" → documentos/historia_clinica/2025/...
+    # No modificar una vez que existen documentos — cambiarla rompe las rutas físicas almacenadas.
     storage_key = models.SlugField(
         max_length=50,
         blank=False,
@@ -30,14 +28,12 @@ class TipoDocDigital(BaseModel):
             Index(fields=["descripcion", "is_deleted"], name="idx_tipo_doc_dig_desc_del"),
         ]
         constraints = [
-            # Unicidad case-insensitive sobre descripcion (solo registros activos)
             UniqueConstraint(
                 Lower("descripcion"),
                 name="unique_tipo_doc_dig_descripcion",
                 condition=Q(is_deleted=False)
             ),
-            # Unicidad de storage_key (solo registros activos)
-            # SlugField ya es lowercase, no necesita Lower()
+            # SlugField ya es lowercase — no necesita Lower()
             UniqueConstraint(
                 fields=["storage_key"],
                 name="unique_tipo_doc_dig_storage_key",

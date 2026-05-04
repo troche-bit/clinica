@@ -132,6 +132,11 @@ Resumen de los puntos más críticos que se repiten en cada módulo:
 
 ---
 
+### Excepción — Módulos sin BaseModel
+`PerfilUsuario` (users) y `DiaSemana` no heredan `BaseModel`, por lo que `AuditoriaMixin`
+**no aplica**. `PerfilUsuario` usa un helper manual `_log()` en su `views.py` que escribe
+directamente en `RegistroAuditoria`. Ver patrón completo en `backend/CLAUDE.md`.
+
 ### Auditoría — AuditoriaMixin en TODOS los viewsets
 Todos los ViewSets con BaseModel deben heredar de `AuditoriaMixin` **antes** del ViewSet base:
 
@@ -157,6 +162,24 @@ def perform_destroy(self, instance):
     super().perform_destroy(instance)  # delega borrado lógico + auditoría al mixin
 ```
 
+### Permisos de rol — clases compartidas en `apps/core/permissions.py`
+Importar siempre desde ahí — no redefinir inline.
+
+| Clase | Roles permitidos | Usado por |
+|---|---|---|
+| `IsAdminRole` | `admin` | `PerfilUsuarioViewSet`, `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `TipoDocumentoViewSet` (CUD), `PersonaViewSet` (destroy) |
+| `IsAdminOrRecepcionista` | `admin`, `recepcionista` | `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `PersonaViewSet` (create/update) |
+
+**Patrón de tres niveles** (lectura abierta, escritura restringida, borrado solo admin):
+```python
+def get_permissions(self):
+    if self.action in ('list', 'retrieve'):
+        return [IsAuthenticated()]
+    if self.action in ('destroy', 'eliminados'):
+        return [IsAuthenticated(), IsAdminRole()]
+    return [IsAuthenticated(), IsAdminOrRecepcionista()]
+```
+
 ### TipoDocumento
 Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, sin ABM.
 
@@ -174,20 +197,20 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 | Especialidades | ✅ | ✅ |
 | Evento Clínico | ✅ | ✅ |
 | Tipo Doc. Digitalizado | ✅ | ✅ |
-| Días de semana | ✅ | — dato de referencia |
+| Días de semana | ✅ migrado a `apps/mantenimiento/diasemana/` | — dato de referencia |
 | Formas de pago | ✅ | — dato de referencia |
 | PersonaRRHH | ✅ | ✅ |
 | Horario Prestador | ✅ migrado a `apps/clinica/configuracion/horario_prestador/` | ✅ migrado a `pages/clinica/configuracion/` |
-| Agenda | ✅ | ✅ |
-| Consultas | ✅ | ✅ |
-| Documentos digitalizados | ✅ | ✅ |
-| Recordatorios | ✅ | ✅ |
+| Agenda | ✅ migrado a `apps/clinica/agenda/` | ✅ migrado a `pages/clinica/` |
+| Consultas | ✅ migrado a `apps/clinica/consultas/` | ✅ migrado a `pages/clinica/` |
+| Documentos digitalizados | ✅ migrado a `apps/clinica/configuracion/documentos/` | ✅ migrado a `pages/mantenimiento/` |
+| Recordatorios | ✅ migrado a `apps/mantenimiento/notificaciones/` | ✅ migrado a `pages/clinica/` |
 | Timbrado | ✅ | ✅ |
-| Grupos y Productos | ✅ | ✅ |
-| Cuentas Caja/Banco | ✅ | ✅ |
-| Cobranzas | ✅ | ✅ |
-| Pago a Prestadores | ✅ | ✅ |
-| Facturación / Ventas | ✅ | ✅ |
+| Grupos y Productos | ✅ migrado a `apps/stock/productos/` | ✅ migrado a `pages/stock/` |
+| Cuentas Caja/Banco | ✅ migrado a `apps/finanzas/caja_banco/` | ✅ migrado a `pages/finanzas/` |
+| Cobranzas | ✅ migrado a `apps/finanzas/cobranzas/` | ✅ migrado a `pages/finanzas/` |
+| Pago a Prestadores | ✅ migrado a `apps/finanzas/pago_prestador/` | ✅ migrado a `pages/finanzas/` |
+| Facturación / Ventas | ✅ migrado a `apps/facturacion/ventas/` · `CtaCobrar` → `apps/finanzas/estadocuenta/` | ✅ migrado a `pages/facturacion/` |
 | Usuarios y Roles | ✅ | ✅ |
 | Auditoría | ✅ | ❌ pendiente |
 | Dashboard | ⚠️ sin ruta | ⚠️ sin ruta |
@@ -198,15 +221,15 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 
 ## Orden de Trabajo — Fase Actual
 
-1. ~~**Reorganizar estructura** de carpetas backend y frontend~~ — pendiente (estructura objetivo ya documentada en CLAUDE.md; mover físicamente los archivos es el paso siguiente)
+1. **Reorganizar estructura** de carpetas backend y frontend — ✅ completado
 2. **Implementar módulo Auditoría** — backend ✅ · frontend ❌ pendiente (`AuditoriaPage`)
 3. **Auditar módulo por módulo** — en este orden:
    - consultorio ✅ → especialidad ✅ → eventoclinico ✅
    - ubicacion ✅ → tipo_doc_dig ✅
    - persona ✅ → paciente ✅ → paciente_responsable ✅
-   - persona_rrhh ✅ → horario_prestador ✅ → agenda
-   - consultas → documentos → recordatorios
-   - facturacion → cobranzas → finanzas
+   - persona_rrhh ✅ → horario_prestador ✅ → agenda ✅ → consultas ✅
+   - documentos ✅ → recordatorios ✅
+   - facturacion ✅ → caja_banco ✅ → cobranzas ✅ → pago_prestador ✅
 4. **Agregar tests** al finalizar cada módulo auditado
 5. **Conectar Dashboard** al router
 6. **Módulo Informes** — `InformesPacientePage` ✅ (listado PDF/Excel + dashboard mensual). Pendiente: replicar patrón en otros módulos (agenda, facturación, etc.)
@@ -217,7 +240,7 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 
 | Pendiente | Alcance | Prioridad |
 |---|---|---|
-| Reorganizar estructura de carpetas | Backend + Frontend | 🔴 Alta |
+| Modal detalle al hacer click en grupo (GruposPage) | Frontend | 🟡 Media |
 | AuditoriaPage frontend | Frontend | 🔴 Alta |
 | Aplicar AuditoriaMixin al resto de viewsets | Backend | 🔴 Alta |
 | Borrado lógico con validación de dependencias | Todos los viewsets | 🔴 Alta |
@@ -250,7 +273,9 @@ def perform_destroy(self, instance):
 | `PacienteResponsable` | pacientes activos | ✅ |
 | `Especialidad` | prestadores activos (`persona_rrhh`) | ✅ |
 | `EventoClinico` | consultas activas | ✅ |
-| `Consultorio` | turnos activos en `HorarioPrestador` | ⏳ pendiente — FK no implementada |
+| `Consultorio` | horarios activos en `HorarioPrestador` | ✅ |
 | `TipoDocDigital` | documentos activos | ✅ |
 | `Paciente` | citas activas en `Agenda` (disponible/ocupado/realizado) | ✅ |
+| `Agenda` | consultas activas (`Consulta.agenda`) | ✅ |
 | `Persona` | no eliminable — `MethodNotAllowed` en `perform_destroy` | ✅ |
+| `Grupo` | productos activos vinculados | ✅ |

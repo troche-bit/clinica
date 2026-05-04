@@ -13,7 +13,7 @@ const BREADCRUMBS = {
   '/facturacion/ventas':          ['Facturación', 'Ventas / Facturas'],
   '/facturacion/timbrado':        ['Facturación', 'Config. timbrado'],
   '/rrhh/personas':               ['RRHH', 'Persona RRHH'],
-  '/rrhh/especialidades':         ['RRHH', 'Especialidades'],
+  '/clinica/configuracion/especialidades': ['Clínica', 'Especialidades'],
   '/informes/modulos':            ['Informes', 'Por módulo'],
   '/informes/cruzados':           ['Informes', 'Reportes cruzados'],
   '/mantenimiento/ubicaciones':   ['Mantenimiento', 'Ubicaciones'],

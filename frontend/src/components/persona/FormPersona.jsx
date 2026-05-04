@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useTipoDocumento } from '../../hooks/usePersona'
-import { usePaises, useDepartamentos, useCiudades } from '../../hooks/useUbicacion'
+import { useTipoDocumento } from '../../hooks/administracion/usePersona'
+import { usePaises, useDepartamentos, useCiudades } from '../../hooks/mantenimiento/useUbicacion'
 import { calcularDV } from '../../utils/calcularDV'
 
 export default function FormPersona({ persona, documento, readOnly = false, onChange }) {
@@ -11,6 +11,7 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
     nro_documento:      documento || '',
     ruc_dv:             '',
     razon_social:       '',
+    fecha_nacimiento:   '',
     telefono:           '',
     correo_electronico: '',
     pais:               '',
@@ -34,6 +35,7 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
         nro_documento:      persona.nro_documento      ?? '',
         ruc_dv:             persona.ruc_dv             ?? '',
         razon_social:       persona.razon_social       ?? '',
+        fecha_nacimiento:   persona.fecha_nacimiento   ?? '',
         telefono:           persona.telefono           ?? '',
         correo_electronico: persona.correo_electronico ?? '',
         pais:               persona.pais               ?? '',
@@ -208,7 +210,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
 
         <div className="fp-grid">
 
-          {/* Tipo documento */}
           <div className="fp-field">
             <label className="fp-label fp-label-required">Tipo de documento</label>
             <div className="fp-select-wrap">
@@ -227,7 +228,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             </div>
           </div>
 
-          {/* Nro documento + DV */}
           <div className="fp-field">
             <label className="fp-label fp-label-required">Nro. de documento</label>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
@@ -259,7 +259,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             </div>
           </div>
 
-          {/* Razón social */}
           <div className="fp-field fp-col-2">
             <label className="fp-label fp-label-required">Razón social / Nombre completo</label>
             <input
@@ -273,10 +272,21 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             />
           </div>
 
+          <div className="fp-field">
+            <label className="fp-label">Fecha de nacimiento</label>
+            <input
+              type="date"
+              name="fecha_nacimiento"
+              value={form.fecha_nacimiento}
+              onChange={handleChange}
+              disabled={readOnly}
+              className="fp-input"
+            />
+          </div>
+
           <div className="fp-divider" />
           <div className="fp-subsection">Contacto</div>
 
-          {/* Teléfono */}
           <div className="fp-field">
             <label className="fp-label">Teléfono</label>
             <input
@@ -290,7 +300,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             />
           </div>
 
-          {/* Correo */}
           <div className="fp-field">
             <label className="fp-label">Correo electrónico</label>
             <input
@@ -307,7 +316,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
           <div className="fp-divider" />
           <div className="fp-subsection">Ubicación</div>
 
-          {/* País */}
           <div className="fp-field">
             <label className="fp-label">País</label>
             <div className="fp-select-wrap">
@@ -326,7 +334,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             </div>
           </div>
 
-          {/* Departamento */}
           <div className="fp-field">
             <label className="fp-label">Departamento</label>
             <div className="fp-select-wrap">
@@ -347,7 +354,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             </div>
           </div>
 
-          {/* Ciudad */}
           <div className="fp-field">
             <label className="fp-label">Ciudad</label>
             <div className="fp-select-wrap">
@@ -368,7 +374,6 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
             </div>
           </div>
 
-          {/* Dirección */}
           <div className="fp-field">
             <label className="fp-label">Dirección</label>
             <input

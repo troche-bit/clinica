@@ -28,7 +28,7 @@ frontend/src/
 │   │   └── useAuditoria.js    ← pendiente de crear
 │   ├── mantenimiento/
 │   │   ├── useUbicacion.js
-│   │   ├── useDiasemana.js
+│   │   ├── useDiasemana.js    ← pendiente de crear
 │   │   ├── useTipoDocDig.js
 │   │   ├── useEventosClinicos.js
 │   │   ├── useFormasPago.js
@@ -62,7 +62,7 @@ frontend/src/
 │   │   └── ConfirmDialog.jsx  ← diálogo de confirmación — reemplaza window.confirm()
 │   ├── layout/
 │   │   ├── Layout.jsx         ← define clases globales reutilizables
-│   │   ├── Sidebar.jsx        ← filtra menú según rol
+│   │   ├── Sidebar.jsx        ← filtra menú según rol (PERMISOS por id de grupo)
 │   │   └── Navbar.jsx         ← breadcrumbs automáticos
 │   ├── persona/
 │   │   ├── BuscadorPersona.jsx
@@ -114,6 +114,24 @@ frontend/src/
 ---
 
 ## Convenciones Críticas
+
+### Sidebar — PERMISOS por rol
+El Sidebar filtra los grupos del menú mediante la constante `PERMISOS` (en `Sidebar.jsx`).
+Cada grupo tiene un `id`; solo los grupos incluidos en el array del rol se muestran.
+
+| Rol | Grupos visibles |
+|---|---|
+| `admin` | pacientes, agenda, consultas, facturacion, finanzas, rrhh, informes, usuarios, mantenimiento |
+| `recepcionista` | pacientes, agenda, consultas, facturacion, finanzas, mantenimiento, informes |
+| `medico` | pacientes, agenda, consultas, informes |
+| `secretaria_medico` | pacientes, agenda, consultas, informes |
+
+Grupos relevantes para catálogos de configuración:
+- `mantenimiento` → Ubicaciones, **Consultorios**, **Especialidades**, Tipo doc. digitalizado
+- `consultas` → Consulta médica, **Evento clínico**
+- `rrhh` → Persona RRHH (solo admin)
+
+Al crear un nuevo módulo que deba ser visible para recepcionista, asignarlo al grupo `mantenimiento` o `consultas` según corresponda — **no** crear grupos nuevos salvo que sea estrictamente necesario.
 
 ### Cliente HTTP
 - Usar siempre `client.js` — es el único cliente activo
@@ -278,6 +296,32 @@ El toggle Día/Semana/Mes del calendario es estado local del componente (`useSta
 
 Cada sección tiene un `inf-pac-section-label` (texto uppercase gris con borde inferior) como separador visual.
 
+### Patrón Modal de Contraseña — Indicador de fuerza + confirmación
+Todos los modales que permiten ingresar una contraseña nueva deben incluir:
+1. **Campo contraseña** con botón ojo (show/hide) + indicador de fuerza debajo
+2. **Campo confirmar contraseña** con botón ojo independiente + advertencia de no coincidencia en tiempo real
+3. Validación en `submit`: si no coinciden, setear error y hacer `return` sin llamar a la API
+
+Funciones de apoyo (definir en el componente o su archivo):
+```js
+function calcularFuerza(pwd) {
+  if (!pwd) return null
+  if (pwd.length < 8) return { label: 'Débil', color: '#dc2626', pct: 25 }
+  const tipos = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter(r => r.test(pwd)).length
+  if (tipos >= 3 && pwd.length >= 10) return { label: 'Fuerte', color: '#16a34a', pct: 100 }
+  if (tipos >= 2) return { label: 'Media', color: '#d97706', pct: 60 }
+  return { label: 'Débil', color: '#dc2626', pct: 30 }
+}
+```
+
+Aplicado en: `UsuariosPage` (crear + resetear password), `Sidebar` (cambiar propia contraseña).
+
+### Patrón Cambiar Contraseña desde Sidebar
+`ModalCambiarPassword` vive en `Sidebar.jsx` (no en `UsuariosPage`). Es el único lugar
+donde cualquier rol autenticado puede cambiar su propia contraseña. El modal se abre
+desde el dropdown del perfil (click en el nombre de usuario en el sidebar). El hook
+`useCambiarPassword` (de `useUsuarios.js`) es el que realiza el POST.
+
 ### Patrón Buscador — Flujo por documento
 | Modo | Condición |
 |---|---|
@@ -390,6 +434,7 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `useUpdateUsuario` | PATCH `/api/usuarios/{id}/` |
 | `useCambiarEstadoUsuario` | POST `/api/usuarios/{id}/cambiar-estado/` |
 | `useResetearPassword` | POST `/api/usuarios/{id}/resetear-password/` |
+| `useCambiarPassword` | POST `/api/usuarios/cambiar-password/` — importado también por `Sidebar.jsx` |
 | `usePersonasRRHH` | Lista paginada con búsqueda |
 | `useCreatePersonaRRHH` | POST `/api/personarrhh/` |
 | `useUpdatePersonaRRHH` | PATCH `/api/personarrhh/{id}/` |
@@ -444,6 +489,7 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `useStatsHoy` | GET `/api/agenda/stats-hoy/` (staleTime 1 min) |
 | `useAsignarTurno` | PATCH `/api/agenda/{id}/asignar/` |
 | `useCambiarEstado` | PATCH `/api/agenda/{id}/estado/` |
+| `usePacienteSearch(q)` | GET `/api/paciente/?search=q` con debounce 300ms — búsqueda rápida para asignar turno |
 | `useConsultasDelDia` | GET `/api/consultas/?persona_rrhh=&fecha=` |
 | `useConsultasPaciente` | GET `/api/consultas/?paciente=id` |
 | `useConsultaDetalle` | GET `/api/consultas/{id}/` |
@@ -452,6 +498,7 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `useUpdateConsulta` | PATCH `/api/consultas/{id}/` |
 | `useCrearConsulta` | POST `/api/consultas/` |
 | `useStatsConsultasHoy` | GET `/api/consultas/stats-hoy/` |
+| `useConsultasHoy` | GET todas las consultas del día (vista recepcionista) — `refetchInterval: 60s` |
 
 ### facturacion/
 | Hook | Responsabilidad |
@@ -557,6 +604,8 @@ Al auditar cada página aplicar **todos** estos puntos sin excepción:
 | 3 | Interceptor Axios | Para 401/403/500 en `client.js` |
 | 4 | Navbar breadcrumb | Verificar que rutas nuevas matcheen correctamente |
 | 5 | `pages/administracion/AuditoriaPage.jsx` | Pendiente — solo rol admin |
+| 6 | `pages/stock/GruposPage.jsx` | Falta click en tarjeta de grupo para abrir modal en modo `'ver'` (patrón igual que PacientePage) |
+| 7 | `hooks/mantenimiento/useDiasemana.js` | Listado en estructura pero archivo no creado — pendiente |
 
 ---
 

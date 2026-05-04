@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import HorarioPrestador
-from apps.diasemana.models import DiaSemana
-from apps.diasemana.serializers import DiaSemanaSerializer
+from apps.mantenimiento.diasemana.models import DiaSemana
+from apps.mantenimiento.diasemana.serializers import DiaSemanaSerializer
 from apps.clinica.configuracion.especialidad.serializers import EspecialidadListSerializer
 from apps.administracion.persona_rrhh.serializers import PersonaRRHHListSerializer
 

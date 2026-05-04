@@ -7,24 +7,24 @@ import PacientePage from './pages/clinica/PacientePage'
 import InformesPacientePage from './pages/clinica/InformesPacientePage'
 import DashboardPacientesPage from './pages/clinica/DashboardPacientesPage'
 import PacienteResponsablePage from './pages/clinica/PacienteResponsablePage'
-import UbicacionesPage from './pages/UbicacionesPage'
-import ConsultorioPage from './pages/ConsultorioPage'
-import EspecialidadPage from './pages/EspecialidadPage'
-import EventoClinicoPage from './pages/EventoClinicoPage'
-import TipoDocDigPage from './pages/TipoDocDigPage'
+import UbicacionesPage from './pages/mantenimiento/UbicacionesPage'
+import ConsultorioPage from './pages/clinica/configuracion/ConsultorioPage'
+import EspecialidadPage from './pages/clinica/configuracion/EspecialidadPage'
+import EventoClinicoPage from './pages/mantenimiento/EventoClinicoPage'
+import TipoDocDigPage from './pages/mantenimiento/TipoDocDigPage'
 import PersonaRRHHPage from './pages/administracion/PersonaRRHHPage'
 import HorarioPrestadorPage from './pages/clinica/configuracion/HorarioPrestadorPage'
-import AgendaPage from './pages/AgendaPage'
-import ConsultasPage from './pages/ConsultasPage'
-import DocumentosPage from './pages/DocumentosPage'
-import RecordatoriosPage from './pages/RecordatoriosPage'
+import AgendaPage from './pages/clinica/AgendaPage'
+import ConsultasPage from './pages/clinica/ConsultasPage'
+import DocumentosPage from './pages/mantenimiento/DocumentosPage'
+import RecordatoriosPage from './pages/clinica/RecordatoriosPage'
 import TimbradoPage from './pages/TimbradoPage'
-import GruposPage from './pages/GruposPage'
-import CuentasMcbPage from './pages/CuentasMcbPage'
-import FacturacionPage from './pages/FacturacionPage'
-import CobranzasPage from './pages/CobranzasPage'
-import PagoPrestadorPage from './pages/PagoPrestadorPage'
-import UsuariosPage from './pages/UsuariosPage'
+import GruposPage from './pages/stock/GruposPage'
+import CuentasMcbPage from './pages/finanzas/CuentasMcbPage'
+import FacturacionPage from './pages/facturacion/FacturacionPage'
+import CobranzasPage from './pages/finanzas/CobranzasPage'
+import PagoPrestadorPage from './pages/finanzas/PagoPrestadorPage'
+import UsuariosPage from './pages/administracion/UsuariosPage'
 
 export default function App() {
   return (
@@ -69,9 +69,8 @@ export default function App() {
           }
         />
 
-        // Ruta para listar ubicaciones
-        <Route 
-          path="/ubicaciones"
+        <Route
+          path="/mantenimiento/ubicaciones"
           element={
             <PrivateRoute>
               <Layout>
@@ -105,9 +104,8 @@ export default function App() {
           }
         />
 
-        // Ruta para listar especialidades
         <Route
-          path="/rrhh/especialidades"
+          path="/clinica/configuracion/especialidades"
           element={
             <PrivateRoute>
               <Layout>
@@ -117,8 +115,7 @@ export default function App() {
           }
         />
 
-        // Ruta para listar eventos clinicos
-        <Route 
+        <Route
           path="/consultas/eventos"
           element={
             <PrivateRoute>

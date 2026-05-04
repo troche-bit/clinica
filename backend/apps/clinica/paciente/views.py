@@ -46,7 +46,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return PacienteSerializer
 
     def perform_destroy(self, instance):
-        from apps.principal.agenda.models import Agenda
+        from apps.clinica.agenda.models import Agenda
         tiene_citas = Agenda.objects.filter(
             paciente=instance,
             is_deleted=False,
@@ -139,7 +139,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                 "nro":         i,
                 "nombre":      p.persona.razon_social,
                 "documento":   p.persona.nro_documento,
-                "edad":        calcular_edad(p.fecha_nacimiento),
+                "edad":        calcular_edad(p.persona.fecha_nacimiento),
                 "sexo":        p.get_sexo_display(),
                 "telefono":    p.persona.telefono or "—",
                 "responsable": p.responsable.persona.razon_social if p.responsable else "—",
@@ -335,7 +335,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             is_deleted=False,
             fecha_creacion__year=hoy.year,
             fecha_creacion__month=hoy.month,
-        ).values_list("fecha_nacimiento", flat=True)
+        ).values_list("persona__fecha_nacimiento", flat=True)
         for fecha_nac in qs_fechas:
             if not fecha_nac:
                 sin_fecha += 1

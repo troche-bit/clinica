@@ -39,6 +39,7 @@ class Persona(BaseModel):
     nro_documento = models.CharField(max_length=50, blank=False, null=False)
     ruc_dv = models.IntegerField(blank=True, null=True)
     razon_social = models.CharField(max_length=400, blank=False, null=False)
+    fecha_nacimiento = models.DateField(blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
     correo_electronico = models.EmailField(max_length=254, blank=True, null=True)
     pais = models.ForeignKey(

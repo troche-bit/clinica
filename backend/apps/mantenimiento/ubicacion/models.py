@@ -32,7 +32,7 @@ class Pais(BaseModel):
         ]
 
     def __str__(self):
-        return f'{self.id} - {self.descripcion}'
+        return self.descripcion
 
 
 class Departamento(BaseModel):
@@ -68,7 +68,7 @@ class Departamento(BaseModel):
         ]
 
     def __str__(self):
-        return f'{self.descripcion} — {self.pais}'
+        return self.descripcion
 
 
 class Ciudad(BaseModel):
@@ -104,4 +104,4 @@ class Ciudad(BaseModel):
         ]
 
     def __str__(self):
-        return f'{self.descripcion} — {self.departamento} - {self.departamento.pais}'
+        return self.descripcion

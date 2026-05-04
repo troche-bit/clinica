@@ -3,7 +3,6 @@ import apiClient from '../../api/client'
 
 export default function FormPaciente({ paciente, readOnly = false, onChange }) {
   const [form, setForm] = useState({
-    fecha_nacimiento:    '',
     sexo:                '',
     grupo_sanguineo:     '',
     alergias_conocidas:  '',
@@ -48,11 +47,9 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
     setForm(prev => ({ ...prev, responsable: '' }))
   }
 
-  // Precarga datos si paciente existe
   useEffect(() => {
     if (paciente) {
       setForm({
-        fecha_nacimiento:     paciente.fecha_nacimiento     ?? '',
         sexo:                 paciente.sexo                 ?? '',
         grupo_sanguineo:      paciente.grupo_sanguineo      ?? '',
         alergias_conocidas:   paciente.alergias_conocidas   ?? '',
@@ -67,7 +64,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
     }
   }, [paciente])
 
-  // Notifica cambios al padre
   useEffect(() => {
     if (onChange) onChange(form)
   }, [form])
@@ -223,19 +219,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
 
         <div className="fpa-grid">
 
-          {/* ── Datos generales ── */}
-          <div className="fpa-field">
-            <label className="fpa-label">Fecha de nacimiento</label>
-            <input
-              type="date"
-              name="fecha_nacimiento"
-              value={form.fecha_nacimiento}
-              onChange={handleChange}
-              disabled={readOnly}
-              className="fpa-input"
-            />
-          </div>
-
           <div className="fpa-field">
             <label className="fpa-label">Sexo</label>
             <div className="fpa-select-wrap">
@@ -278,7 +261,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             </div>
           </div>
 
-          {/* Responsable */}
           <div className="fpa-field fpa-col-2">
             <label className="fpa-label">Responsable</label>
 
@@ -332,7 +314,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             <span className="fpa-hint">Opcional — registralo primero en el módulo de Responsables</span>
           </div>
 
-          {/* Parentesco — solo visible si hay responsable */}
           {responsableBuscado && (
             <div className="fpa-field fpa-col-2">
               <label className="fpa-label">Parentesco</label>
@@ -348,7 +329,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             </div>
           )}
 
-          {/* ── Antecedentes clínicos ── */}
           <div className="fpa-divider" />
           <div className="fpa-subsection">Antecedentes clínicos</div>
 
@@ -380,7 +360,6 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             <span className="fpa-hint">Separar con comas si hay más de una</span>
           </div>
 
-          {/* ── Observaciones ── */}
           <div className="fpa-divider" />
           <div className="fpa-subsection">Notas</div>
 

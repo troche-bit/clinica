@@ -37,7 +37,7 @@ class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return PersonaRRHHSerializer
 
     def perform_destroy(self, instance):
-        from apps.principal.agenda.models import Agenda
+        from apps.clinica.agenda.models import Agenda
         tiene_turnos = Agenda.objects.filter(
             horario_prestador__persona_rrhh=instance,
             is_deleted=False,

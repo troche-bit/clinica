@@ -20,4 +20,4 @@ class EspecialidadSerializer(serializers.ModelSerializer):
             qs = qs.exclude(pk=self.instance.pk)
         if qs.annotate(desc_lower=Lower('descripcion')).filter(desc_lower=value.strip().lower()).exists():
             raise serializers.ValidationError('Ya existe una especialidad con esa descripción.')
-        return value
+        return value.strip()
