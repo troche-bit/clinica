@@ -23,6 +23,18 @@ class PacienteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["fecha_creacion", "fecha_modificacion"]
 
+    def validate_observacion(self, value):
+        return value.strip() if value else value
+
+    def validate_parentesco(self, value):
+        return value.strip() if value else value
+
+    def validate_alergias_conocidas(self, value):
+        return value.strip() if value else value
+
+    def validate_enfermedades_cronicas(self, value):
+        return value.strip() if value else value
+
 
 class PacienteListSerializer(serializers.ModelSerializer):
     nombre              = serializers.CharField(source="persona.razon_social",  read_only=True)

@@ -7,6 +7,7 @@ import { usePersonasRRHH, usePersonaRRHHMutations } from '../../hooks/administra
 import { useToast }    from '../../hooks/useToast'
 import Toast           from '../../components/ui/Toast'
 import apiClient       from '../../api/client'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 
 const ESTADO_BADGE = {
   activo:   { bg: '#dcfce7', color: '#166534' },
@@ -68,9 +69,9 @@ function PrestadorDetalle({ prestador, onEditar }) {
           <Campo label="Teléfono"     valor={p.telefono} />
           <Campo label="Correo"       valor={p.correo_electronico} />
           <Campo label="Dirección"    valor={p.direccion} />
-          <Campo label="País"         valor={p.pais_detalle?.nombre} />
-          <Campo label="Departamento" valor={p.departamento_detalle?.nombre} />
-          <Campo label="Ciudad"       valor={p.ciudad_detalle?.nombre} />
+          <Campo label="País"         valor={p.pais_detalle?.descripcion} />
+          <Campo label="Departamento" valor={p.departamento_detalle?.descripcion} />
+          <Campo label="Ciudad"       valor={p.ciudad_detalle?.descripcion} />
         </div>
       </Seccion>
 
@@ -118,6 +119,10 @@ export default function PersonaRRHHPage() {
   const { eliminar }                 = usePersonaRRHHMutations(showToast)
 
   const totalPages = data ? Math.ceil(data.count / 20) : 0
+
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (modo === null) handleNuevo() } },
+  })
 
   const handleSearch = (e) => {
     e.preventDefault()

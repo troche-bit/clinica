@@ -23,6 +23,7 @@ class CuentaMcbSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def validate_descripcion(self, value):
+        value = value.strip()
         qs = CuentaMcb.objects.filter(descripcion__iexact=value, is_deleted=False)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)

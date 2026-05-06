@@ -167,8 +167,9 @@ Importar siempre desde ahí — no redefinir inline.
 
 | Clase | Roles permitidos | Usado por |
 |---|---|---|
-| `IsAdminRole` | `admin` | `PerfilUsuarioViewSet`, `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `TipoDocumentoViewSet` (CUD), `PersonaViewSet` (destroy) |
-| `IsAdminOrRecepcionista` | `admin`, `recepcionista` | `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `PersonaViewSet` (create/update) |
+| `IsAdminRole` | `admin` | `PerfilUsuarioViewSet`, `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `TipoDocumentoViewSet` (CUD), `PersonaViewSet` (destroy), `PacienteViewSet` (destroy, eliminados), `PacienteResponsableViewSet` (destroy, eliminados), `PersonaRRHHViewSet` (todo CUD y eliminados), `HorarioPrestadorViewSet` (destroy, eliminados), `AgendaViewSet` (destroy, eliminados), `TimbradoViewSet` (todo CUD y eliminados), `GrupoViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `ProductoServicioViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `VentaFactCabViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy), `CuentaMcbViewSet` (todo CUD y eliminados), `MovimientoCajaBancoViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `CobranzaViewSet` (IsAdminOrRecepcionista para create; IsAdminRole para destroy), `PagoPrestadorViewSet` (todo CUD y eliminados) |
+| `IsAdminOrRecepcionista` | `admin`, `recepcionista` | `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `PersonaViewSet` (create/update), `PacienteViewSet` (create/update), `PacienteResponsableViewSet` (create/update), `HorarioPrestadorViewSet` (create/update), `AgendaViewSet` (create/update/cancelar_rango), `GrupoViewSet` (create/update), `ProductoServicioViewSet` (create/update), `VentaFactCabViewSet` (create/update), `MovimientoCajaBancoViewSet` (create/update), `CobranzaViewSet` (create) |
+| `IsAdminOrRecepcionistaOrSecretaria` | `admin`, `recepcionista`, `secretaria_medico` | `HorarioPrestadorViewSet` (generar), `AgendaViewSet` (create/update/cancelar_rango — secretaria puede gestionar agenda de su médico asignado) |
 
 **Patrón de tres niveles** (lectura abierta, escritura restringida, borrado solo admin):
 ```python
@@ -205,7 +206,7 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 | Consultas | ✅ migrado a `apps/clinica/consultas/` | ✅ migrado a `pages/clinica/` |
 | Documentos digitalizados | ✅ migrado a `apps/clinica/configuracion/documentos/` | ✅ migrado a `pages/mantenimiento/` |
 | Recordatorios | ✅ migrado a `apps/mantenimiento/notificaciones/` | ✅ migrado a `pages/clinica/` |
-| Timbrado | ✅ | ✅ |
+| Timbrado | ✅ migrado a `apps/facturacion/configuracion/timbrado/` | ✅ migrado a `pages/facturacion/` |
 | Grupos y Productos | ✅ migrado a `apps/stock/productos/` | ✅ migrado a `pages/stock/` |
 | Cuentas Caja/Banco | ✅ migrado a `apps/finanzas/caja_banco/` | ✅ migrado a `pages/finanzas/` |
 | Cobranzas | ✅ migrado a `apps/finanzas/cobranzas/` | ✅ migrado a `pages/finanzas/` |
@@ -250,6 +251,7 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 | Conectar Dashboard al router | Frontend | 🟡 Media |
 | Tests por módulo | Al finalizar auditoría de cada uno | 🟢 Progresivo |
 | Módulo Informes — otros módulos (agenda, facturación) | Backend + Frontend | 🟢 Post-auditoría |
+| Informe de horario por prestador — PDF/Excel con todos los horarios de un prestador (activos e inactivos), día, franja horaria, intervalo y especialidades | Backend + Frontend | 🟡 Media |
 
 ---
 
@@ -277,5 +279,10 @@ def perform_destroy(self, instance):
 | `TipoDocDigital` | documentos activos | ✅ |
 | `Paciente` | citas activas en `Agenda` (disponible/ocupado/realizado) | ✅ |
 | `Agenda` | consultas activas (`Consulta.agenda`) | ✅ |
+| `AgendaViewSet` (secretaria_medico) | filtrado por `medicos_asignados` del JWT (`__in`) — ve/gestiona solo la agenda de sus médicos asignados | ✅ |
 | `Persona` | no eliminable — `MethodNotAllowed` en `perform_destroy` | ✅ |
+| `Timbrado` | facturas activas en `VentaFactCab` | ✅ |
 | `Grupo` | productos activos vinculados | ✅ |
+| `ProductoServicio` | facturas activas en `VentaFactDet` | ✅ |
+| `VentaFactCab` | movimientos de caja vinculados a su cobranza (`MovimientoCajaBanco.vfdc_id`) | ✅ |
+| `CuentaMcb` | movimientos activos en `MovimientoCajaBanco` | ✅ |

@@ -8,6 +8,7 @@ from django.db.models import Sum, Count, Q
 from django.db.models.functions import Coalesce
 
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from .models import CuentaMcb, MovimientoCajaBanco
 from .serializers import (
     CuentaMcbListSerializer,
@@ -18,11 +19,15 @@ from .serializers import (
 
 
 class CuentaMcbViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ['descripcion']
-    ordering_fields    = ['descripcion']
-    ordering           = ['descripcion']
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields   = ['descripcion']
+    ordering_fields = ['descripcion']
+    ordering        = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'eliminados'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdminRole()]
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve', 'eliminados'):
@@ -56,11 +61,17 @@ class CuentaMcbViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
 
 class MovimientoCajaBancoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ['voucher']
-    ordering_fields    = ['fecha', 'monto_ingreso', 'monto_egreso']
-    ordering           = ['-fecha', '-fecha_creacion']
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields   = ['voucher']
+    ordering_fields = ['fecha', 'monto_ingreso', 'monto_egreso']
+    ordering        = ['-fecha', '-fecha_creacion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'eliminados'):
+            return [IsAuthenticated()]
+        if self.action == 'destroy':
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve', 'eliminados'):

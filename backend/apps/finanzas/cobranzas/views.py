@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from apps.administracion.persona.models import Persona
 from apps.forma_pago.models import FormaPago
 from apps.finanzas.caja_banco.models import CuentaMcb, MovimientoCajaBanco
@@ -31,11 +32,17 @@ def _siguiente_comprobante_nro():
 
 
 class CobranzaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ['persona__razon_social', 'persona__nro_documento']
-    ordering_fields    = ['fecha', 'monto', 'fecha_creacion']
-    ordering           = ['-fecha', '-fecha_creacion']
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields   = ['persona__razon_social', 'persona__nro_documento']
+    ordering_fields = ['fecha', 'monto', 'fecha_creacion']
+    ordering        = ['-fecha', '-fecha_creacion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'siguiente_numero', 'cuotas_pendientes'):
+            return [IsAuthenticated()]
+        if self.action == 'destroy':
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         qs = Cobranza.objects.filter(is_deleted=False).select_related('persona')
@@ -153,7 +160,15 @@ class CobranzaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         now     = timezone.now()
+        hoy     = timezone.localtime(now).date()
         vrc_ids = list(instance.valores_recibidos.filter(is_deleted=False).values_list('id', flat=True))
+
+        for det in instance.detalle.filter(is_deleted=False).select_related('cta_cobrar'):
+            cta        = det.cta_cobrar
+            cta.saldo += det.monto_pagado
+            cta.estado = 'vencido' if cta.fecha_vencimiento < hoy else 'pendiente'
+            cta.id_usu_modificator = self.request.user
+            cta.save()
 
         MovimientoCajaBanco.objects.filter(vrc_id__in=vrc_ids, is_deleted=False).update(
             is_deleted=True, fecha_eliminacion=now, id_usu_modificator=self.request.user

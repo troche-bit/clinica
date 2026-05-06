@@ -3,14 +3,15 @@ import calendar
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 from django.utils import timezone
-from django.db.models import Count
-from django.db.models.functions import TruncDate, TruncMonth
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate, TruncMonth, ExtractYear, ExtractMonth
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from .models import Paciente
 from .serializers import PacienteSerializer, PacienteListSerializer
 from config.pagination import StandardPagination
@@ -23,11 +24,17 @@ ETIQUETAS_SEXO = {"M": "Masculino", "F": "Femenino", "O": "Otro"}
 
 
 class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    pagination_class   = StandardPagination
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ["persona__razon_social", "persona__nro_documento"]
-    ordering_fields    = ["persona__razon_social", "fecha_creacion"]
+    pagination_class = StandardPagination
+    filter_backends  = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields    = ["persona__razon_social", "persona__nro_documento"]
+    ordering_fields  = ["persona__razon_social", "fecha_creacion"]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'reporte_lista', 'reporte_lista_excel', 'dashboard_mensual'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         return Paciente.objects.filter(
@@ -65,11 +72,9 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="eliminados")
     def eliminados(self, request):
-        qs = Paciente.objects.filter(is_deleted=True).select_related("persona")
+        qs = Paciente.objects.filter(is_deleted=True).select_related("persona").order_by("persona__nro_documento")
         serializer = PacienteListSerializer(qs, many=True)
         return Response(serializer.data)
-
-    # ── Helpers para reportes ──────────────────────────────────────
 
     def _get_queryset_filtrado(self, request):
         qs = (
@@ -147,10 +152,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             for i, p in enumerate(pacientes, start=1)
         ]
 
-    # ── Reportes ──────────────────────────────────────────────────
-
-    @action(detail=False, methods=["get"], url_path="reporte-lista",
-            permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get"], url_path="reporte-lista")
     def reporte_lista(self, request):
         pacientes         = self._get_queryset_filtrado(request)
         filtros_aplicados = self._build_filtros_aplicados(request)
@@ -177,8 +179,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         response["Content-Disposition"] = 'inline; filename="listado_pacientes.pdf"'
         return response
 
-    @action(detail=False, methods=["get"], url_path="reporte-lista-excel",
-            permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get"], url_path="reporte-lista-excel")
     def reporte_lista_excel(self, request):
         try:
             import openpyxl
@@ -270,10 +271,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         response["Content-Disposition"] = f'attachment; filename="listado_pacientes_{hoy.strftime("%Y%m%d")}.xlsx"'
         return response
 
-    # ── Dashboard mensual ─────────────────────────────────────────
-
-    @action(detail=False, methods=["get"], url_path="dashboard-mensual",
-            permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get"], url_path="dashboard-mensual")
     def dashboard_mensual(self, request):
         hoy       = timezone.localdate()
         ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
@@ -286,7 +284,6 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
         total_mes = qs.count()
 
-        # Por día — incluye todos los días del mes, 0 para los sin registro
         por_dia_raw = {
             r["dia"]: r["total"]
             for r in qs.annotate(dia=TruncDate("fecha_creacion"))
@@ -303,7 +300,6 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             for d in range(1, ultimo_dia + 1)
         ]
 
-        # Por semana (bloques de 7 días desde el día 1)
         por_semana = []
         sem = 1
         for inicio in range(0, ultimo_dia, 7):
@@ -320,22 +316,16 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             })
             sem += 1
 
-        # Por sexo
         por_sexo = [
             {"sexo": r["sexo"], "label": ETIQUETAS_SEXO.get(r["sexo"], r["sexo"]), "total": r["total"]}
             for r in qs.values("sexo").annotate(total=Count("id")).order_by("-total")
         ]
 
-        # Por grupo etario
         GRUPOS = [("0–12", 0, 12), ("13–17", 13, 17), ("18–29", 18, 29),
                   ("30–44", 30, 44), ("45–59", 45, 59), ("60+", 60, 999)]
         grupos_cnt = {lbl: 0 for lbl, _, _ in GRUPOS}
         sin_fecha  = 0
-        qs_fechas = Paciente.objects.filter(
-            is_deleted=False,
-            fecha_creacion__year=hoy.year,
-            fecha_creacion__month=hoy.month,
-        ).values_list("persona__fecha_nacimiento", flat=True)
+        qs_fechas = qs.values_list("persona__fecha_nacimiento", flat=True)
         for fecha_nac in qs_fechas:
             if not fecha_nac:
                 sin_fecha += 1
@@ -351,7 +341,6 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if sin_fecha:
             por_grupo_etario.append({"label": "Sin fecha", "total": sin_fecha})
 
-        # Por departamento — top 5 + otros, indicando el país
         depto_qs = (
             qs.values("persona__departamento_id",
                       "persona__departamento__descripcion",
@@ -373,24 +362,38 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if otros_total:
             por_depto.append({"id": None, "label": "Otros", "pais": "", "total": otros_total})
 
-        # Tendencia — últimos 6 meses (incluye el mes actual)
-        tendencia = []
+        anos_meses = []
         for i in range(5, -1, -1):
-            mes  = hoy.month - i
+            mes = hoy.month - i
             anio = hoy.year
             while mes <= 0:
                 mes  += 12
                 anio -= 1
-            cnt = Paciente.objects.filter(
-                is_deleted=False,
-                fecha_creacion__year=anio,
-                fecha_creacion__month=mes,
-            ).count()
-            tendencia.append({
+            anos_meses.append((anio, mes))
+
+        filtro_tendencia = Q()
+        for anio, mes in anos_meses:
+            filtro_tendencia |= Q(fecha_creacion__year=anio, fecha_creacion__month=mes)
+
+        raw_tendencia = {
+            (r["anio"], r["mes"]): r["total"]
+            for r in (
+                Paciente.objects
+                .filter(is_deleted=False)
+                .filter(filtro_tendencia)
+                .annotate(anio=ExtractYear("fecha_creacion"), mes=ExtractMonth("fecha_creacion"))
+                .values("anio", "mes")
+                .annotate(total=Count("id"))
+            )
+        }
+        tendencia = [
+            {
                 "periodo": f"{anio}-{mes:02d}",
                 "label":   MESES_CORTO[mes - 1],
-                "total":   cnt,
-            })
+                "total":   raw_tendencia.get((anio, mes), 0),
+            }
+            for anio, mes in anos_meses
+        ]
 
         return Response({
             "mes_label":        f"{MESES[hoy.month - 1]} {hoy.year}",

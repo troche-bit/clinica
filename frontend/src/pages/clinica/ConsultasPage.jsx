@@ -4,10 +4,12 @@ import {
   Upload, X, FileText, Download, Trash2,
   RefreshCw, Search, AlertTriangle,
 } from 'lucide-react'
+import apiClient from '../../api/client'
 import { extraerMensajeError } from '../../utils/errores'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast from '../../components/ui/Toast'
 import { useToast } from '../../hooks/useToast'
+import { useAuth } from '../../context/AuthContext'
 import { usePersonasRRHH } from '../../hooks/administracion/usePersonaRRHH'
 import { useAgendaDia, useAgendaDiaGlobal } from '../../hooks/clinica/useAgenda'
 import {
@@ -118,8 +120,18 @@ function PanelDocumentos({ consultaId, pacienteId, tiposDocDig, showToast }) {
     }
   }
 
-  const handleDescargar = (doc) => {
-    window.open(`/api/documentos/${doc.id}/descargar/`, '_blank')
+  const handleDescargar = async (doc) => {
+    try {
+      const res = await apiClient.get(`/documentos/${doc.id}/descargar/`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data]))
+      const a   = document.createElement('a')
+      a.href     = url
+      a.download = doc.filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToast('No se pudo descargar el documento.', 'error')
+    }
   }
 
   return (
@@ -455,7 +467,7 @@ function PanelConsultaActiva({ consulta, onFinalizar, tiposDocDig, eventosClinic
   )
 }
 
-function VistaMedico({ eventosClinicos, tiposDocDig, showToast }) {
+function VistaMedico({ user, esMedico, esSecretaria, esRestringido, eventosClinicos, tiposDocDig, showToast }) {
   const hoy = fechaLocal()
 
   const [medicoSearch, setMedicoSearch]           = useState('')
@@ -463,13 +475,22 @@ function VistaMedico({ eventosClinicos, tiposDocDig, showToast }) {
   const [showMedicoList, setShowMedicoList]         = useState(false)
   const [consultaActiva, setConsultaActiva]         = useState(null)
 
-  // Advertir al cerrar/recargar el browser si hay consulta activa sin finalizar
   useEffect(() => {
     if (!consultaActiva) return
     const fn = e => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', fn)
     return () => window.removeEventListener('beforeunload', fn)
   }, [consultaActiva])
+
+  useEffect(() => {
+    if (!esMedico || !user?.persona_rrhh_id || medicoSeleccionado) return
+    setMedicoSeleccionado({ id: user.persona_rrhh_id })
+  }, [esMedico, user?.persona_rrhh_id])
+
+  useEffect(() => {
+    if (!esSecretaria || !user?.medico_asignado_id || medicoSeleccionado) return
+    setMedicoSeleccionado({ id: user.medico_asignado_id })
+  }, [esSecretaria, user?.medico_asignado_id])
 
   const { data: medicosData } = usePersonasRRHH({ search: medicoSearch })
   const medicos = medicosData?.results || []
@@ -533,8 +554,21 @@ function VistaMedico({ eventosClinicos, tiposDocDig, showToast }) {
     if (consulta?.estado === 'en_consulta') setConsultaActiva(consulta)
   }
 
+  const sinAcceso = (esMedico && !user?.persona_rrhh_id) || (esSecretaria && !user?.medico_asignado_id)
+
   return (
     <div className="cs-vista-medico">
+      {sinAcceso ? (
+        <div className="cs-empty-state">
+          <Stethoscope size={40} style={{ opacity: 0.2 }} />
+          <p>
+            {esMedico ? 'Tu usuario no tiene un prestador vinculado.' : 'Tu usuario no tiene un médico asignado.'}<br/>
+            Consultá con el administrador del sistema.
+          </p>
+        </div>
+      ) : (
+      <>
+      {!esRestringido && (
       <div className="cs-medico-selector">
         <div className="cs-medico-search-wrap">
           <Search size={15} style={{ color: '#9ca3af' }} />
@@ -574,6 +608,7 @@ function VistaMedico({ eventosClinicos, tiposDocDig, showToast }) {
           </div>
         )}
       </div>
+      )}
 
       {!medicoSeleccionado ? (
         <div className="cs-empty-state">
@@ -676,8 +711,10 @@ function VistaMedico({ eventosClinicos, tiposDocDig, showToast }) {
           </div>
         </div>
       )}
+      </>
+      )}
 
-      {consultaActiva && (
+      {consultaActiva && !sinAcceso && (
         <div className="cs-consulta-activa-banner">
           <AlertTriangle size={14} />
           <span>Consulta en curso — finalizá antes de cambiar de módulo para no perder cambios.</span>
@@ -828,8 +865,14 @@ function VistaRecepcionista() {
 }
 
 export default function ConsultasPage() {
-  const [pestaña, setPestaña] = useState('medico')
   const { toast, showToast } = useToast()
+  const { user } = useAuth()
+  const esMedico        = user?.rol === 'medico'
+  const esSecretaria    = user?.rol === 'secretaria_medico'
+  const esRecepcionista = user?.rol === 'recepcionista'
+  const esRestringido   = esMedico || esSecretaria
+  const [pestaña, setPestaña] = useState(esRecepcionista ? 'recepcionista' : 'medico')
+
   const { data: ecData }  = useEventosClinicos()
   const eventosClinicos   = ecData?.results || ecData || []
 
@@ -1166,23 +1209,31 @@ export default function ConsultasPage() {
         </div>
 
         <div className="cs-tabs">
-          <button
-            className={`cs-tab ${pestaña === 'medico' ? 'active' : ''}`}
-            onClick={() => setPestaña('medico')}
-          >
-            Vista médico
-          </button>
-          <button
-            className={`cs-tab ${pestaña === 'recepcionista' ? 'active' : ''}`}
-            onClick={() => setPestaña('recepcionista')}
-          >
-            Vista recepcionista
-          </button>
+          {!esRecepcionista && (
+            <button
+              className={`cs-tab ${pestaña === 'medico' ? 'active' : ''}`}
+              onClick={() => setPestaña('medico')}
+            >
+              Vista médico
+            </button>
+          )}
+          {!esRestringido && (
+            <button
+              className={`cs-tab ${pestaña === 'recepcionista' ? 'active' : ''}`}
+              onClick={() => setPestaña('recepcionista')}
+            >
+              Vista recepcionista
+            </button>
+          )}
         </div>
 
         <div className="cs-tab-content" style={{ overflowY: pestaña === 'recepcionista' ? 'auto' : 'hidden' }}>
           {pestaña === 'medico' ? (
             <VistaMedico
+              user={user}
+              esMedico={esMedico}
+              esSecretaria={esSecretaria}
+              esRestringido={esRestringido}
               eventosClinicos={eventosClinicos}
               tiposDocDig={tiposDocDig}
               showToast={showToast}

@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Receipt, Plus, Search, Pencil, Trash2, X, AlertTriangle } from 'lucide-react'
-import { useTimbrados, useCreateTimbrado, useUpdateTimbrado, useDeleteTimbrado } from '../hooks/useTimbrado'
-import Toast from '../components/ui/Toast'
-import { useToast } from '../hooks/useToast'
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+import { useTimbrados, useCreateTimbrado, useUpdateTimbrado, useDeleteTimbrado } from '../../hooks/facturacion/useTimbrado'
+import { extraerMensajeError } from '../../utils/errores'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Toast from '../../components/ui/Toast'
+import { useToast } from '../../hooks/useToast'
+import { useAuth } from '../../context/AuthContext'
 
 function formatFecha(iso) {
   if (!iso) return '—'
@@ -27,16 +28,6 @@ function progresoBarra(item) {
   return { pct, color }
 }
 
-function extraerError(err) {
-  const data = err?.response?.data
-  if (!data) return 'Ocurrió un error inesperado.'
-  if (typeof data === 'string') return data
-  const vals = Object.values(data)
-  if (!vals.length) return 'Error al guardar.'
-  const first = vals[0]
-  return Array.isArray(first) ? first[0] : String(first)
-}
-
 const FORM_VACIO = {
   nro_timbrado: '', autoimpresor: false,
   inicio_vigencia: '', fin_vigencia: '',
@@ -44,8 +35,6 @@ const FORM_VACIO = {
   nro_desde: '', nro_hasta: '',
   nro_habilitacion: '',
 }
-
-// ── Panel — formulario crear/editar ──────────────────────────────────────────
 
 function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
   const [form, setForm] = useState(
@@ -69,18 +58,20 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
 
   const validar = () => {
     const e = {}
-    if (!form.nro_timbrado)             e.nro_timbrado    = 'Requerido'
-    if (!/^\d+$/.test(form.nro_timbrado)) e.nro_timbrado  = 'Solo dígitos numéricos'
-    if (!form.inicio_vigencia)          e.inicio_vigencia = 'Requerido'
-    if (!form.fin_vigencia)             e.fin_vigencia    = 'Requerido'
+    if (!form.nro_timbrado)               e.nro_timbrado     = 'Requerido'
+    if (!/^\d+$/.test(form.nro_timbrado)) e.nro_timbrado     = 'Solo dígitos numéricos'
+    if (!form.inicio_vigencia)            e.inicio_vigencia  = 'Requerido'
+    if (!form.fin_vigencia)               e.fin_vigencia     = 'Requerido'
     if (form.inicio_vigencia && form.fin_vigencia && form.fin_vigencia <= form.inicio_vigencia)
       e.fin_vigencia = 'Debe ser posterior a la fecha de inicio'
-    if (!form.punto_sucursal)           e.punto_sucursal  = 'Requerido'
-    if (!form.punto_expedicion)         e.punto_expedicion = 'Requerido'
+    if (!form.punto_sucursal)             e.punto_sucursal   = 'Requerido'
+    if (!form.punto_expedicion)           e.punto_expedicion = 'Requerido'
     if (!form.nro_desde && form.nro_desde !== 0) e.nro_desde = 'Requerido'
     if (!form.nro_hasta && form.nro_hasta !== 0) e.nro_hasta = 'Requerido'
     if (form.nro_desde && form.nro_hasta && Number(form.nro_hasta) <= Number(form.nro_desde))
       e.nro_hasta = 'Debe ser mayor al número desde'
+    if (form.autoimpresor && !form.nro_habilitacion)
+      e.nro_habilitacion = 'Requerido para autoimpresor'
     setErrores(e)
     return Object.keys(e).length === 0
   }
@@ -96,7 +87,6 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
 
   return (
     <div className="tim-panel-body">
-      {/* Toggle tipo */}
       <div className="tim-toggle-wrap">
         <button
           type="button"
@@ -114,7 +104,6 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
         </button>
       </div>
 
-      {/* Nro. timbrado */}
       <div className="tim-form-group">
         <label className="tim-label">Nro. de timbrado *</label>
         <input
@@ -127,7 +116,6 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
         {errores.nro_timbrado && <span className="tim-error-msg">{errores.nro_timbrado}</span>}
       </div>
 
-      {/* Vigencia */}
       <div className="tim-grid-2">
         <div className="tim-form-group">
           <label className="tim-label">Inicio de vigencia *</label>
@@ -149,7 +137,6 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
         </div>
       </div>
 
-      {/* Punto emisión */}
       <div className="tim-grid-2">
         <div className="tim-form-group">
           <label className="tim-label">Punto sucursal *</label>
@@ -175,7 +162,6 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
         </div>
       </div>
 
-      {/* Rango comprobantes */}
       <div className="tim-grid-2">
         <div className="tim-form-group">
           <label className="tim-label">Nro. desde *</label>
@@ -201,22 +187,23 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
         </div>
       </div>
 
-      {/* Nro. habilitación SET */}
       <div className="tim-form-group">
         <label className="tim-label">
           Nro. habilitación SET
-          {!form.autoimpresor && <span className="tim-label-note"> — solo aplica para autoimpresor</span>}
+          {form.autoimpresor
+            ? <span className="tim-label-req"> *</span>
+            : <span className="tim-label-note"> — solo aplica para autoimpresor</span>}
         </label>
         <input
-          className="tim-input"
+          className={`tim-input ${errores.nro_habilitacion ? 'tim-input-error' : ''}`}
           placeholder="Número de resolución SET"
           value={form.nro_habilitacion}
           disabled={!form.autoimpresor}
           onChange={e => set('nro_habilitacion', e.target.value)}
         />
+        {errores.nro_habilitacion && <span className="tim-error-msg">{errores.nro_habilitacion}</span>}
       </div>
 
-      {/* Acciones */}
       <div className="tim-panel-acciones">
         <button className="tim-btn-secundario" onClick={onCancelar} disabled={guardando}>
           Cancelar
@@ -229,14 +216,11 @@ function PanelForm({ modo, item, onGuardar, onCancelar, guardando }) {
   )
 }
 
-// ── Panel — vista detalle ─────────────────────────────────────────────────────
-
-function PanelVer({ item, onEditar, onEliminar }) {
+function PanelVer({ item, onEditar, onEliminar, eliminando }) {
   const { pct, color } = progresoBarra(item)
 
   return (
     <div className="tim-panel-body">
-      {/* Header identidad */}
       <div className="tim-detalle-header">
         <div>
           <div className="tim-detalle-nro">{item.nro_timbrado}</div>
@@ -247,7 +231,6 @@ function PanelVer({ item, onEditar, onEliminar }) {
         </span>
       </div>
 
-      {/* Barra de progreso */}
       <div className="tim-section">
         <div className="tim-section-title">Vigencia</div>
         <div className="tim-vigencia-fechas">
@@ -264,7 +247,6 @@ function PanelVer({ item, onEditar, onEliminar }) {
         </div>
       </div>
 
-      {/* Punto de emisión */}
       <div className="tim-section">
         <div className="tim-section-title">Punto de emisión</div>
         <div className="tim-grid-2">
@@ -285,7 +267,6 @@ function PanelVer({ item, onEditar, onEliminar }) {
         </div>
       </div>
 
-      {/* Comprobantes */}
       <div className="tim-section">
         <div className="tim-section-title">Comprobantes</div>
         <div className="tim-grid-2">
@@ -298,7 +279,6 @@ function PanelVer({ item, onEditar, onEliminar }) {
             <span className="tim-campo-val tim-mono">{item.nro_hasta.toLocaleString()}</span>
           </div>
         </div>
-        {/* Bloque uso de comprobantes */}
         <div className="tim-comprobantes-bloque">
           <div className="tim-comp-row">
             <span>Total habilitados</span>
@@ -318,7 +298,6 @@ function PanelVer({ item, onEditar, onEliminar }) {
         </div>
       </div>
 
-      {/* Nro. habilitación */}
       {item.nro_habilitacion && (
         <div className="tim-section">
           <div className="tim-section-title">Habilitación SET</div>
@@ -329,10 +308,9 @@ function PanelVer({ item, onEditar, onEliminar }) {
         </div>
       )}
 
-      {/* Botones */}
       <div className="tim-panel-acciones">
-        <button className="tim-btn-danger" onClick={onEliminar}>
-          <Trash2 size={14} /> Eliminar
+        <button className="tim-btn-danger" onClick={onEliminar} disabled={eliminando}>
+          <Trash2 size={14} /> {eliminando ? 'Eliminando…' : 'Eliminar'}
         </button>
         <button className="tim-btn-primario" onClick={onEditar}>
           <Pencil size={14} /> Editar
@@ -342,21 +320,23 @@ function PanelVer({ item, onEditar, onEliminar }) {
   )
 }
 
-// ── Página principal ─────────────────────────────────────────────────────────
-
 export default function TimbradoPage() {
-  const [search,       setSearch]       = useState('')
-  const [searchInput,  setSearchInput]  = useState('')
+  const [search,        setSearch]        = useState('')
+  const [searchInput,   setSearchInput]   = useState('')
   const [filtroVigente, setFiltroVigente] = useState('')
-  const [seleccionado, setSeleccionado] = useState(null)
-  const [modo,         setModo]         = useState(null) // 'ver' | 'crear' | 'editar'
-  const [guardando,    setGuardando]    = useState(false)
+  const [seleccionado,  setSeleccionado]  = useState(null)
+  const [modo,          setModo]          = useState(null)
+  const [guardando,     setGuardando]     = useState(false)
+  const [confirmId,     setConfirmId]     = useState(null)
 
   const { toast, showToast } = useToast()
-  const { data, isLoading }  = useTimbrados({ search, vigente: filtroVigente })
-  const crear     = useCreateTimbrado()
+  const { user } = useAuth()
+  const esAdmin = user?.rol === 'admin'
+
+  const { data, isLoading } = useTimbrados({ search, vigente: filtroVigente })
+  const crear    = useCreateTimbrado()
   const actualizar = useUpdateTimbrado()
-  const eliminar  = useDeleteTimbrado()
+  const eliminar = useDeleteTimbrado()
 
   const timbrados = data?.results ?? data ?? []
 
@@ -383,27 +363,26 @@ export default function TimbradoPage() {
       }
       cerrarPanel()
     } catch (err) {
-      showToast(extraerError(err), 'error')
+      showToast(extraerMensajeError(err), 'error')
     } finally {
       setGuardando(false)
     }
   }
 
-  const handleEliminar = async () => {
-    if (!window.confirm(`¿Eliminar el timbrado ${seleccionado.nro_timbrado}?`)) return
+  const handleEliminarConfirmado = async () => {
     try {
-      await eliminar.mutateAsync(seleccionado.id)
+      await eliminar.mutateAsync(confirmId)
       showToast('Timbrado eliminado.', 'success')
+      setConfirmId(null)
       cerrarPanel()
-    } catch {
-      showToast('No se pudo eliminar el timbrado.', 'error')
+    } catch (err) {
+      showToast(extraerMensajeError(err), 'error')
     }
   }
 
   return (
     <>
       <style>{`
-        /* ── Layout ── */
         .tim-page { display: flex; flex-direction: column; height: 100%; }
 
         .tim-header {
@@ -418,7 +397,6 @@ export default function TimbradoPage() {
         .tim-header-title { font-size: 20px; font-weight: 600; color: #111827; }
         .tim-header-sub   { font-size: 13px; color: #9ca3af; }
 
-        /* ── Filtros ── */
         .tim-toolbar {
           display: flex; align-items: center; gap: 10px;
           padding: 14px 24px 0; flex-wrap: wrap;
@@ -455,13 +433,11 @@ export default function TimbradoPage() {
         }
         .tim-btn-nuevo:hover { background: #15304d; }
 
-        /* ── Body ── */
         .tim-body {
           flex: 1; display: flex; gap: 16px; overflow: hidden;
           padding: 14px 24px 24px;
         }
 
-        /* ── Tabla ── */
         .tim-tabla-wrap {
           flex: 1; overflow-y: auto;
           border: 1px solid #e8edf2; border-radius: 10px; background: #fff;
@@ -498,7 +474,6 @@ export default function TimbradoPage() {
         .tim-badge-estado.green { background: #dcfce7; color: #166534; }
         .tim-badge-estado.red   { background: #fee2e2; color: #991b1b; }
 
-        /* Barra de progreso en tabla */
         .tim-prog-wrap { display: flex; flex-direction: column; gap: 3px; min-width: 120px; }
         .tim-prog-track {
           height: 5px; background: #f3f4f6; border-radius: 10px; overflow: hidden;
@@ -512,7 +487,6 @@ export default function TimbradoPage() {
         .tim-empty  { text-align: center; color: #9ca3af; padding: 48px; font-size: 13.5px; }
         .tim-loading { text-align: center; color: #9ca3af; padding: 48px; font-size: 13px; }
 
-        /* ── Panel lateral ── */
         .tim-panel {
           width: 340px; flex-shrink: 0;
           border: 1px solid #e8edf2; border-radius: 10px;
@@ -533,7 +507,6 @@ export default function TimbradoPage() {
           display: flex; flex-direction: column; gap: 16px;
         }
 
-        /* Detalle */
         .tim-detalle-header {
           display: flex; align-items: flex-start;
           justify-content: space-between; gap: 10px;
@@ -579,7 +552,6 @@ export default function TimbradoPage() {
           font-size: 11px; color: #9ca3af; margin-top: 2px;
         }
 
-        /* Formulario */
         .tim-toggle-wrap {
           display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
         }
@@ -594,6 +566,7 @@ export default function TimbradoPage() {
         .tim-form-group { display: flex; flex-direction: column; gap: 5px; }
         .tim-label { font-size: 12.5px; font-weight: 500; color: #374151; }
         .tim-label-note { font-weight: 400; color: #9ca3af; font-size: 11.5px; }
+        .tim-label-req  { color: #dc2626; font-weight: 600; }
         .tim-input {
           border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px;
           font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none;
@@ -631,12 +604,12 @@ export default function TimbradoPage() {
           font-size: 13px; font-family: 'DM Sans', sans-serif;
           font-weight: 500; cursor: pointer; transition: background 0.12s;
         }
-        .tim-btn-danger:hover { background: #fef2f2; }
+        .tim-btn-danger:hover:not(:disabled) { background: #fef2f2; }
+        .tim-btn-danger:disabled { opacity: 0.6; cursor: default; }
       `}</style>
 
       <div className="tim-page">
 
-        {/* Header */}
         <div className="tim-header">
           <div className="tim-header-left">
             <div className="tim-header-icon">
@@ -649,7 +622,6 @@ export default function TimbradoPage() {
           </div>
         </div>
 
-        {/* Toolbar */}
         <div className="tim-toolbar">
           <form className="tim-search-form" onSubmit={handleSearch}>
             <input
@@ -673,15 +645,15 @@ export default function TimbradoPage() {
             <option value="false">Solo vencidos</option>
           </select>
 
-          <button className="tim-btn-nuevo" onClick={abrirCrear}>
-            <Plus size={15} /> Nuevo timbrado
-          </button>
+          {esAdmin && (
+            <button className="tim-btn-nuevo" onClick={abrirCrear}>
+              <Plus size={15} /> Nuevo timbrado
+            </button>
+          )}
         </div>
 
-        {/* Body */}
         <div className="tim-body">
 
-          {/* Tabla */}
           <div className="tim-tabla-wrap">
             {isLoading ? (
               <div className="tim-loading">Cargando…</div>
@@ -750,7 +722,6 @@ export default function TimbradoPage() {
             )}
           </div>
 
-          {/* Panel lateral */}
           {modo && (
             <div className="tim-panel">
               <div className="tim-panel-header">
@@ -775,8 +746,9 @@ export default function TimbradoPage() {
               ) : (
                 <PanelVer
                   item={seleccionado}
-                  onEditar={() => setModo('editar')}
-                  onEliminar={handleEliminar}
+                  onEditar={esAdmin ? () => setModo('editar') : undefined}
+                  onEliminar={esAdmin ? () => setConfirmId(seleccionado.id) : undefined}
+                  eliminando={eliminar.isPending}
                 />
               )}
             </div>
@@ -784,6 +756,15 @@ export default function TimbradoPage() {
 
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmId}
+        title="Eliminar timbrado"
+        description="¿Eliminar este timbrado? No se puede eliminar si tiene facturas emitidas."
+        onConfirm={handleEliminarConfirmado}
+        onCancel={() => setConfirmId(null)}
+        loading={eliminar.isPending}
+      />
 
       <Toast toast={toast} />
     </>

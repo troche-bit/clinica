@@ -7,10 +7,9 @@ from apps.administracion.persona_rrhh.serializers import PersonaRRHHListSerializ
 
 
 class HorarioPrestadorSerializer(serializers.ModelSerializer):
-    """Serializer de escritura — recibe IDs."""
 
-    # required=False para que DRF no rechace el campo antes del validate().
-    # La validación condicional (requerido solo si excepcion=False) se hace en validate().
+    # required=False: DRF rechazaría el campo antes de validate(). La validación
+    # condicional (requerido solo si excepcion=False) ocurre ahí.
     dia_semana = serializers.PrimaryKeyRelatedField(
         queryset=DiaSemana.objects.all(),
         required=False,

@@ -35,3 +35,12 @@ class PacienteResponsableSerializer(serializers.ModelSerializer):
             "es_contacto_emergencia",
             "observacion",
         ]
+
+    def validate_grupo_sanguineo(self, value):
+        return value.strip() if value else value
+
+    def validate_ocupacion(self, value):
+        return value.strip() if value else value
+
+    def validate_observacion(self, value):
+        return value.strip() if value else value

@@ -61,7 +61,7 @@ function PanelCuenta({ modo, item, onGuardar, onCancelar, guardando }) {
         <button
           className="cta-btn-primario"
           disabled={guardando}
-          onClick={() => { if (validar()) onGuardar(form) }}
+          onClick={() => { if (validar()) onGuardar({ ...form, descripcion: form.descripcion.trim() }) }}
         >
           {guardando ? 'Guardando…' : modo === 'crear' ? 'Crear cuenta' : 'Guardar cambios'}
         </button>
@@ -188,22 +188,33 @@ function PanelMovimiento({ modo, item, ctaActual, onGuardar, onCancelar, guardan
 }
 
 function VistaCuentas({ onSeleccionar, onNuevaCuenta }) {
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch]           = useState('')
   const { data, isLoading } = useCuentasMcb({ search })
   const cuentas = data?.results ?? data ?? []
+
+  const handleBuscar = (e) => {
+    e.preventDefault()
+    setSearch(searchInput)
+  }
 
   return (
     <div className="cta-vista">
       <div className="cta-toolbar">
-        <div className="cta-search-wrap">
-          <Search size={14} color="#9ca3af" />
-          <input
-            className="cta-search-input"
-            placeholder="Buscar cuenta…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
+        <form className="cta-search-form" onSubmit={handleBuscar}>
+          <div className="cta-search-wrap" style={{ flex: 1 }}>
+            <Search size={14} color="#9ca3af" />
+            <input
+              className="cta-search-input"
+              placeholder="Buscar cuenta…"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="cta-btn-buscar">
+            <Search size={13} /> Buscar
+          </button>
+        </form>
         <button className="cta-btn-primario" onClick={onNuevaCuenta}>
           <Plus size={15} /> Nueva cuenta
         </button>

@@ -50,7 +50,7 @@ urlpatterns = [
     path('api/', include('apps.finanzas.pago_prestador.urls')),
     # Módulos de mantenimiento del sistema
     path('api/', include('apps.mantenimiento.tipo_doc_dig.urls')),
-    path('api/', include('apps.mantenimiento.timbrado.urls')),
+    path('api/', include('apps.facturacion.configuracion.timbrado.urls')),
     path('api/', include('apps.stock.productos.urls')),
 
     # OpenAPI / Swagger

@@ -197,13 +197,13 @@ function BuscadorProducto({ onSeleccionar }) {
 }
 
 function TabCabecera({ form, setForm, detalle, setDetalle, errores }) {
-  const { data: sigData } = useSiguienteNumero(form.estab, form.expedicoin)
+  const { data: sigData } = useSiguienteNumero(form.estab, form.expedicion)
   const validar = useValidarTimbrado()
 
   useEffect(() => {
-    if (form.estab.length === 3 && form.expedicoin.length === 3 && String(form.nro_comprobante).length === 7) {
+    if (form.estab.length === 3 && form.expedicion.length === 3 && String(form.nro_comprobante).length === 7) {
       validar.mutate(
-        { establecimiento: form.estab, expedicion: form.expedicoin, numero: Number(form.nro_comprobante) },
+        { establecimiento: form.estab, expedicion: form.expedicion, numero: Number(form.nro_comprobante) },
         {
           onSuccess: res => setForm(f => ({ ...f, timbrado_validacion: res })),
           onError:   ()  => setForm(f => ({ ...f, timbrado_validacion: { valido: false, mensaje: 'Error al validar.' } })),
@@ -212,7 +212,7 @@ function TabCabecera({ form, setForm, detalle, setDetalle, errores }) {
     } else {
       setForm(f => ({ ...f, timbrado_validacion: null }))
     }
-  }, [form.estab, form.expedicoin, form.nro_comprobante])
+  }, [form.estab, form.expedicion, form.nro_comprobante])
 
   const agregarProducto = (prod) => {
     setDetalle(prev => [...prev, {
@@ -291,9 +291,9 @@ function TabCabecera({ form, setForm, detalle, setDetalle, errores }) {
           <input
             className="fac-input fac-mono fac-timbrado-pt"
             maxLength={3} placeholder="001"
-            value={form.expedicoin}
-            onChange={e => setForm(f => ({ ...f, expedicoin: e.target.value.replace(/\D/g, '') }))}
-            onBlur={e => { const v = e.target.value; if (v) setForm(f => ({ ...f, expedicoin: v.padStart(3, '0') })) }}
+            value={form.expedicion}
+            onChange={e => setForm(f => ({ ...f, expedicion: e.target.value.replace(/\D/g, '') }))}
+            onBlur={e => { const v = e.target.value; if (v) setForm(f => ({ ...f, expedicion: v.padStart(3, '0') })) }}
           />
           <span className="fac-timbrado-sep">-</span>
           <input
@@ -775,7 +775,7 @@ function ModalVerFactura({ id, onClose, onEliminar, showToast, initialModo = 've
 const FORM_INIT = {
   fecha: hoy(), contado: true,
   persona: null,
-  estab: '', expedicoin: '', nro_comprobante: '',
+  estab: '', expedicion: '', nro_comprobante: '',
   timbrado_validacion: null, observacion: '',
 }
 const COB_FILA    = () => ({ key: Date.now(), forma_pago: '', cta: '', monto: '', voucher: '', nro_comprobante: '' })
@@ -805,7 +805,7 @@ function ModalFactura({ onClose, onCreado }) {
     const e = {}
     if (!form.fecha)    e.fecha   = 'Requerida.'
     if (!form.persona)  e.persona = 'Seleccione un cliente.'
-    if (!form.estab || !form.expedicoin) e.timbrado = 'Complete el punto de emisión.'
+    if (!form.estab || !form.expedicion) e.timbrado = 'Complete el punto de emisión.'
     if (!form.timbrado_validacion?.valido) e.timbrado = 'Número de comprobante inválido o no validado.'
     if (detalle.length === 0) e.detalle = 'Agregue al menos un ítem.'
     if (detalle.some(it => !it.precio || Number(it.precio) <= 0))

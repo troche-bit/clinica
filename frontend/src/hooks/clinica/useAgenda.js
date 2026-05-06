@@ -114,6 +114,51 @@ export function useCambiarEstado() {
   })
 }
 
+export function useAgendaRango(personaRrhhId, fechaDesde, fechaHasta) {
+  return useQuery({
+    queryKey: ['agenda-rango', personaRrhhId, fechaDesde, fechaHasta],
+    queryFn:  async () => {
+      const res = await apiClient.get('/agenda/', {
+        params: { persona_rrhh: personaRrhhId, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, page_size: 500 },
+      })
+      return res.data.results ?? res.data
+    },
+    enabled: !!personaRrhhId && !!fechaDesde && !!fechaHasta,
+  })
+}
+
+export function useReagendar() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, nuevo_turno_id }) =>
+      apiClient.patch(`/agenda/${id}/reagendar/`, { nuevo_turno_id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-dia'] })
+      qc.invalidateQueries({ queryKey: ['agenda-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-dia-global'] })
+      qc.invalidateQueries({ queryKey: ['agenda-resumen-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-global-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-rango'] })
+    },
+  })
+}
+
+export function useCancelarRango() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ persona_rrhh, fecha_desde, fecha_hasta }) =>
+      apiClient.post('/agenda/cancelar-rango/', { persona_rrhh, fecha_desde, fecha_hasta }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda-dia'] })
+      qc.invalidateQueries({ queryKey: ['agenda-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-dia-global'] })
+      qc.invalidateQueries({ queryKey: ['agenda-resumen-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-global-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-rango'] })
+    },
+  })
+}
+
 export function usePacienteSearch(q) {
   const [debounced, setDebounced] = useState('')
   useEffect(() => {

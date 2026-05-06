@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from apps.administracion.persona.models import Persona
 from apps.administracion.persona.serializers import PersonaListSerializer
 from .models import PacienteResponsable
@@ -15,11 +16,17 @@ from config.pagination import StandardPagination
 
 
 class PacienteResponsableViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    pagination_class   = StandardPagination
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ["persona__razon_social", "persona__nro_documento"]
-    ordering_fields    = ["persona__razon_social", "fecha_creacion"]
+    pagination_class = StandardPagination
+    filter_backends  = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields    = ["persona__razon_social", "persona__nro_documento"]
+    ordering_fields  = ["persona__razon_social", "fecha_creacion"]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'buscar'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         return PacienteResponsable.objects.filter(
@@ -47,7 +54,12 @@ class PacienteResponsableViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="eliminados")
     def eliminados(self, request):
-        qs = PacienteResponsable.objects.filter(is_deleted=True).select_related("persona")
+        qs = PacienteResponsable.objects.filter(is_deleted=True).select_related(
+            "persona__tipo_documento",
+            "persona__pais",
+            "persona__departamento",
+            "persona__ciudad",
+        )
         return Response(PacienteResponsableListSerializer(qs, many=True).data)
 
     @action(detail=False, methods=["get"], url_path="buscar")
@@ -56,10 +68,17 @@ class PacienteResponsableViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if not nro_documento:
             return Response({"error": "nro_documento es requerido"}, status=400)
         try:
-            persona      = Persona.objects.get(nro_documento=nro_documento, is_deleted=False)
+            persona = Persona.objects.select_related(
+                "tipo_documento", "pais", "departamento", "ciudad"
+            ).get(nro_documento=nro_documento, is_deleted=False)
             persona_data = PersonaListSerializer(persona).data
             try:
-                responsable      = PacienteResponsable.objects.get(persona=persona, is_deleted=False)
+                responsable = PacienteResponsable.objects.select_related(
+                    "persona__tipo_documento",
+                    "persona__pais",
+                    "persona__departamento",
+                    "persona__ciudad",
+                ).get(persona=persona, is_deleted=False)
                 responsable_data = PacienteResponsableListSerializer(responsable).data
                 es_responsable   = True
             except PacienteResponsable.DoesNotExist:
@@ -76,8 +95,7 @@ class PacienteResponsableViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                 status=200,
             )
 
-    @action(detail=False, methods=["get"], url_path="reporte-lista",
-            permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get"], url_path="reporte-lista")
     def reporte_lista(self, request):
         responsables = (
             PacienteResponsable.objects

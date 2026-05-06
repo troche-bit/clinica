@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from apps.core.models import BaseModel
 
 
@@ -21,9 +22,9 @@ class Grupo(BaseModel):
         ordering            = ['descripcion']
         constraints         = [
             models.UniqueConstraint(
-                fields=['descripcion'],
+                Lower('descripcion'),
                 condition=Q(is_deleted=False),
-                name='unique_grupo_descripcion_activo',
+                name='unique_grupo_descripcion_lower',
             )
         ]
 
@@ -69,6 +70,14 @@ class ProductoServicio(BaseModel):
         verbose_name        = 'Producto/Servicio'
         verbose_name_plural = 'Productos/Servicios'
         ordering            = ['descripcion']
+        constraints         = [
+            models.UniqueConstraint(
+                Lower('descripcion'),
+                'grupo',
+                condition=Q(is_deleted=False),
+                name='unique_prod_descripcion_grupo_lower',
+            )
+        ]
 
     def __str__(self):
         return f'{self.descripcion} ({self.grupo.descripcion})'

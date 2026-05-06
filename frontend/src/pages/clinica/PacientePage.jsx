@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 import { usePatients, usePacienteMutations } from '../../hooks/clinica/usePatients'
 import { Search, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Users, FileText } from 'lucide-react'
 import apiClient from '../../api/client'
@@ -125,6 +126,10 @@ export default function PacientePage() {
   const { toast, showToast }          = useToast()
   const { data, isLoading, isError }  = usePatients({ page, search })
   const { eliminar }                  = usePacienteMutations(showToast)
+
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (modo === null) handleNuevo() } },
+  })
 
   const totalPages = data ? Math.ceil(data.count / 20) : 0
 

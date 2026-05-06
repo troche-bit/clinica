@@ -24,6 +24,7 @@ function buildUser(token) {
     activo: claims.activo !== false,
     persona_rrhh_id: claims.persona_rrhh_id || null,
     medicos_asignados: claims.medicos_asignados || [],
+    medico_asignado_id: (claims.medicos_asignados || [])[0] || null,
   }
 }
 

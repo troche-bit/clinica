@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Search, Plus, Pencil, Trash2, ChevronRight, Clock, CalendarDays, AlertTriangle, ChevronLeft } from 'lucide-react'
 import { usePersonasRRHH } from '../../../hooks/administracion/usePersonaRRHH'
 import {
@@ -9,6 +9,8 @@ import Toast         from '../../../components/ui/Toast'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useToast }  from '../../../hooks/useToast'
 import { extraerMensajeError } from '../../../utils/errores'
+import { useAtajosTeclado } from '../../../hooks/useAtajosTeclado'
+import { useAuth } from '../../../context/AuthContext'
 
 const DIAS = [
   { id: 1, abr: 'LUN', desc: 'Lunes' },
@@ -44,24 +46,40 @@ function previsualizarTurnos(horarios, fechaDesde, fechaHasta) {
   const desde = new Date(fechaDesde + 'T00:00:00')
   const hasta = new Date(fechaHasta + 'T00:00:00')
   if (hasta < desde) return []
+
+  const ahora    = new Date()
+  const hoyStr   = ahora.toLocaleDateString('en-CA')
+  const minAhora = ahora.getHours() * 60 + ahora.getMinutes()
+
   const resultado = []
   for (let d = new Date(desde); d <= hasta; d.setDate(d.getDate() + 1)) {
+    const fechaStr    = d.toLocaleDateString('en-CA')
+    if (fechaStr < hoyStr) continue
+    const esHoy       = fechaStr === hoyStr
     const diaSemanaId = d.getDay() === 0 ? 7 : d.getDay()
+
     for (const h of horarios) {
       if (h.estado !== 'activo') continue
       const aplica = h.excepcion
-        ? h.fecha_excepcion === d.toISOString().slice(0, 10)
+        ? h.fecha_excepcion === fechaStr
         : Number(h.dia_semana) === diaSemanaId
       if (!aplica) continue
       if (!h.hora_desde || !h.hora_hasta || !h.intervalo) continue
+
       const [hd, md] = h.hora_desde.split(':').map(Number)
       const [hh, mh] = h.hora_hasta.split(':').map(Number)
-      const minDesde = hd * 60 + md
-      const minHasta = hh * 60 + mh
-      const slots    = Math.floor((minHasta - minDesde) / Number(h.intervalo))
+      let minDesde    = hd * 60 + md
+      const minHasta  = hh * 60 + mh
+      const intervalo = Number(h.intervalo)
+
+      if (esHoy) {
+        while (minDesde <= minAhora && minDesde < minHasta) minDesde += intervalo
+      }
+
+      const slots = Math.floor((minHasta - minDesde) / intervalo)
       if (slots > 0) {
         resultado.push({
-          fecha: d.toISOString().slice(0, 10),
+          fecha: fechaStr,
           dia:   DIAS.find(x => x.id === diaSemanaId)?.desc ?? '',
           slots,
         })
@@ -225,19 +243,37 @@ export default function HorarioPrestadorPage() {
   const [bloqueErrors, setBloqueErrors] = useState({})
   const [guardando,    setGuardando]    = useState(false)
   const [errorPanel,   setErrorPanel]   = useState('')
-  const [genDesde,     setGenDesde]     = useState('')
+  const [genDesde,     setGenDesde]     = useState(() => new Date().toLocaleDateString('en-CA'))
   const [genHasta,     setGenHasta]     = useState('')
   const [genResult,    setGenResult]    = useState(null)
   const [confirmGuardar, setConfirmGuardar] = useState(false)
   const [pendienteGuardar, setPendienteGuardar] = useState(null)
 
   const { toast, showToast } = useToast()
+  const { user } = useAuth()
+  const esMedico    = user?.rol === 'medico'
+  const esSecretaria = user?.rol === 'secretaria_medico'
+  const esRestringido = esMedico || esSecretaria
 
   const { data: prestadoresData } = usePersonasRRHH({ page: 1, search })
   const prestadores = prestadoresData?.results ?? []
 
-  const { data: horariosData } = useHorariosPrestador()
+  const { data: horariosData, isSuccess: horariosLoaded } = useHorariosPrestador()
   const todosHorarios = horariosData?.results ?? horariosData ?? []
+
+  useEffect(() => {
+    if (!esMedico || !user?.persona_rrhh_id || !horariosLoaded || seleccionado) return
+    setSeleccionado({ id: user.persona_rrhh_id, nombre: user.nombre, especialidades_detalle: [] })
+    setModo('ver')
+  }, [esMedico, user?.persona_rrhh_id, horariosLoaded])
+
+  useEffect(() => {
+    if (!esSecretaria || !user?.medico_asignado_id || !horariosLoaded || seleccionado) return
+    const medico = prestadores.find(p => p.id === user.medico_asignado_id)
+    if (!medico) return
+    setSeleccionado(medico)
+    setModo('ver')
+  }, [esSecretaria, user?.medico_asignado_id, horariosLoaded, prestadores.length])
 
   const { mutateAsync: crearHorario }  = useCreateHorario()
   const { mutateAsync: updateHorario } = useUpdateHorario()
@@ -266,7 +302,7 @@ export default function HorarioPrestadorPage() {
     setErrorPanel('')
     setBloqueErrors({})
     setGenResult(null)
-    setGenDesde('')
+    setGenDesde(new Date().toLocaleDateString('en-CA'))
     setGenHasta('')
     if (modoInicial === 'editar') {
       const hp = todosHorarios.filter(h => h.persona_rrhh === prestador.id)
@@ -409,6 +445,10 @@ export default function HorarioPrestadorPage() {
 
   const bloqueActual = bloques[bloqueIdx] ?? null
 
+  useAtajosTeclado({
+    'F10': { fn: () => { if ((modo === 'editar' || modo === 'crear') && !guardando) handleGuardar() }, soloFueraDeInputs: false },
+  })
+
   return (
     <>
       <Toast toast={toast} />
@@ -429,8 +469,12 @@ export default function HorarioPrestadorPage() {
       />
       <style>{`
         .hp-layout { display: flex; gap: 20px; align-items: flex-start; }
+        .hp-layout-medico { display: block; max-width: 520px; }
         .hp-list-col { flex: 1; min-width: 0; }
         .hp-panel-col { width: 430px; flex-shrink: 0; }
+        .hp-sin-acceso { text-align: center; padding: 64px 24px; color: #9ca3af; }
+        .hp-sin-acceso-title { font-size: 15px; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
+        .hp-sin-acceso-sub { font-size: 13px; color: #9ca3af; max-width: 320px; margin: 0 auto; }
 
         .hp-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 12px; flex-wrap: wrap; }
         .hp-title    { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
@@ -643,17 +687,36 @@ export default function HorarioPrestadorPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSearch} className="hp-search-row">
-        <div className="hp-search-wrap">
-          <Search size={15} className="hp-search-icon" />
-          <input type="text" placeholder="Buscar prestador..."
-            value={searchInput} onChange={e => setSearchInput(e.target.value)}
-            className="hp-search-input" />
+      {esMedico && !user?.persona_rrhh_id && (
+        <div className="hp-sin-acceso">
+          <CalendarDays size={36} style={{ color: '#d1d5db', marginBottom: 12 }} />
+          <div className="hp-sin-acceso-title">Sin prestador asignado</div>
+          <div className="hp-sin-acceso-sub">Tu usuario no tiene un prestador vinculado. Consultá con el administrador del sistema.</div>
         </div>
-        <button type="submit" className="hp-btn-search">Buscar</button>
-      </form>
+      )}
 
-      <div className="hp-layout">
+      {esSecretaria && !user?.medico_asignado_id && (
+        <div className="hp-sin-acceso">
+          <CalendarDays size={36} style={{ color: '#d1d5db', marginBottom: 12 }} />
+          <div className="hp-sin-acceso-title">Sin médico asignado</div>
+          <div className="hp-sin-acceso-sub">Tu usuario no tiene un médico asignado. Consultá con el administrador del sistema.</div>
+        </div>
+      )}
+
+      {!esRestringido && (
+        <form onSubmit={handleSearch} className="hp-search-row">
+          <div className="hp-search-wrap">
+            <Search size={15} className="hp-search-icon" />
+            <input type="text" placeholder="Buscar prestador..."
+              value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              className="hp-search-input" />
+          </div>
+          <button type="submit" className="hp-btn-search">Buscar</button>
+        </form>
+      )}
+
+      <div className={`hp-layout${esRestringido ? ' hp-layout-medico' : ''}`}>
+        {!esRestringido && (
         <div className="hp-list-col">
           <div className="hp-table-card">
             <table className="hp-table">
@@ -728,6 +791,7 @@ export default function HorarioPrestadorPage() {
             </table>
           </div>
         </div>
+        )}
 
         {seleccionado && modo && (
           <div className="hp-panel-col">
@@ -746,7 +810,9 @@ export default function HorarioPrestadorPage() {
                     }
                   </div>
                 </div>
-                <button className="hp-panel-close" onClick={cerrarPanel}>×</button>
+                {!esRestringido && (
+                  <button className="hp-panel-close" onClick={cerrarPanel}>×</button>
+                )}
               </div>
 
               <div className="hp-panel-body">
@@ -782,7 +848,7 @@ export default function HorarioPrestadorPage() {
                         })
                     }
 
-                    <div className="hp-gen-section">
+                    {!esMedico && <div className="hp-gen-section">
                       <div className="hp-gen-title"><Clock size={13} /> Generar turnos</div>
                       <div className="hp-gen-row">
                         <div className="hp-gen-field">
@@ -827,7 +893,7 @@ export default function HorarioPrestadorPage() {
                         onClick={handleGenerar}>
                         <CalendarDays size={14} /> Confirmar generación
                       </button>
-                    </div>
+                    </div>}
                   </>
                 )}
 
@@ -887,7 +953,7 @@ export default function HorarioPrestadorPage() {
                 )}
               </div>
 
-              {modo === 'ver' && (
+              {modo === 'ver' && !esRestringido && (
                 <div className="hp-panel-footer">
                   <span />
                   <button className="hp-btn-editar" onClick={() => abrirPanel(seleccionado, 'editar')}>

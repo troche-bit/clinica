@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole
 from apps.forma_pago.models import FormaPago
 from apps.finanzas.caja_banco.models import CuentaMcb, MovimientoCajaBanco
 from apps.clinica.agenda.models import Agenda
@@ -30,11 +31,15 @@ def _siguiente_nro():
 
 
 class PagoPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ['persona_rrhh__persona__razon_social', 'persona_rrhh__persona__nro_documento']
-    ordering_fields    = ['fecha_pago', 'monto_total', 'fecha_creacion']
-    ordering           = ['-fecha_pago', '-fecha_creacion']
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields   = ['persona_rrhh__persona__razon_social', 'persona_rrhh__persona__nro_documento']
+    ordering_fields = ['fecha_pago', 'monto_total', 'fecha_creacion']
+    ordering        = ['-fecha_pago', '-fecha_creacion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'siguiente_numero', 'bloques_pendientes'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdminRole()]
 
     def get_queryset(self):
         qs = PagoPrestador.objects.filter(is_deleted=False).select_related('persona_rrhh__persona')

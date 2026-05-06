@@ -6,6 +6,7 @@ import Toast from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
+import { useAuth } from '../../context/AuthContext'
 
 const IMPUESTO_OPTS = [
   { value: '10',     label: 'IVA 10%' },
@@ -38,7 +39,7 @@ function PanelGrupo({ modo, item, onGuardar, onCancelar, guardando }) {
 
   const handleSubmit = () => {
     if (!validar()) return
-    onGuardar(form)
+    onGuardar({ ...form, descripcion: form.descripcion.trim() })
   }
 
   return (
@@ -93,7 +94,7 @@ function PanelProducto({ modo, item, grupoActual, onGuardar, onCancelar, guardan
 
   const handleSubmit = () => {
     if (!validar()) return
-    onGuardar({ ...form, grupo: grupoActual.id })
+    onGuardar({ ...form, descripcion: form.descripcion.trim(), grupo: grupoActual.id })
   }
 
   return (
@@ -150,26 +151,34 @@ function PanelProducto({ modo, item, grupoActual, onGuardar, onCancelar, guardan
   )
 }
 
-function VistaGrupos({ onSeleccionarGrupo, onNuevoGrupo }) {
-  const [search, setSearch] = useState('')
+function VistaGrupos({ onSeleccionarGrupo, onNuevoGrupo, esAdmin, puedeEditar }) {
+  const [search,      setSearch]      = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const { data, isLoading } = useGrupos({ search })
   const grupos = data?.results ?? data ?? []
 
   return (
     <div className="grp-vista">
       <div className="grp-toolbar">
-        <div className="grp-search-wrap">
-          <Search size={14} color="#9ca3af" className="grp-search-icon" />
-          <input
-            className="grp-search-input"
-            placeholder="Buscar grupo…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <button className="grp-btn-primario" onClick={onNuevoGrupo}>
-          <Plus size={15} /> Nuevo grupo
-        </button>
+        <form className="grp-search-form" onSubmit={e => { e.preventDefault(); setSearch(searchInput) }}>
+          <div className="grp-search-wrap">
+            <Search size={14} color="#9ca3af" className="grp-search-icon" />
+            <input
+              className="grp-search-input"
+              placeholder="Buscar grupo…"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="grp-btn-buscar">
+            <Search size={13} /> Buscar
+          </button>
+        </form>
+        {puedeEditar && (
+          <button className="grp-btn-primario" onClick={onNuevoGrupo}>
+            <Plus size={15} /> Nuevo grupo
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -205,7 +214,7 @@ function VistaGrupos({ onSeleccionarGrupo, onNuevoGrupo }) {
   )
 }
 
-function VistaProductos({ grupo, onVolver, onEditarGrupo, onEliminarGrupo }) {
+function VistaProductos({ grupo, onVolver, onEditarGrupo, onEliminarGrupo, esAdmin, puedeEditar }) {
   const [search,       setSearch]       = useState('')
   const [searchInput,  setSearchInput]  = useState('')
   const [panelModo,    setPanelModo]    = useState(null)
@@ -283,14 +292,18 @@ function VistaProductos({ grupo, onVolver, onEditarGrupo, onEliminarGrupo }) {
               </div>
             </div>
           </div>
-          <div className="grp-grupo-bar-actions">
-            <button className="grp-btn-icon-edit" onClick={onEditarGrupo} title="Editar grupo">
-              <Pencil size={14} />
-            </button>
-            <button className="grp-btn-icon-del" onClick={onEliminarGrupo} title="Eliminar grupo">
-              <Trash2 size={14} />
-            </button>
-          </div>
+          {puedeEditar && (
+            <div className="grp-grupo-bar-actions">
+              <button className="grp-btn-icon-edit" onClick={onEditarGrupo} title="Editar grupo">
+                <Pencil size={14} />
+              </button>
+              {esAdmin && (
+                <button className="grp-btn-icon-del" onClick={onEliminarGrupo} title="Eliminar grupo">
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grp-drill-body">
@@ -310,12 +323,14 @@ function VistaProductos({ grupo, onVolver, onEditarGrupo, onEliminarGrupo }) {
                   <Search size={13} /> Buscar
                 </button>
               </form>
-              <button
-                className="grp-btn-primario"
-                onClick={() => { setSeleccionado(null); setPanelModo('crear') }}
-              >
-                <Plus size={14} /> Nuevo producto
-              </button>
+              {puedeEditar && (
+                <button
+                  className="grp-btn-primario"
+                  onClick={() => { setSeleccionado(null); setPanelModo('crear') }}
+                >
+                  <Plus size={14} /> Nuevo producto
+                </button>
+              )}
             </div>
 
             {isLoading ? (
@@ -348,22 +363,26 @@ function VistaProductos({ grupo, onVolver, onEditarGrupo, onEliminarGrupo }) {
                           {p.activo ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
-                      <td className="grp-td grp-td-acciones">
-                        <button
-                          className="grp-row-btn"
-                          title="Editar"
-                          onClick={() => { setSeleccionado(p); setPanelModo('editar') }}
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          className="grp-row-btn danger"
-                          title="Eliminar"
-                          onClick={() => setConfirmProd(p)}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
+                      {puedeEditar && (
+                        <td className="grp-td grp-td-acciones">
+                          <button
+                            className="grp-row-btn"
+                            title="Editar"
+                            onClick={() => { setSeleccionado(p); setPanelModo('editar') }}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          {esAdmin && (
+                            <button
+                              className="grp-row-btn danger"
+                              title="Eliminar"
+                              onClick={() => setConfirmProd(p)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -395,7 +414,7 @@ function VistaProductos({ grupo, onVolver, onEditarGrupo, onEliminarGrupo }) {
       <ConfirmDialog
         isOpen={!!confirmProd}
         title="Eliminar producto"
-        description={`¿Eliminar "${confirmProd?.descripcion}"? Esta acción no se puede deshacer.`}
+        description={`¿Eliminar "${confirmProd?.descripcion}"? No se puede eliminar si tiene facturas emitidas vinculadas.`}
         onConfirm={handleEliminarConfirmado}
         onCancel={() => setConfirmProd(null)}
         loading={eliminarProd.isPending}
@@ -413,6 +432,9 @@ export default function GruposPage() {
   const [confirmEliminarGrupo, setConfirmEliminarGrupo] = useState(false)
 
   const { toast, showToast } = useToast()
+  const { user } = useAuth()
+  const esAdmin        = user?.rol === 'admin'
+  const puedeEditar    = esAdmin || user?.rol === 'recepcionista'
 
   const crearGrupo    = useCreateGrupo()
   const actualizarGrupo = useUpdateGrupo()
@@ -737,6 +759,8 @@ export default function GruposPage() {
           <VistaGrupos
             onSeleccionarGrupo={g => { setGrupoActual(g); setPanelGrupo(null) }}
             onNuevoGrupo={() => setPanelGrupo('crear')}
+            esAdmin={esAdmin}
+            puedeEditar={puedeEditar}
           />
         ) : (
           <VistaProductos
@@ -744,6 +768,8 @@ export default function GruposPage() {
             onVolver={() => { setGrupoActual(null); setPanelGrupo(null) }}
             onEditarGrupo={() => setPanelGrupo('editar')}
             onEliminarGrupo={() => setConfirmEliminarGrupo(true)}
+            esAdmin={esAdmin}
+            puedeEditar={puedeEditar}
           />
         )}
       </div>

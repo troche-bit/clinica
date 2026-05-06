@@ -15,3 +15,11 @@ class IsAdminOrRecepcionista(BasePermission):
             return request.user.perfil.rol in ('admin', 'recepcionista')
         except Exception:
             return False
+
+
+class IsAdminOrRecepcionistaOrSecretaria(BasePermission):
+    def has_permission(self, request, view):
+        try:
+            return request.user.perfil.rol in ('admin', 'recepcionista', 'secretaria_medico')
+        except Exception:
+            return False

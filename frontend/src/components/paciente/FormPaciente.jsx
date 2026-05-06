@@ -1,61 +1,83 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import apiClient from '../../api/client'
 
 export default function FormPaciente({ paciente, readOnly = false, onChange }) {
   const [form, setForm] = useState({
-    sexo:                '',
-    grupo_sanguineo:     '',
-    alergias_conocidas:  '',
+    sexo:                  '',
+    grupo_sanguineo:       '',
+    alergias_conocidas:    '',
     enfermedades_cronicas: '',
-    observacion:         '',
-    responsable:         '',
-    parentesco:          '',
+    observacion:           '',
+    responsable:           '',
+    parentesco:            '',
   })
   const [responsableBuscado, setResponsableBuscado] = useState(null)
-  const [docResponsable, setDocResponsable]         = useState('')
-  const [buscandoResp, setBuscandoResp]             = useState(false)
-  const [errorResp, setErrorResp]                   = useState('')
+  const [queryResponsable,   setQueryResponsable]   = useState('')
+  const [sugerencias,        setSugerencias]        = useState([])
+  const [buscandoResp,       setBuscandoResp]       = useState(false)
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
-  const buscarResponsable = async (e) => {
-    e.preventDefault()
-    if (!docResponsable.trim()) return
-    setErrorResp('')
-    setBuscandoResp(true)
-    try {
-      const res = await apiClient.get(
-        `/pacienteresponsable/buscar/?nro_documento=${docResponsable.trim()}`
-      )
+  const debounceRef = useRef(null)
+  const wrapRef     = useRef(null)
 
-      if (res.data.es_responsable) {
-        setResponsableBuscado(res.data.pacienteresponsable)
-        setForm(prev => ({ ...prev, responsable: res.data.pacienteresponsable.id }))
-      } else {
-        setErrorResp('No se encontró un responsable con ese documento. Registralo primero en el módulo de Responsables.')
-      }
-    } catch (err) {
-      console.log('error completo:', err)
-      console.log('error response:', err.response?.data)
-      setErrorResp('Error al buscar. Intentá de nuevo.')
-    } finally {
-      setBuscandoResp(false)
+  const handleQueryChange = (e) => {
+    const q = e.target.value
+    setQueryResponsable(q)
+    clearTimeout(debounceRef.current)
+    if (!q.trim()) {
+      setSugerencias([])
+      setMostrarSugerencias(false)
+      return
     }
+    debounceRef.current = setTimeout(async () => {
+      setBuscandoResp(true)
+      try {
+        const res = await apiClient.get(`/pacienteresponsable/?search=${encodeURIComponent(q.trim())}&page_size=8`)
+        setSugerencias(res.data.results || [])
+        setMostrarSugerencias(true)
+      } catch {
+        setSugerencias([])
+      } finally {
+        setBuscandoResp(false)
+      }
+    }, 300)
+  }
+
+  const seleccionarResponsable = (resp) => {
+    setResponsableBuscado(resp)
+    setForm(prev => ({ ...prev, responsable: resp.id }))
+    setQueryResponsable('')
+    setSugerencias([])
+    setMostrarSugerencias(false)
   }
 
   const limpiarResponsable = () => {
     setResponsableBuscado(null)
-    setDocResponsable('')
+    setQueryResponsable('')
+    setSugerencias([])
+    setMostrarSugerencias(false)
     setForm(prev => ({ ...prev, responsable: '' }))
   }
 
   useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setMostrarSugerencias(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
     if (paciente) {
       setForm({
-        sexo:                 paciente.sexo                 ?? '',
-        grupo_sanguineo:      paciente.grupo_sanguineo      ?? '',
-        alergias_conocidas:   paciente.alergias_conocidas   ?? '',
+        sexo:                  paciente.sexo                  ?? '',
+        grupo_sanguineo:       paciente.grupo_sanguineo       ?? '',
+        alergias_conocidas:    paciente.alergias_conocidas    ?? '',
         enfermedades_cronicas: paciente.enfermedades_cronicas ?? '',
-        observacion:          paciente.observacion          ?? '',
-        responsable:          paciente.responsable          ?? '',
+        observacion:           paciente.observacion           ?? '',
+        responsable:           paciente.responsable           ?? '',
         parentesco:            paciente.parentesco            ?? '',
       })
     }
@@ -173,6 +195,11 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
           color: #9ca3af;
         }
 
+        .fpa-label-required::after {
+          content: ' *';
+          color: #dc2626;
+        }
+
         .fpa-divider {
           grid-column: span 2;
           height: 1px;
@@ -209,6 +236,45 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
           color: #9ca3af;
           cursor: not-allowed;
         }
+
+        .fpa-autocomplete-wrap { position: relative; }
+        .fpa-suggestions {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0; right: 0;
+          background: #fff;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 9px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+          z-index: 100;
+          overflow: hidden;
+          max-height: 260px;
+          overflow-y: auto;
+        }
+        .fpa-suggestion-item {
+          padding: 9px 14px;
+          cursor: pointer;
+          transition: background 0.12s;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        .fpa-suggestion-item:last-child { border-bottom: none; }
+        .fpa-suggestion-item:hover { background: #f0f4f8; }
+        .fpa-suggestion-nombre {
+          font-size: 13.5px;
+          font-weight: 500;
+          color: #111827;
+        }
+        .fpa-suggestion-doc {
+          font-size: 12px;
+          color: #6b7280;
+          margin-top: 1px;
+        }
+        .fpa-suggestion-empty {
+          padding: 12px 14px;
+          font-size: 13px;
+          color: #9ca3af;
+          text-align: center;
+        }
       `}</style>
 
       <div className="fpa-root">
@@ -220,7 +286,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
         <div className="fpa-grid">
 
           <div className="fpa-field">
-            <label className="fpa-label">Sexo</label>
+            <label className="fpa-label fpa-label-required">Sexo</label>
             <div className="fpa-select-wrap">
               <select
                 name="sexo"
@@ -265,28 +331,36 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             <label className="fpa-label">Responsable</label>
 
             {!responsableBuscado ? (
-              <form onSubmit={buscarResponsable} style={{ display: 'flex', gap: '8px' }}>
+              <div ref={wrapRef} className="fpa-autocomplete-wrap">
                 <input
                   type="text"
-                  value={docResponsable}
-                  onChange={(e) => setDocResponsable(e.target.value)}
-                  placeholder="Nro. de documento del responsable..."
+                  value={queryResponsable}
+                  onChange={handleQueryChange}
+                  onFocus={() => { if (sugerencias.length > 0) setMostrarSugerencias(true) }}
+                  placeholder={buscandoResp ? 'Buscando...' : 'Nombre o documento del responsable...'}
                   className="fpa-input"
-                  style={{ flex: 1 }}
+                  disabled={readOnly}
+                  autoComplete="off"
                 />
-                <button
-                  type="submit"
-                  disabled={buscandoResp || !docResponsable.trim()}
-                  style={{
-                    padding: '9px 14px', background: '#1a3a5c', color: '#fff',
-                    border: 'none', borderRadius: '9px', fontSize: '13px',
-                    cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'DM Sans, sans-serif',
-                    opacity: buscandoResp ? 0.6 : 1,
-                  }}
-                >
-                  {buscandoResp ? 'Buscando...' : 'Buscar'}
-                </button>
-              </form>
+                {mostrarSugerencias && (
+                  <div className="fpa-suggestions">
+                    {sugerencias.length === 0 ? (
+                      <div className="fpa-suggestion-empty">Sin resultados</div>
+                    ) : (
+                      sugerencias.map(resp => (
+                        <div
+                          key={resp.id}
+                          className="fpa-suggestion-item"
+                          onMouseDown={() => seleccionarResponsable(resp)}
+                        >
+                          <div className="fpa-suggestion-nombre">{resp.nombre}</div>
+                          <div className="fpa-suggestion-doc">{resp.documento}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             ) : (
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -295,22 +369,21 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
               }}>
                 <div>
                   <div style={{ fontSize: '13.5px', fontWeight: 500, color: '#111827' }}>
-                    {responsableBuscado.persona_detalle?.razon_social}
+                    {responsableBuscado.nombre || responsableBuscado.persona_detalle?.razon_social}
                   </div>
                   <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                    {responsableBuscado.persona_detalle?.nro_documento}
+                    {responsableBuscado.documento || responsableBuscado.persona_detalle?.nro_documento}
                   </div>
                 </div>
-                <button onClick={limpiarResponsable} style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#6b7280', fontSize: '18px', lineHeight: 1,
-                }}>×</button>
+                {!readOnly && (
+                  <button onClick={limpiarResponsable} style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#6b7280', fontSize: '18px', lineHeight: 1,
+                  }}>×</button>
+                )}
               </div>
             )}
 
-            {errorResp && (
-              <span style={{ fontSize: '12px', color: '#dc2626' }}>{errorResp}</span>
-            )}
             <span className="fpa-hint">Opcional — registralo primero en el módulo de Responsables</span>
           </div>
 

@@ -19,8 +19,9 @@ frontend/src/
 │   └── errores.js             ← extraerMensajeError — normaliza errores DRF 400
 │
 ├── hooks/
+│   ├── useToast.js
+│   ├── useAtajosTeclado.js    ← atajos de teclado globales — ver convención abajo
 │   ├── core/
-│   │   └── useToast.js
 │   ├── administracion/
 │   │   ├── usePersona.js
 │   │   ├── useUsuarios.js
@@ -402,7 +403,7 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `.inf-pac-` | `pages/clinica/InformesPacientePage.jsx` |
 | `.dash-pac-` | `pages/clinica/DashboardPacientesPage.jsx` |
 | `.pr-` | `pages/clinica/PacienteResponsablePage.jsx` |
-| `.ag-` | `pages/clinica/AgendaPage.jsx` |
+| `.ag-` | `pages/clinica/AgendaPage.jsx` — incluye `.ag-cal-dots/.ag-cal-dot` (puntos medico en calendario), `.ag-reagendar-*` (reagendado inline), modal Gestionar |
 | `.cs-` | `pages/clinica/ConsultasPage.jsx` |
 | `.rec-` | `pages/clinica/RecordatoriosPage.jsx` |
 | `.fac-` | `pages/facturacion/FacturacionPage.jsx` |
@@ -418,10 +419,35 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 
 ## Hooks — Referencia Completa
 
-### core/
+### Hooks raíz (`hooks/`)
 | Hook | Responsabilidad |
 |---|---|
 | `useToast` | Estado de notificación — retorna `{ toast, showToast }` |
+| `useAtajosTeclado` | Registra atajos de teclado mientras el componente está montado |
+
+### Convención — `useAtajosTeclado`
+Registrar en cada página o formulario que necesite atajos. El hook se desmonta con el componente, por lo que los atajos solo están activos cuando el componente está montado.
+
+```js
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
+
+useAtajosTeclado({
+  'Insert': { fn: () => { if (modo === null) handleNuevo() } },  // soloFueraDeInputs: true (default)
+  'F10':    { fn: () => { if (resultado && !guardando) handleGuardar() }, soloFueraDeInputs: false },
+})
+```
+
+**Parámetros por atajo:**
+| Parámetro | Default | Descripción |
+|---|---|---|
+| `fn` | — | Función a ejecutar |
+| `soloFueraDeInputs` | `true` | Si `true`, no dispara cuando el foco está en INPUT / TEXTAREA / SELECT |
+
+**Atajos estándar:**
+- `Insert` → abrir modal "Nuevo" (solo cuando no hay modal abierto) — `soloFueraDeInputs: true`
+- `F10` → guardar formulario activo — `soloFueraDeInputs: false` (funciona desde cualquier campo)
+
+Aplicado en: `PacientePage` (Insert), `PacienteForm` (F10), `PacienteResponsablePage` (Insert), `ResponsableForm` (F10), `PersonaRRHHPage` (Insert), `PersonaRRHHForm` (F10), `HorarioPrestadorPage` (F10 — guarda cuando el panel está en modo editar/crear), `AgendaPage` (F2 — abre modal de generar turnos cuando no hay modal abierto y el rol puede modificar).
 
 ### administracion/
 | Hook | Responsabilidad |
@@ -486,9 +512,12 @@ Cada componente define su CSS con `<style>` inline. Prefijos únicos para evitar
 | `useAgendaDia` | GET `/api/agenda/` filtrado por persona_rrhh + fecha |
 | `useAgendaMes` | GET `/api/agenda/` filtrado por rango del mes |
 | `useAgendaDiaGlobal` | GET `/api/agenda/` filtrado solo por fecha |
+| `useAgendaRango` | GET `/api/agenda/` filtrado por persona_rrhh + fecha_desde + fecha_hasta (page_size 500) |
 | `useStatsHoy` | GET `/api/agenda/stats-hoy/` (staleTime 1 min) |
 | `useAsignarTurno` | PATCH `/api/agenda/{id}/asignar/` |
 | `useCambiarEstado` | PATCH `/api/agenda/{id}/estado/` |
+| `useReagendar` | PATCH `/api/agenda/{id}/reagendar/` — mueve paciente a otro turno disponible del mismo prestador |
+| `useCancelarRango` | POST `/api/agenda/cancelar-rango/` — cancela todos los disponibles de un prestador en un rango |
 | `usePacienteSearch(q)` | GET `/api/paciente/?search=q` con debounce 300ms — búsqueda rápida para asignar turno |
 | `useConsultasDelDia` | GET `/api/consultas/?persona_rrhh=&fecha=` |
 | `useConsultasPaciente` | GET `/api/consultas/?paciente=id` |

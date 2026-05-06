@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 from django.db.models import Count, Q
 
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from .models import Grupo, ProductoServicio
 from .serializers import (
     GrupoListSerializer, GrupoSerializer,
@@ -14,11 +15,17 @@ from .serializers import (
 
 
 class GrupoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
     filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
     search_fields      = ['descripcion']
     ordering_fields    = ['descripcion', 'activo']
     ordering           = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve', 'eliminados']:
@@ -54,11 +61,17 @@ class GrupoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
 
 class ProductoServicioViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ['descripcion']
-    ordering_fields    = ['descripcion', 'impuesto', 'activo']
-    ordering           = ['descripcion']
+    filter_backends  = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields    = ['descripcion']
+    ordering_fields  = ['descripcion', 'impuesto', 'activo']
+    ordering         = ['descripcion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve', 'eliminados']:
@@ -78,7 +91,9 @@ class ProductoServicioViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_destroy(self, instance):
-        # TODO: verificar facturas cuando se implemente el módulo de facturación
+        from apps.facturacion.ventas.models import VentaFactDet
+        if VentaFactDet.objects.filter(prs=instance, is_deleted=False).exists():
+            raise ValidationError('No se puede eliminar: el producto tiene facturas emitidas vinculadas.')
         super().perform_destroy(instance)
 
     @action(detail=False, methods=['get'], url_path='eliminados')

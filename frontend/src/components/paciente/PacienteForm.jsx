@@ -4,6 +4,8 @@ import FormPersona     from '../persona/FormPersona'
 import FormPaciente    from '../paciente/FormPaciente'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/administracion/usePersona'
 import { useCreatePatient, useUpdatePatient } from '../../hooks/clinica/usePatients'
+import { extraerMensajeError } from '../../utils/errores'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },
@@ -32,6 +34,10 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
   const { mutateAsync: updatePersona } = useUpdatePersona()
   const { mutateAsync: createPaciente } = useCreatePatient()
   const { mutateAsync: updatePaciente } = useUpdatePatient()
+
+  useAtajosTeclado({
+    'F10': { fn: () => { if (resultado && !guardando) handleGuardar() }, soloFueraDeInputs: false },
+  })
 
   const handleGuardar = async () => {
     setError('')
@@ -62,8 +68,7 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
       onSuccess()
 
     } catch (err) {
-      console.error('Error al guardar:', err.response?.data)
-      setError('Error al guardar. Revisá los datos e intentá de nuevo.')
+      setError(extraerMensajeError(err))
     } finally {
       setGuardando(false)
     }
@@ -175,12 +180,10 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
 
       <div className="pf-root">
 
-        {/* Buscador */}
         {!pacienteInicial && <BuscadorPersona onResultado={setResultado} />}
 
         {resultado && (
           <>
-            {/* Badge de modo */}
             {info && (
               <div
                 className="pf-badge"
@@ -191,7 +194,6 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
               </div>
             )}
 
-            {/* FormPersona */}
             <div className="pf-section">
               <FormPersona
                 key={resultado.documento}
@@ -202,7 +204,6 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
               />
             </div>
 
-            {/* FormPaciente */}
             <div className="pf-section">
               <FormPaciente
                 key={resultado.documento}
@@ -211,7 +212,6 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
               />
             </div>
 
-            {/* Error */}
             {error && (
               <div className="pf-error">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{flexShrink:0}}>
@@ -221,7 +221,6 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
               </div>
             )}
 
-            {/* Acciones */}
             <div className="pf-actions">
               <button className="pf-btn-cancel" onClick={onSuccess}>
                 Cancelar

@@ -23,7 +23,6 @@ const ESTADOS = [
   { value: 'licencia', label: 'Licencia' },
 ]
 
-// Selector de especialidades con búsqueda, selección múltiple y navegación por teclado
 function SelectorEspecialidades({ seleccionadas, onChange }) {
   const { data: espData } = useEspecialidades()
   const todas             = espData?.results ?? espData ?? []
@@ -36,7 +35,6 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
   const wrapRef    = useRef(null)
   const listRef    = useRef(null)
 
-  // Cierra el dropdown al hacer click fuera
   useEffect(() => {
     const handler = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) {
@@ -48,14 +46,12 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Resetea el índice cuando cambian las opciones visibles
   const opciones = todas.filter(e =>
     !seleccionadas.includes(e.id) &&
     e.descripcion?.toLowerCase().includes(busqueda.toLowerCase())
   )
   useEffect(() => { setFocusIdx(-1) }, [busqueda])
 
-  // Desplaza el ítem enfocado a la vista
   useEffect(() => {
     if (focusIdx >= 0 && listRef.current) {
       const item = listRef.current.children[focusIdx]
@@ -90,7 +86,6 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
       setAbierto(false)
       setFocusIdx(-1)
     } else if (e.key === 'Backspace' && busqueda === '' && seleccionadas.length > 0) {
-      // Backspace con campo vacío quita la última especialidad
       quitar(seleccionadas[seleccionadas.length - 1])
     }
   }
@@ -276,6 +271,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
         }
         .fr-input-error { border-color: #fca5a5 !important; }
         .fr-field-error { font-size: 11px; color: #dc2626; margin-top: 3px; }
+        .fr-label-required::after { content: ' *'; color: #dc2626; }
       `}</style>
 
       <div className="fr-title">Datos del Prestador</div>
@@ -288,7 +284,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
         </div>
 
         <div className="fr-group">
-          <label className="fr-label">Cargo *</label>
+          <label className="fr-label fr-label-required">Cargo</label>
           <select className="fr-select" value={form.cargo}
             onChange={e => set('cargo', e.target.value)}>
             <option value="">Seleccioná un cargo...</option>
@@ -297,7 +293,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
         </div>
 
         <div className="fr-group">
-          <label className="fr-label">Tipo de contrato *</label>
+          <label className="fr-label fr-label-required">Tipo de contrato</label>
           <select className="fr-select" value={form.tipo_contrato}
             onChange={e => set('tipo_contrato', e.target.value)}>
             <option value="">Seleccioná tipo de contrato...</option>
@@ -306,7 +302,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
         </div>
 
         <div className="fr-group">
-          <label className="fr-label">Estado *</label>
+          <label className="fr-label">Estado</label>
           <select className="fr-select" value={form.estado}
             onChange={e => set('estado', e.target.value)}>
             {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}

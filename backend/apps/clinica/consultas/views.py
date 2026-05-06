@@ -1,4 +1,3 @@
-from datetime import date
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,14 +8,19 @@ from .models import Consulta
 from .serializers import ConsultaSerializer, ConsultaListSerializer
 from config.pagination import StandardPagination
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole
 
 
 class ConsultaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    pagination_class   = StandardPagination
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.OrderingFilter]
-    ordering_fields    = ['agenda__fecha', 'hora_desde']
-    ordering           = ['-agenda__fecha', 'hora_desde']
+    pagination_class = StandardPagination
+    filter_backends  = [filters.OrderingFilter]
+    ordering_fields  = ['agenda__fecha', 'hora_desde']
+    ordering         = ['-agenda__fecha', 'hora_desde']
+
+    def get_permissions(self):
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         qs = Consulta.objects.filter(is_deleted=False).select_related(
@@ -28,21 +32,31 @@ class ConsultaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             'agenda__horario_prestador__especialidades',
         )
 
-        params = self.request.query_params
+        rol               = self.request.auth.get('rol')                   if self.request.auth else None
+        persona_rrhh_id   = self.request.auth.get('persona_rrhh_id')       if self.request.auth else None
+        medicos_asignados = self.request.auth.get('medicos_asignados', []) if self.request.auth else []
 
-        persona_rrhh = params.get('persona_rrhh')
-        fecha        = params.get('fecha')
-        estado       = params.get('estado')
-        paciente     = params.get('paciente')
+        if rol == 'medico':
+            if not persona_rrhh_id:
+                return qs.none()
+            qs = qs.filter(agenda__horario_prestador__persona_rrhh_id=persona_rrhh_id)
+        elif rol == 'secretaria_medico':
+            if not medicos_asignados:
+                return qs.none()
+            qs = qs.filter(agenda__horario_prestador__persona_rrhh_id__in=medicos_asignados)
+        else:
+            persona_rrhh = self.request.query_params.get('persona_rrhh')
+            if persona_rrhh:
+                qs = qs.filter(agenda__horario_prestador__persona_rrhh_id=persona_rrhh)
 
-        if persona_rrhh:
-            qs = qs.filter(agenda__horario_prestador__persona_rrhh_id=persona_rrhh)
-        if fecha:
-            qs = qs.filter(agenda__fecha=fecha)
-        if estado:
-            qs = qs.filter(estado=estado)
-        if paciente:
-            qs = qs.filter(agenda__paciente_id=paciente)
+        params   = self.request.query_params
+        fecha    = params.get('fecha')
+        estado   = params.get('estado')
+        paciente = params.get('paciente')
+
+        if fecha:    qs = qs.filter(agenda__fecha=fecha)
+        if estado:   qs = qs.filter(estado=estado)
+        if paciente: qs = qs.filter(agenda__paciente_id=paciente)
 
         return qs
 
@@ -50,21 +64,6 @@ class ConsultaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve', 'eliminados']:
             return ConsultaListSerializer
         return ConsultaSerializer
-
-    def perform_create(self, serializer):
-        agenda = serializer.validated_data.get('agenda')
-
-        if agenda.estado != 'ocupado':
-            raise ValidationError(
-                {'agenda': 'Solo se puede crear una consulta para un turno ocupado. Estado actual: ' + str(agenda.estado) + '.'}
-            )
-
-        if Consulta.objects.filter(agenda=agenda, is_deleted=False).exists():
-            raise ValidationError(
-                {'agenda': 'Ya existe una consulta activa para este turno.'}
-            )
-
-        super().perform_create(serializer)
 
     def perform_destroy(self, instance):
         from apps.clinica.configuracion.documentos.models import DocumentoDigPaciente
@@ -77,14 +76,14 @@ class ConsultaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         qs = Consulta.objects.filter(is_deleted=True).select_related(
             'agenda__horario_prestador__persona_rrhh__persona',
             'agenda__paciente__persona',
+            'agenda__paciente__responsable__persona',
             'evento_clinico',
         ).order_by('-fecha_eliminacion')
         page = self.paginate_queryset(qs)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data)
+        return Response(self.get_serializer(qs, many=True).data)
 
     @action(detail=True, methods=['post'], url_path='iniciar')
     def iniciar(self, request, pk=None):
@@ -126,7 +125,7 @@ class ConsultaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='stats-hoy')
     def stats_hoy(self, request):
-        hoy = date.today()
+        hoy = timezone.localtime().date()
         qs  = Consulta.objects.filter(agenda__fecha=hoy, is_deleted=False)
         return Response({
             'total':       qs.count(),

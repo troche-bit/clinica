@@ -22,6 +22,7 @@ class GrupoSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def validate_descripcion(self, value):
+        value = value.strip()
         qs = Grupo.objects.filter(descripcion__iexact=value, is_deleted=False)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
@@ -45,6 +46,27 @@ class ProductoServicioListSerializer(serializers.ModelSerializer):
 
 
 class ProductoServicioSerializer(serializers.ModelSerializer):
+
+    def validate_descripcion(self, value):
+        return value.strip()
+
+    def validate(self, data):
+        descripcion = data.get('descripcion', getattr(self.instance, 'descripcion', None))
+        grupo       = data.get('grupo',       getattr(self.instance, 'grupo',       None))
+        if descripcion and grupo:
+            qs = ProductoServicio.objects.filter(
+                descripcion__iexact=descripcion,
+                grupo=grupo,
+                is_deleted=False,
+            )
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {'descripcion': 'Ya existe un producto con esa descripción en este grupo.'}
+                )
+        return data
+
     class Meta:
         model  = ProductoServicio
         fields = ['id', 'descripcion', 'grupo', 'impuesto', 'activo']

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.db.models.functions import Lower
+import phonenumbers
+from phonenumbers.phonenumberutil import NumberParseException
 from .models import TipoDocumento, Persona
 from apps.mantenimiento.ubicacion.serializers import (
     PaisListSerializer, DepartamentoListSerializer, CiudadListSerializer
@@ -55,7 +57,16 @@ class PersonaSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_telefono(self, value):
-        return value.strip() if value else value
+        if not value:
+            return value
+        value = value.strip()
+        try:
+            numero = phonenumbers.parse(value, 'PY')
+            if not phonenumbers.is_valid_number(numero):
+                raise serializers.ValidationError('Número de teléfono inválido.')
+            return phonenumbers.format_number(numero, phonenumbers.PhoneNumberFormat.NATIONAL)
+        except NumberParseException:
+            raise serializers.ValidationError('Número de teléfono inválido.')
 
     def validate_correo_electronico(self, value):
         return value.strip() if value else value

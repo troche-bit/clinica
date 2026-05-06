@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Index
+from django.core.validators import MinValueValidator
 from apps.core.models import BaseModel
 from apps.administracion.persona.models import Persona
 from apps.clinica.configuracion.especialidad.models import Especialidad
@@ -41,7 +42,8 @@ class PersonaRRHH(BaseModel):
     cargo          = models.CharField(max_length=20, choices=Cargo.choices)
     tipo_contrato  = models.CharField(max_length=20, choices=TipoContrato.choices)
     estado         = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ACTIVO)
-    honorario      = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True)
+    honorario      = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True,
+                                         validators=[MinValueValidator(0)])
     observacion    = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -55,7 +57,12 @@ class PersonaRRHH(BaseModel):
                 fields=["persona"],
                 name="unique_rrhh_persona",
                 condition=models.Q(is_deleted=False),
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["nro_matricula"],
+                name="unique_rrhh_nro_matricula",
+                condition=models.Q(is_deleted=False, nro_matricula__isnull=False),
+            ),
         ]
 
     def __str__(self):

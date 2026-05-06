@@ -7,6 +7,7 @@ import { useResponsables, useResponsableMutations } from '../../hooks/clinica/us
 import { useToast }    from '../../hooks/useToast'
 import Toast           from '../../components/ui/Toast'
 import apiClient       from '../../api/client'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 
 function Seccion({ titulo, children }) {
   return (
@@ -49,9 +50,9 @@ function ResponsableDetalle({ responsable, onEditar }) {
           <Campo label="Teléfono"     valor={p.telefono} />
           <Campo label="Correo"       valor={p.correo_electronico} />
           <Campo label="Dirección"    valor={p.direccion} />
-          <Campo label="País"         valor={p.pais_detalle?.nombre} />
-          <Campo label="Departamento" valor={p.departamento_detalle?.nombre} />
-          <Campo label="Ciudad"       valor={p.ciudad_detalle?.nombre} />
+          <Campo label="País"         valor={p.pais_detalle?.descripcion} />
+          <Campo label="Departamento" valor={p.departamento_detalle?.descripcion} />
+          <Campo label="Ciudad"       valor={p.ciudad_detalle?.descripcion} />
         </div>
       </Seccion>
 
@@ -81,6 +82,10 @@ export default function PacienteResponsablePage() {
   const { eliminar }                 = useResponsableMutations(showToast)
 
   const totalPages = data ? Math.ceil(data.count / 20) : 0
+
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (modo === null) handleNuevo() } },
+  })
 
   const handleSearch = (e) => {
     e.preventDefault()

@@ -1,16 +1,18 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Search, Calendar, X, Check, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, Calendar, X, Check, CalendarDays, Settings2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import apiClient from '../../api/client'
 import {
   useAgendaMes, useAgendaDia, useAgendaDiaGlobal,
   useAgendaGlobalMes, useAsignarTurno, useCambiarEstado,
-  usePacienteSearch,
+  usePacienteSearch, useReagendar, useCancelarRango, useAgendaRango,
 } from '../../hooks/clinica/useAgenda'
 import { usePersonasRRHH } from '../../hooks/administracion/usePersonaRRHH'
 import { useEspecialidades } from '../../hooks/clinica/useEspecialidades'
 import { useHorariosPrestador, useGenerarTurnos } from '../../hooks/clinica/useHorarioPrestador'
+import { useAuth } from '../../context/AuthContext'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast from '../../components/ui/Toast'
@@ -69,25 +71,39 @@ function previsualizarTurnos(horarios, fechaDesde, fechaHasta) {
   const desde = new Date(fechaDesde + 'T00:00:00')
   const hasta  = new Date(fechaHasta + 'T00:00:00')
   if (hasta < desde) return []
+
+  const ahora    = new Date()
+  const hoyStr   = ahora.toLocaleDateString('en-CA')
+  const minAhora = ahora.getHours() * 60 + ahora.getMinutes()
+
   const resultado = []
   for (let d = new Date(desde); d <= hasta; d.setDate(d.getDate() + 1)) {
+    const fechaStr    = d.toLocaleDateString('en-CA')
+    if (fechaStr < hoyStr) continue
+    const esHoy       = fechaStr === hoyStr
     const diaSemanaId = d.getDay() === 0 ? 7 : d.getDay()
+
     for (const h of horarios) {
       if (h.estado !== 'activo') continue
       const aplica = h.excepcion
-        ? h.fecha_excepcion === d.toISOString().slice(0, 10)
+        ? h.fecha_excepcion === fechaStr
         : Number(h.dia_semana) === diaSemanaId
       if (!aplica) continue
       if (!h.hora_desde || !h.hora_hasta || !h.intervalo) continue
       const [hd, md] = h.hora_desde.split(':').map(Number)
       const [hh, mh] = h.hora_hasta.split(':').map(Number)
-      const minDesde = hd * 60 + md
+      let minDesde   = hd * 60 + md
       const minHasta = hh * 60 + mh
-      const slots    = Math.floor((minHasta - minDesde) / Number(h.intervalo))
+
+      if (esHoy) {
+        while (minDesde <= minAhora && minDesde < minHasta) minDesde += Number(h.intervalo)
+      }
+
+      const slots = Math.floor((minHasta - minDesde) / Number(h.intervalo))
       if (slots > 0) {
         resultado.push({
-          fecha:  d.toISOString().slice(0, 10),
-          dia:    DIAS_ID[diaSemanaId] ?? '',
+          fecha:     fechaStr,
+          dia:       DIAS_ID[diaSemanaId] ?? '',
           slots,
           horarioId: h.id,
         })
@@ -98,8 +114,13 @@ function previsualizarTurnos(horarios, fechaDesde, fechaHasta) {
 }
 
 export default function AgendaPage() {
-  const hoy = new Date()
+  const hoyStr = useMemo(() => new Date().toLocaleDateString('en-CA'), [])
   const [searchParams] = useSearchParams()
+  const { user } = useAuth()
+  const esMedico     = user?.rol === 'medico'
+  const esSecretaria = user?.rol === 'secretaria_medico'
+  const esRestringido = esMedico || esSecretaria
+  const puedeModificar = !esMedico
 
   const fechaParam = searchParams.get('fecha')
 
@@ -108,6 +129,7 @@ export default function AgendaPage() {
       const d = new Date(fechaParam + 'T00:00:00')
       return { mes: d.getMonth() + 1, anio: d.getFullYear() }
     }
+    const hoy = new Date()
     return { mes: hoy.getMonth() + 1, anio: hoy.getFullYear() }
   })
   const [medicoSel, setMedicoSel]       = useState(null)
@@ -124,7 +146,7 @@ export default function AgendaPage() {
   const [observacion,    setObservacion]    = useState('')
   const [confirmando,    setConfirmando]    = useState(false)
   const [mostrarGenerar, setMostrarGenerar] = useState(false)
-  const [genDesde,       setGenDesde]       = useState('')
+  const [genDesde,       setGenDesde]       = useState(() => new Date().toLocaleDateString('en-CA'))
   const [genHasta,       setGenHasta]       = useState('')
   const [genResult,      setGenResult]      = useState(null)
   const [generando,      setGenerando]      = useState(false)
@@ -132,6 +154,17 @@ export default function AgendaPage() {
   const [busqGen,        setBusqGen]        = useState('')
   const [listaGenAbierta, setListaGenAbierta] = useState(false)
   const [confirmEstado, setConfirmEstado]  = useState(null)
+
+  const [reagendarTurnoId, setReagendarTurnoId] = useState(null)
+  const [reagendarFecha,   setReagendarFecha]   = useState('')
+  const [reagendarSlot,    setReagendarSlot]    = useState(null)
+  const [reagendando,      setReagendando]      = useState(false)
+  const [mostrarGestionar, setMostrarGestionar] = useState(false)
+  const [gestMedico,       setGestMedico]       = useState(null)
+  const [gestDesde,        setGestDesde]        = useState('')
+  const [gestHasta,        setGestHasta]        = useState('')
+  const [cancelandoRango,  setCancelandoRango]  = useState(false)
+  const [gestResult,       setGestResult]       = useState(null)
 
   const { toast, showToast } = useToast()
   const qc = useQueryClient()
@@ -171,6 +204,17 @@ export default function AgendaPage() {
     }
   }, [filtroFecha, modo])
 
+  useEffect(() => {
+    if (!esRestringido) return
+    const rrhhId = esMedico ? user?.persona_rrhh_id : user?.medico_asignado_id
+    if (!rrhhId || !todosLosMedicos.length) return
+    const m = todosLosMedicos.find(m => m.id === rrhhId)
+    if (m && (!medicoSel || medicoSel.id !== m.id)) {
+      setMedicoSel(m)
+      setGestMedico(m)
+    }
+  }, [esRestringido, esMedico, user?.persona_rrhh_id, user?.medico_asignado_id, todosLosMedicos])
+
   const { data: agendaMes }    = useAgendaMes(medicoSel?.id, mesVista.mes, mesVista.anio)
   const turnosMes              = agendaMes ?? []
 
@@ -192,6 +236,8 @@ export default function AgendaPage() {
 
   const { mutateAsync: asignarTurno }  = useAsignarTurno()
   const { mutateAsync: cambiarEstado, isPending: cambiandoEstado } = useCambiarEstado()
+  const { mutateAsync: reagendarTurno } = useReagendar()
+  const { mutateAsync: cancelarRango }  = useCancelarRango()
 
   const { data: horariosGlobalData } = useHorariosPrestador({ estado: 'activo' })
 
@@ -255,7 +301,7 @@ export default function AgendaPage() {
       : new Set(medicosConHorarios.map(m => m.id))
     setMedicosSelGen(ids)
     setGenResult(null)
-    setGenDesde('')
+    setGenDesde(new Date().toLocaleDateString('en-CA'))
     setGenHasta('')
     setBusqGen('')
     setListaGenAbierta(false)
@@ -263,6 +309,53 @@ export default function AgendaPage() {
   }
 
   const { data: resultadosPaciente } = usePacienteSearch(busqPaciente)
+
+  const turnosPorFecha = useMemo(() => {
+    const map = {}
+    for (const t of turnosMes) {
+      if (!map[t.fecha]) map[t.fecha] = []
+      map[t.fecha].push(t)
+    }
+    return map
+  }, [turnosMes])
+
+  const medicosPorDia = useMemo(() => {
+    const map = {}
+    for (const t of turnosMesGlobal ?? []) {
+      if (t.estado === 'cancelado' || t.estado === 'inactivo') continue
+      if (!map[t.fecha]) map[t.fecha] = new Set()
+      const id = t.horario_prestador_detalle?.persona_rrhh_id
+      if (id) map[t.fecha].add(id)
+    }
+    return map
+  }, [turnosMesGlobal])
+
+  const reagendarMedicoId = useMemo(() => {
+    if (!reagendarTurnoId) return null
+    const t = turnosPanelDia.find(t => t.id === reagendarTurnoId)
+    return t?.horario_prestador_detalle?.persona_rrhh_id ?? null
+  }, [reagendarTurnoId, turnosPanelDia])
+
+  const { data: slotsReagendar } = useAgendaDia(reagendarMedicoId, reagendarFecha || null)
+  const slotsDisponibles = useMemo(
+    () => (slotsReagendar ?? []).filter(t => t.estado === 'disponible'),
+    [slotsReagendar]
+  )
+
+  const { data: turnosGestion, isLoading: cargandoGestion } = useAgendaRango(
+    gestMedico?.id ?? null,
+    gestDesde || null,
+    gestHasta || null,
+  )
+  const gestStats = useMemo(() => {
+    const lista = turnosGestion ?? []
+    return {
+      disponibles: lista.filter(t => t.estado === 'disponible').length,
+      ocupados:    lista.filter(t => t.estado === 'ocupado').length,
+      cancelados:  lista.filter(t => t.estado === 'cancelado').length,
+      total:       lista.length,
+    }
+  }, [turnosGestion])
 
   const irMesAnterior = () => setMesVista(prev => {
     const m = prev.mes === 1 ? 12 : prev.mes - 1
@@ -339,6 +432,41 @@ export default function AgendaPage() {
     }
   }
 
+  const handleReagendar = async () => {
+    if (!reagendarTurnoId || !reagendarSlot) return
+    setReagendando(true)
+    try {
+      await reagendarTurno({ id: reagendarTurnoId, nuevo_turno_id: reagendarSlot })
+      showToast('Turno reagendado correctamente.', 'success')
+      setReagendarTurnoId(null)
+      setReagendarFecha('')
+      setReagendarSlot(null)
+      setTurnoExpandido(null)
+    } catch (err) {
+      showToast(extraerMensajeError(err), 'error')
+    } finally {
+      setReagendando(false)
+    }
+  }
+
+  const handleCancelarRango = async () => {
+    if (!gestMedico || !gestDesde || !gestHasta) return
+    setCancelandoRango(true)
+    try {
+      const res = await cancelarRango({ persona_rrhh: gestMedico.id, fecha_desde: gestDesde, fecha_hasta: gestHasta })
+      setGestResult(res.data.cancelados)
+      showToast(`${res.data.cancelados} turno(s) cancelado(s).`, 'success')
+    } catch (err) {
+      showToast(extraerMensajeError(err), 'error')
+    } finally {
+      setCancelandoRango(false)
+    }
+  }
+
+  useAtajosTeclado({
+    'F2': { fn: () => { if (!mostrarGenerar && !mostrarGestionar && puedeModificar) abrirGenerar() } },
+  })
+
   const nombreMedico = (m) => m?.persona_detalle?.razon_social ?? m?.nombre ?? '—'
   const inicialesMedico = (m) => {
     const n = nombreMedico(m)
@@ -346,15 +474,6 @@ export default function AgendaPage() {
   }
 
   const celdas = diasDelMes(mesVista.mes, mesVista.anio)
-
-  const turnosPorFecha = useMemo(() => {
-    const map = {}
-    for (const t of turnosMes) {
-      if (!map[t.fecha]) map[t.fecha] = []
-      map[t.fecha].push(t)
-    }
-    return map
-  }, [turnosMes])
 
   return (
     <>
@@ -493,6 +612,10 @@ export default function AgendaPage() {
         }
         .ag-cal-mas { font-size: 10px; color: #9ca3af; padding-left: 4px; }
         .ag-cal-empty { text-align: center; padding: 40px 16px; color: #9ca3af; font-size: 13px; }
+
+        .ag-cal-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; align-items: center; }
+        .ag-cal-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .ag-cal-dot-mas { font-size: 9px; color: #9ca3af; line-height: 1; }
 
         .ag-panel { background: #fff; border: 1px solid #e8edf2; border-radius: 12px; overflow: hidden; position: sticky; top: 20px; }
         .ag-panel-head { padding: 14px 16px; border-bottom: 1px solid #e8edf2; }
@@ -682,6 +805,17 @@ export default function AgendaPage() {
         }
         .ag-gen-todos:hover { background: #f0f4f8; }
         .ag-gen-todos input[type=checkbox] { accent-color: #1a3a5c; width: 14px; height: 14px; cursor: pointer; }
+
+        .ag-reagendar { padding: 12px; border-top: 1px solid #e8edf2; background: #f0f9ff; }
+        .ag-reagendar-titulo { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #0369a1; margin-bottom: 8px; }
+        .ag-reagendar-slots  { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+        .ag-reagendar-slot   {
+          padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
+          border: 1.5px solid #bae6fd; background: #fff; color: #0369a1;
+          cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s;
+        }
+        .ag-reagendar-slot:hover { background: #e0f2fe; }
+        .ag-reagendar-slot-on   { background: #0369a1 !important; color: #fff !important; border-color: #0369a1 !important; }
       `}</style>
 
       <div style={{ marginBottom: 20 }}>
@@ -711,110 +845,129 @@ export default function AgendaPage() {
             </div>
           </div>
 
-          <div className="ag-card" style={{ flex: 1 }}>
-            <div className="ag-card-head">Médicos</div>
-            <div className="ag-card-body" style={{ paddingBottom: 0 }}>
-
-              <div className="ag-search-wrap">
-                <Search size={13} className="ag-search-icon" />
-                <input
-                  className="ag-search-input"
-                  placeholder="Buscar médico..."
-                  value={busquedaMedico}
-                  onChange={e => setBusquedaMedico(e.target.value)}
-                />
-              </div>
-
-              <div className="ag-chips">
-                {[['todos','Todos'],['fecha','Fecha'],['especialidad','Especialidad']].map(([m, lbl]) => (
-                  <button key={m} className={`ag-chip${modo === m ? ' ag-chip-on' : ''}`}
-                    onClick={() => { setModo(m); if (m !== 'fecha') setFiltroFecha(''); if (m !== 'especialidad') setFiltroEsp('') }}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-
-              {modo === 'fecha' && (
-                <input type="date" className="ag-filter-input" value={filtroFecha}
-                  onChange={e => setFiltroFecha(e.target.value)} />
-              )}
-
-              {modo === 'especialidad' && (
-                <div className="ag-esp-wrap">
-                  <input
-                    className="ag-esp-input"
-                    placeholder="Buscar especialidad..."
-                    value={filtroEspTexto}
-                    onChange={e => { setFiltroEspTexto(e.target.value); setMostrarEspDrop(true) }}
-                    onFocus={() => setMostrarEspDrop(true)}
-                    onBlur={() => setTimeout(() => setMostrarEspDrop(false), 150)}
-                  />
-                  {mostrarEspDrop && (
-                    <div className="ag-esp-drop">
-                      <div
-                        className={`ag-esp-opt${!filtroEsp ? ' ag-esp-opt-on' : ''}`}
-                        onMouseDown={() => { setFiltroEsp(''); setFiltroEspTexto(''); setMostrarEspDrop(false); setMedicoSel(null) }}>
-                        Todas las especialidades
-                      </div>
-                      {espFiltradas.map(e => (
-                        <div key={e.id}
-                          className={`ag-esp-opt${String(filtroEsp) === String(e.id) ? ' ag-esp-opt-on' : ''}`}
-                          onMouseDown={() => { setFiltroEsp(String(e.id)); setFiltroEspTexto(e.descripcion); setMostrarEspDrop(false); setMedicoSel(null) }}>
-                          {e.descripcion}
-                        </div>
-                      ))}
-                      {espFiltradas.length === 0 && (
-                        <div className="ag-esp-opt" style={{ color: '#9ca3af', cursor: 'default' }}>Sin resultados</div>
-                      )}
-                    </div>
-                  )}
+          {esRestringido ? (
+            medicoSel ? (
+              <div className="ag-card">
+                <div className="ag-card-head">{esMedico ? 'Mi perfil' : 'Médico asignado'}</div>
+                <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="ag-avatar" style={{ background: colorMedico(medicoSel.id).bg, color: colorMedico(medicoSel.id).text }}>
+                    {inicialesMedico(medicoSel)}
+                  </div>
+                  <div>
+                    <div className="ag-medico-nombre">{nombreMedico(medicoSel)}</div>
+                    <div className="ag-medico-esp">{medicoSel.especialidades_detalle?.map(e => e.descripcion).join(', ') || '—'}</div>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            <div className="ag-medico-list" style={{ paddingBottom: 8 }}>
-              {medicosFiltrados.length === 0 && (
+              </div>
+            ) : (
+              <div className="ag-card">
                 <div style={{ padding: '20px 14px', color: '#9ca3af', fontSize: '12.5px', textAlign: 'center' }}>
-                  No se encontraron médicos
+                  {esMedico ? 'Sin prestador asignado' : 'Sin médico asignado'}
                 </div>
-              )}
-              {medicosFiltrados.map(m => {
-                const col    = colorMedico(m.id)
-                const activo = medicoSel?.id === m.id
-                const hoy_str = fmtFecha(
-                  new Date().getFullYear(),
-                  new Date().getMonth() + 1,
-                  new Date().getDate()
-                )
-                const dispHoy = turnosMes.filter(t =>
-                  t.horario_prestador_detalle?.persona_rrhh_id === m.id &&
-                  t.fecha === hoy_str &&
-                  t.estado === 'disponible'
-                ).length
+              </div>
+            )
+          ) : (
+            <div className="ag-card" style={{ flex: 1 }}>
+              <div className="ag-card-head">Médicos</div>
+              <div className="ag-card-body" style={{ paddingBottom: 0 }}>
 
-                return (
-                  <div key={m.id}
-                    className={`ag-medico-item${activo ? ' ag-medico-item-on' : ''}`}
-                    onClick={() => { setMedicoSel(activo ? null : m); setFechaSel(null); setTurnoExpandido(null) }}>
-                    <div className="ag-avatar" style={{ background: col.bg, color: col.text }}>
-                      {inicialesMedico(m)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="ag-medico-nombre" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {nombreMedico(m)}
+                <div className="ag-search-wrap">
+                  <Search size={13} className="ag-search-icon" />
+                  <input
+                    className="ag-search-input"
+                    placeholder="Buscar médico..."
+                    value={busquedaMedico}
+                    onChange={e => setBusquedaMedico(e.target.value)}
+                  />
+                </div>
+
+                <div className="ag-chips">
+                  {[['todos','Todos'],['fecha','Fecha'],['especialidad','Especialidad']].map(([m, lbl]) => (
+                    <button key={m} className={`ag-chip${modo === m ? ' ag-chip-on' : ''}`}
+                      onClick={() => { setModo(m); if (m !== 'fecha') setFiltroFecha(''); if (m !== 'especialidad') setFiltroEsp('') }}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+
+                {modo === 'fecha' && (
+                  <input type="date" className="ag-filter-input" value={filtroFecha}
+                    onChange={e => setFiltroFecha(e.target.value)} />
+                )}
+
+                {modo === 'especialidad' && (
+                  <div className="ag-esp-wrap">
+                    <input
+                      className="ag-esp-input"
+                      placeholder="Buscar especialidad..."
+                      value={filtroEspTexto}
+                      onChange={e => { setFiltroEspTexto(e.target.value); setMostrarEspDrop(true) }}
+                      onFocus={() => setMostrarEspDrop(true)}
+                      onBlur={() => setTimeout(() => setMostrarEspDrop(false), 150)}
+                    />
+                    {mostrarEspDrop && (
+                      <div className="ag-esp-drop">
+                        <div
+                          className={`ag-esp-opt${!filtroEsp ? ' ag-esp-opt-on' : ''}`}
+                          onMouseDown={() => { setFiltroEsp(''); setFiltroEspTexto(''); setMostrarEspDrop(false); setMedicoSel(null) }}>
+                          Todas las especialidades
+                        </div>
+                        {espFiltradas.map(e => (
+                          <div key={e.id}
+                            className={`ag-esp-opt${String(filtroEsp) === String(e.id) ? ' ag-esp-opt-on' : ''}`}
+                            onMouseDown={() => { setFiltroEsp(String(e.id)); setFiltroEspTexto(e.descripcion); setMostrarEspDrop(false); setMedicoSel(null) }}>
+                            {e.descripcion}
+                          </div>
+                        ))}
+                        {espFiltradas.length === 0 && (
+                          <div className="ag-esp-opt" style={{ color: '#9ca3af', cursor: 'default' }}>Sin resultados</div>
+                        )}
                       </div>
-                      <div className="ag-medico-esp">
-                        {m.especialidades_detalle?.map(e => e.descripcion).join(', ') || m.cargo || '—'}
-                      </div>
-                    </div>
-                    {dispHoy > 0 && (
-                      <span className="ag-medico-badge">{dispHoy}</span>
                     )}
                   </div>
-                )
-              })}
+                )}
+              </div>
+
+              <div className="ag-medico-list" style={{ paddingBottom: 8 }}>
+                {medicosFiltrados.length === 0 && (
+                  <div style={{ padding: '20px 14px', color: '#9ca3af', fontSize: '12.5px', textAlign: 'center' }}>
+                    No se encontraron médicos
+                  </div>
+                )}
+                {medicosFiltrados.map(m => {
+                  const col    = colorMedico(m.id)
+                  const activo = medicoSel?.id === m.id
+                  const hoy_str = hoyStr
+                  const dispHoy = turnosMes.filter(t =>
+                    t.horario_prestador_detalle?.persona_rrhh_id === m.id &&
+                    t.fecha === hoy_str &&
+                    t.estado === 'disponible'
+                  ).length
+
+                  return (
+                    <div key={m.id}
+                      className={`ag-medico-item${activo ? ' ag-medico-item-on' : ''}`}
+                      onClick={() => { setMedicoSel(activo ? null : m); setFechaSel(null); setTurnoExpandido(null) }}>
+                      <div className="ag-avatar" style={{ background: col.bg, color: col.text }}>
+                        {inicialesMedico(m)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="ag-medico-nombre" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {nombreMedico(m)}
+                        </div>
+                        <div className="ag-medico-esp">
+                          {m.especialidades_detalle?.map(e => e.descripcion).join(', ') || m.cargo || '—'}
+                        </div>
+                      </div>
+                      {dispHoy > 0 && (
+                        <span className="ag-medico-badge">{dispHoy}</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="ag-col-cal">
@@ -832,14 +985,32 @@ export default function AgendaPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
-                  className="btn btn-primary"
-                  style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
-                  onClick={abrirGenerar}
-                >
-                  <CalendarDays size={13} />
-                  {medicoSel ? 'Generar turnos' : 'Generar para todos'}
-                </button>
+                {puedeModificar && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={abrirGenerar}
+                  >
+                    <CalendarDays size={13} />
+                    {medicoSel ? 'Generar turnos' : 'Generar para todos'}
+                  </button>
+                )}
+                {puedeModificar && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => {
+                      setGestMedico(medicoSel ?? null)
+                      setGestDesde('')
+                      setGestHasta('')
+                      setGestResult(null)
+                      setMostrarGestionar(true)
+                    }}
+                  >
+                    <Settings2 size={13} />
+                    Gestionar
+                  </button>
+                )}
                 <div className="ag-cal-nav">
                   <button className="ag-cal-nav-btn" onClick={irMesAnterior}><ChevronLeft size={14} /></button>
                   <span className="ag-cal-mes-label">{MESES[mesVista.mes - 1]} {mesVista.anio}</span>
@@ -858,7 +1029,7 @@ export default function AgendaPage() {
                   if (!dia) return <div key={idx} className="ag-cal-celda" />
 
                   const fechaStr  = fmtFecha(mesVista.anio, mesVista.mes, dia)
-                  const esHoy     = fechaStr === fmtFecha(hoy.getFullYear(), hoy.getMonth()+1, hoy.getDate())
+                  const esHoy     = fechaStr === hoyStr
                   const esSel     = fechaStr === fechaSel
                   const turnos    = medicoSel ? (turnosPorFecha[fechaStr] ?? []) : []
 
@@ -874,24 +1045,41 @@ export default function AgendaPage() {
                       onClick={() => seleccionarDia(dia)}
                     >
                       <div className="ag-cal-num">{dia}</div>
-                      <div className="ag-cal-pills">
-                        {turnos.slice(0, 2).map(t => {
-                          const c = colorEstado(t.estado)
-                          const label = t.estado === 'ocupado' && t.paciente_detalle
-                            ? t.paciente_detalle.nombre.split(' ')[0]
-                            : t.estado === 'disponible' ? `${fmtHora(t.hora_desde)} libre`
-                            : fmtHora(t.hora_desde)
+                      {!medicoSel ? (
+                        (() => {
+                          const rrhhIds = [...(medicosPorDia[fechaStr] ?? new Set())]
+                          if (rrhhIds.length === 0) return null
                           return (
-                            <div key={t.id} className="ag-cal-pill"
-                              style={{ background: c.bg, color: c.text }}>
-                              {label}
+                            <div className="ag-cal-dots">
+                              {rrhhIds.slice(0, 5).map(id => (
+                                <div key={id} className="ag-cal-dot" style={{ background: colorMedico(id).text }} />
+                              ))}
+                              {rrhhIds.length > 5 && (
+                                <span className="ag-cal-dot-mas">+{rrhhIds.length - 5}</span>
+                              )}
                             </div>
                           )
-                        })}
-                        {turnos.length > 2 && (
-                          <div className="ag-cal-mas">+{turnos.length - 2} más</div>
-                        )}
-                      </div>
+                        })()
+                      ) : (
+                        <div className="ag-cal-pills">
+                          {turnos.slice(0, 2).map(t => {
+                            const c = colorEstado(t.estado)
+                            const label = t.estado === 'ocupado' && t.paciente_detalle
+                              ? t.paciente_detalle.nombre.split(' ')[0]
+                              : t.estado === 'disponible' ? `${fmtHora(t.hora_desde)} libre`
+                              : fmtHora(t.hora_desde)
+                            return (
+                              <div key={t.id} className="ag-cal-pill"
+                                style={{ background: c.bg, color: c.text }}>
+                                {label}
+                              </div>
+                            )
+                          })}
+                          {turnos.length > 2 && (
+                            <div className="ag-cal-mas">+{turnos.length - 2} más</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -1064,6 +1252,97 @@ export default function AgendaPage() {
           </div>
         </Modal>
 
+        <Modal
+          isOpen={mostrarGestionar}
+          onClose={() => { setMostrarGestionar(false); setGestResult(null) }}
+          title="Gestionar turnos"
+          subtitle="Cancelar disponibles en un rango de fechas"
+          size="sm"
+        >
+          <div style={{ padding: '16px 0 0' }}>
+            <div className="ag-gen-horarios-label">Médico</div>
+            {esRestringido ? (
+              <div style={{ fontSize: 13, color: '#111827', fontWeight: 500, marginBottom: 12 }}>
+                {nombreMedico(medicoSel)}
+              </div>
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <select
+                  className="ag-gen-input"
+                  value={gestMedico?.id ?? ''}
+                  onChange={e => {
+                    const m = todosLosMedicos.find(x => String(x.id) === e.target.value)
+                    setGestMedico(m ?? null)
+                    setGestResult(null)
+                  }}
+                >
+                  <option value="">— Seleccionar médico —</option>
+                  {todosLosMedicos.map(m => (
+                    <option key={m.id} value={m.id}>{nombreMedico(m)}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="ag-gen-range">
+              <div className="ag-gen-field">
+                <div className="ag-gen-label">Desde</div>
+                <input type="date" className="ag-gen-input" value={gestDesde}
+                  onChange={e => { setGestDesde(e.target.value); setGestResult(null) }} />
+              </div>
+              <div className="ag-gen-field">
+                <div className="ag-gen-label">Hasta</div>
+                <input type="date" className="ag-gen-input" value={gestHasta}
+                  onChange={e => { setGestHasta(e.target.value); setGestResult(null) }} />
+              </div>
+            </div>
+
+            {gestMedico && gestDesde && gestHasta && (
+              cargandoGestion ? (
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12 }}>Cargando...</div>
+              ) : (
+                <div className="ag-gen-preview" style={{ marginBottom: 12 }}>
+                  <div className="ag-gen-preview-hdr">
+                    <span className="ag-gen-preview-title">Resumen del rango</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
+                    {[
+                      { label: 'Disponibles', val: gestStats.disponibles, color: '#16a34a' },
+                      { label: 'Ocupados',    val: gestStats.ocupados,    color: '#d97706' },
+                      { label: 'Cancelados',  val: gestStats.cancelados,  color: '#dc2626' },
+                    ].map(s => (
+                      <div key={s.label} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.val}</div>
+                        <div style={{ fontSize: 10.5, color: '#9ca3af' }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
+
+            {gestResult !== null && (
+              <div className="ag-gen-result">
+                <div className="ag-gen-result-ok">
+                  <Check size={13} style={{ display: 'inline', marginRight: 5 }} />
+                  {gestResult} turno{gestResult !== 1 ? 's' : ''} cancelado{gestResult !== 1 ? 's' : ''}
+                </div>
+              </div>
+            )}
+
+            <button
+              className="ag-btn-gen"
+              disabled={!gestMedico || !gestDesde || !gestHasta || cancelandoRango || gestStats.disponibles === 0}
+              onClick={handleCancelarRango}
+            >
+              {cancelandoRango
+                ? <><div className="ag-spin" /> Cancelando...</>
+                : `Cancelar ${gestStats.disponibles > 0 ? gestStats.disponibles + ' turno' + (gestStats.disponibles !== 1 ? 's' : '') + ' disponibles' : 'disponibles'}`
+              }
+            </button>
+          </div>
+        </Modal>
+
         <div className="ag-col-panel">
           <div className="ag-panel">
             <div className="ag-panel-head">
@@ -1138,6 +1417,11 @@ export default function AgendaPage() {
                           setBusqPaciente('')
                           setPacienteSel(null)
                           setObservacion('')
+                          if (reagendarTurnoId === turno.id) {
+                            setReagendarTurnoId(null)
+                            setReagendarFecha('')
+                            setReagendarSlot(null)
+                          }
                         }}
                       >
                         <span className="ag-turno-hora">{fmtHora(turno.hora_desde)}</span>
@@ -1252,6 +1536,66 @@ export default function AgendaPage() {
                                   {tr.label}
                                 </button>
                               ))}
+                            </div>
+                          )}
+
+                          {turno.estado === 'ocupado' && (
+                            <div className="ag-estado-actions" style={{ borderTop: 'none', paddingTop: 0 }}>
+                              <button
+                                className="ag-estado-chip"
+                                style={{ background: '#e0f2fe', color: '#0369a1', borderColor: '#7dd3fc' }}
+                                onClick={() => {
+                                  setReagendarTurnoId(reagendarTurnoId === turno.id ? null : turno.id)
+                                  setReagendarFecha('')
+                                  setReagendarSlot(null)
+                                }}
+                              >
+                                {reagendarTurnoId === turno.id ? 'Cancelar reagendado' : 'Reagendar'}
+                              </button>
+                            </div>
+                          )}
+
+                          {reagendarTurnoId === turno.id && (
+                            <div className="ag-reagendar">
+                              <div className="ag-reagendar-titulo">Seleccioná nueva fecha y turno</div>
+                              <input
+                                type="date"
+                                className="ag-gen-input"
+                                style={{ marginBottom: 8 }}
+                                value={reagendarFecha}
+                                min={hoyStr}
+                                onChange={e => { setReagendarFecha(e.target.value); setReagendarSlot(null) }}
+                              />
+                              {reagendarFecha && (
+                                slotsDisponibles.length === 0 ? (
+                                  <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>Sin turnos disponibles para esa fecha</div>
+                                ) : (
+                                  <div className="ag-reagendar-slots">
+                                    {slotsDisponibles.map(s => (
+                                      <button
+                                        key={s.id}
+                                        className={`ag-reagendar-slot${reagendarSlot === s.id ? ' ag-reagendar-slot-on' : ''}`}
+                                        onClick={() => setReagendarSlot(reagendarSlot === s.id ? null : s.id)}
+                                      >
+                                        {fmtHora(s.hora_desde)}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )
+                              )}
+                              {reagendarSlot && (
+                                <button
+                                  className="ag-btn-confirmar"
+                                  style={{ marginTop: 8 }}
+                                  disabled={reagendando}
+                                  onClick={handleReagendar}
+                                >
+                                  {reagendando
+                                    ? <><div className="ag-spin" /> Reagendando...</>
+                                    : <><Check size={14} /> Confirmar reagendado</>
+                                  }
+                                </button>
+                              )}
                             </div>
                           )}
                         </>

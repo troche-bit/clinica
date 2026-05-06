@@ -1,20 +1,30 @@
 from datetime import date, datetime, timedelta
+from django.utils import timezone
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista, IsAdminOrRecepcionistaOrSecretaria
 from .models import HorarioPrestador
 from .serializers import HorarioPrestadorSerializer, HorarioPrestadorListSerializer
 from config.pagination import StandardPagination
 
 
 class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    pagination_class   = StandardPagination
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.OrderingFilter]
-    ordering_fields    = ['dia_semana__id', 'hora_desde', 'fecha_creacion']
+    pagination_class = StandardPagination
+    filter_backends  = [filters.OrderingFilter]
+    ordering_fields  = ['dia_semana__id', 'hora_desde', 'fecha_creacion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        if self.action in ('destroy', 'eliminados'):
+            return [IsAuthenticated(), IsAdminRole()]
+        if self.action == 'generar':
+            return [IsAuthenticated(), IsAdminOrRecepcionistaOrSecretaria()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         qs = HorarioPrestador.objects.filter(
@@ -22,10 +32,29 @@ class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             persona_rrhh__is_deleted=False,
         ).select_related(
             'persona_rrhh__persona',
+            'persona_rrhh__persona__tipo_documento',
+            'persona_rrhh__persona__pais',
+            'persona_rrhh__persona__departamento',
+            'persona_rrhh__persona__ciudad',
             'dia_semana',
         ).prefetch_related(
             'especialidades',
         )
+
+        rol               = self.request.auth.get('rol')                   if self.request.auth else None
+        persona_rrhh_id   = self.request.auth.get('persona_rrhh_id')       if self.request.auth else None
+        medicos_asignados = self.request.auth.get('medicos_asignados', []) if self.request.auth else []
+
+        if rol == 'medico':
+            if not persona_rrhh_id:
+                return qs.none()
+            return qs.filter(persona_rrhh_id=persona_rrhh_id)
+
+        if rol == 'secretaria_medico':
+            if not medicos_asignados:
+                return qs.none()
+            return qs.filter(persona_rrhh_id__in=medicos_asignados)
+
         persona_rrhh = self.request.query_params.get('persona_rrhh')
         estado       = self.request.query_params.get('estado')
         if persona_rrhh:
@@ -64,6 +93,10 @@ class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             is_deleted=True
         ).select_related(
             'persona_rrhh__persona',
+            'persona_rrhh__persona__tipo_documento',
+            'persona_rrhh__persona__pais',
+            'persona_rrhh__persona__departamento',
+            'persona_rrhh__persona__ciudad',
             'dia_semana',
         ).prefetch_related(
             'especialidades',
@@ -92,9 +125,18 @@ class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                 {'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'},
                 status=400,
             )
+
+        now_local  = timezone.localtime()
+        hoy        = now_local.date()
+        hora_ahora = now_local.time().replace(microsecond=0)
+
+        # Ajustar fecha_desde al día de hoy si viene en el pasado
+        if fecha_desde < hoy:
+            fecha_desde = hoy
+
         if fecha_hasta < fecha_desde:
             return Response(
-                {'error': 'fecha_hasta debe ser mayor o igual a fecha_desde.'},
+                {'error': 'La fecha "Hasta" no puede ser menor a la fecha actual.'},
                 status=400,
             )
 
@@ -117,6 +159,12 @@ class HorarioPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             turnos_omitidos = 0
             hora_actual = datetime.combine(fecha_actual, horario.hora_desde)
             hora_limite = datetime.combine(fecha_actual, horario.hora_hasta)
+
+            # Para el día de hoy, avanzar al primer slot que no haya pasado
+            if fecha_actual == hoy:
+                ahora_dt = datetime.combine(hoy, hora_ahora)
+                while hora_actual <= ahora_dt and hora_actual < hora_limite:
+                    hora_actual += intervalo
 
             while hora_actual < hora_limite:
                 hora_fin = hora_actual + intervalo

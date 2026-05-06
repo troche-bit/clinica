@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.core.permissions import IsAdminRole
 from apps.administracion.persona.models import Persona
 from apps.administracion.persona.serializers import PersonaListSerializer
 from config.pagination import StandardPagination
@@ -15,11 +16,15 @@ from .serializers import PersonaRRHHSerializer, PersonaRRHHListSerializer
 
 
 class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    pagination_class   = StandardPagination
-    permission_classes = [IsAuthenticated]
-    filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields      = ["persona__razon_social", "persona__nro_documento", "nro_matricula"]
-    ordering_fields    = ["persona__razon_social", "cargo", "estado", "fecha_creacion"]
+    pagination_class = StandardPagination
+    filter_backends  = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields    = ["persona__razon_social", "persona__nro_documento", "nro_matricula"]
+    ordering_fields  = ["persona__razon_social", "cargo", "estado", "fecha_creacion"]
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'buscar', 'validar_matricula', 'reporte_lista'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdminRole()]
 
     def get_queryset(self):
         return PersonaRRHH.objects.filter(
@@ -37,7 +42,9 @@ class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return PersonaRRHHSerializer
 
     def perform_destroy(self, instance):
+        from django.utils import timezone as tz
         from apps.clinica.agenda.models import Agenda
+        from apps.clinica.configuracion.horario_prestador.models import HorarioPrestador
         tiene_turnos = Agenda.objects.filter(
             horario_prestador__persona_rrhh=instance,
             is_deleted=False,
@@ -52,14 +59,27 @@ class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                 "No se puede eliminar un prestador con turnos activos. "
                 "Primero cancelá o finalizá todos sus turnos."
             )
+        ahora = tz.now()
+        uid   = self.request.user.pk
+        Agenda.objects.filter(
+            horario_prestador__persona_rrhh=instance,
+            is_deleted=False,
+        ).update(is_deleted=True, fecha_eliminacion=ahora, id_usu_modificator_id=uid)
+        HorarioPrestador.objects.filter(
+            persona_rrhh=instance,
+            is_deleted=False,
+        ).update(is_deleted=True, fecha_eliminacion=ahora, id_usu_modificator_id=uid)
         instance.especialidades.clear()
         super().perform_destroy(instance)
 
     @action(detail=False, methods=["get"], url_path="eliminados")
     def eliminados(self, request):
-        qs = PersonaRRHH.objects.filter(
-            is_deleted=True
-        ).select_related("persona").prefetch_related("especialidades")
+        qs = PersonaRRHH.objects.filter(is_deleted=True).select_related(
+            "persona__tipo_documento",
+            "persona__pais",
+            "persona__departamento",
+            "persona__ciudad",
+        ).prefetch_related("especialidades")
         return Response(PersonaRRHHListSerializer(qs, many=True).data)
 
     @action(detail=False, methods=["get"], url_path="buscar")
@@ -68,10 +88,17 @@ class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if not nro_documento:
             return Response({"error": "nro_documento es requerido"}, status=400)
         try:
-            persona      = Persona.objects.get(nro_documento=nro_documento, is_deleted=False)
+            persona = Persona.objects.select_related(
+                "tipo_documento", "pais", "departamento", "ciudad"
+            ).get(nro_documento=nro_documento, is_deleted=False)
             persona_data = PersonaListSerializer(persona).data
             try:
-                prestador      = PersonaRRHH.objects.get(persona=persona, is_deleted=False)
+                prestador = PersonaRRHH.objects.select_related(
+                    "persona__tipo_documento",
+                    "persona__pais",
+                    "persona__departamento",
+                    "persona__ciudad",
+                ).prefetch_related("especialidades").get(persona=persona, is_deleted=False)
                 prestador_data = PersonaRRHHListSerializer(prestador).data
                 es_prestador   = True
             except PersonaRRHH.DoesNotExist:
@@ -99,8 +126,7 @@ class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             qs = qs.exclude(id=exclude_id)
         return Response({"disponible": not qs.exists()})
 
-    @action(detail=False, methods=["get"], url_path="reporte-lista",
-            permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get"], url_path="reporte-lista")
     def reporte_lista(self, request):
         prestadores = (
             PersonaRRHH.objects
@@ -115,13 +141,13 @@ class PersonaRRHHViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         }
         filas = [
             {
-                "nro":          i,
-                "nombre":       p.persona.razon_social,
-                "documento":    p.persona.nro_documento,
-                "cargo":        CARGO_LABEL.get(p.cargo, p.cargo),
+                "nro":            i,
+                "nombre":         p.persona.razon_social,
+                "documento":      p.persona.nro_documento,
+                "cargo":          CARGO_LABEL.get(p.cargo, p.cargo),
                 "especialidades": ", ".join(e.descripcion for e in p.especialidades.all()) or "—",
-                "matricula":    p.nro_matricula or "—",
-                "estado":       p.get_estado_display(),
+                "matricula":      p.nro_matricula or "—",
+                "estado":         p.get_estado_display(),
             }
             for i, p in enumerate(prestadores, start=1)
         ]

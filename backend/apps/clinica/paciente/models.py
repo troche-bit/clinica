@@ -30,6 +30,17 @@ class Paciente(BaseModel):
         FEMENINO  = "F", "Femenino"
         OTRO      = "O", "Otro"
 
+    class GrupoSanguineo(models.TextChoices):
+        A_POS       = "A+",         "A+"
+        A_NEG       = "A-",         "A-"
+        B_POS       = "B+",         "B+"
+        B_NEG       = "B-",         "B-"
+        AB_POS      = "AB+",        "AB+"
+        AB_NEG      = "AB-",        "AB-"
+        O_POS       = "O+",         "O+"
+        O_NEG       = "O-",         "O-"
+        DESCONOCIDO = "desconocido", "Desconocido"
+
     sexo = models.CharField(
         max_length=1,
         choices=Sexo.choices,
@@ -38,15 +49,15 @@ class Paciente(BaseModel):
         help_text="Sexo del paciente",
     )
 
-    observacion = models.CharField(
-        max_length=5000,
+    observacion = models.TextField(
         blank=True,
         null=True,
         help_text="Observaciones adicionales sobre el paciente",
     )
 
     grupo_sanguineo = models.CharField(
-        max_length=10,
+        max_length=11,
+        choices=GrupoSanguineo.choices,
         blank=True,
         null=True,
         help_text="Grupo sanguineo del paciente",

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -14,7 +14,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.administracion.auditoria.mixins import AuditoriaMixin
-from apps.mantenimiento.timbrado.models import Timbrado
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
+from apps.facturacion.configuracion.timbrado.models import Timbrado
 from apps.stock.productos.models import ProductoServicio
 from apps.forma_pago.models import FormaPago
 from apps.finanzas.caja_banco.models import CuentaMcb, MovimientoCajaBanco
@@ -32,11 +33,17 @@ from apps.facturacion.services import calcular_item, calcular_totales
 
 
 class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
     filter_backends    = [filters.SearchFilter, filters.OrderingFilter]
     search_fields      = ['persona__razon_social', 'persona__nro_documento', 'nro_comprobante']
     ordering_fields    = ['fecha', 'monto_total', 'fecha_creacion']
     ordering           = ['-fecha', '-fecha_creacion']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'validar_timbrado', 'siguiente_numero'):
+            return [IsAuthenticated()]
+        if self.action == 'destroy':
+            return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
         qs = VentaFactCab.objects.filter(is_deleted=False).select_related('persona', 'timbrado')
@@ -76,7 +83,7 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         except Timbrado.DoesNotExist:
             raise ValidationError({'timbrado': 'Timbrado no encontrado.'})
 
-        hoy = date.today()
+        hoy = timezone.localtime().date()
         if not (timbrado.inicio_vigencia <= hoy <= timbrado.fin_vigencia):
             raise ValidationError({'timbrado': 'El timbrado no está vigente.'})
 
@@ -90,9 +97,9 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         items_data = []
         for det in data['detalle']:
             try:
-                prod = ProductoServicio.objects.get(pk=det['prs'], is_deleted=False)
+                prod = ProductoServicio.objects.get(pk=det['prs'], is_deleted=False, activo=True)
             except ProductoServicio.DoesNotExist:
-                raise ValidationError({'detalle': f'Producto ID {det["prs"]} no encontrado.'})
+                raise ValidationError({'detalle': f'Producto ID {det["prs"]} no encontrado o inactivo.'})
 
             calcs = calcular_item(det['monto'], prod.impuesto)
             items_data.append({
@@ -227,7 +234,7 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if not all([estab, expedicion, numero is not None]):
             return Response({'valido': False, 'mensaje': 'Datos incompletos.'}, status=400)
 
-        hoy = date.today()
+        hoy = timezone.localtime().date()
         try:
             numero = int(numero)
         except (ValueError, TypeError):
@@ -278,7 +285,7 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         if not estab or not expedicion:
             return Response({'error': 'Se requieren establecimiento y expedicion.'}, status=400)
 
-        hoy = date.today()
+        hoy = timezone.localtime().date()
         qs = Timbrado.objects.filter(
             punto_sucursal=estab,
             punto_expedicion=expedicion,

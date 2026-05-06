@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'apps.finanzas.pago_prestador',
     # Módulos de mantenimiento del sistema
     'apps.mantenimiento.tipo_doc_dig',
-    'apps.mantenimiento.timbrado',
+    'apps.facturacion.configuracion.timbrado',
     'apps.stock.productos',
 ]
  

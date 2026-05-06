@@ -1,3 +1,4 @@
+from datetime import date
 from rest_framework import serializers
 from .models import PersonaRRHH
 from apps.administracion.persona.serializers import PersonaListSerializer
@@ -48,3 +49,21 @@ class PersonaRRHHSerializer(serializers.ModelSerializer):
             "honorario",
             "observacion",
         ]
+
+    def validate_nro_matricula(self, value):
+        if not value:
+            return None
+        return value.strip()
+
+    def validate_observacion(self, value):
+        return value.strip() if value else value
+
+    def validate_honorario(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError('El honorario no puede ser negativo.')
+        return value
+
+    def validate_fecha_ingreso(self, value):
+        if value and value > date.today():
+            raise serializers.ValidationError('La fecha de ingreso no puede ser futura.')
+        return value

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { parsePhoneNumber } from 'libphonenumber-js'
 import { useTipoDocumento } from '../../hooks/administracion/usePersona'
 import { usePaises, useDepartamentos, useCiudades } from '../../hooks/mantenimiento/useUbicacion'
 import { calcularDV } from '../../utils/calcularDV'
 
 export default function FormPersona({ persona, documento, readOnly = false, onChange }) {
   const { data: tipoDocumento } = useTipoDocumento()
+  const [errorTelefono, setErrorTelefono] = useState('')
 
   const [form, setForm] = useState({
     tipo_documento:     '',
@@ -49,6 +51,22 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
   useEffect(() => {
     if (onChange) onChange(form)
   }, [form])
+
+  const handleTelefonoBlur = () => {
+    const valor = form.telefono?.trim()
+    if (!valor) { setErrorTelefono(''); return }
+    try {
+      const numero = parsePhoneNumber(valor, 'PY')
+      if (numero.isValid()) {
+        setForm(prev => ({ ...prev, telefono: numero.formatNational() }))
+        setErrorTelefono('')
+      } else {
+        setErrorTelefono('Número de teléfono inválido.')
+      }
+    } catch {
+      setErrorTelefono('Número de teléfono inválido.')
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -177,6 +195,12 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
           font-family: 'DM Sans', sans-serif;
           margin-top: 1px;
         }
+        .fp-input-error { border-color: #dc2626 !important; }
+        .fp-field-error {
+          font-size: 11.5px;
+          color: #dc2626;
+          font-family: 'DM Sans', sans-serif;
+        }
 
         .fp-divider {
           grid-column: span 2;
@@ -294,10 +318,12 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
               name="telefono"
               value={form.telefono}
               onChange={handleChange}
+              onBlur={handleTelefonoBlur}
               disabled={readOnly}
               placeholder="Ej: 0981 123 456"
-              className="fp-input"
+              className={`fp-input${errorTelefono ? ' fp-input-error' : ''}`}
             />
+            {errorTelefono && <span className="fp-field-error">{errorTelefono}</span>}
           </div>
 
           <div className="fp-field">

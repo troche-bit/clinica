@@ -5,6 +5,7 @@ import FormRRHH        from '../rrhh/FormRRHH'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/administracion/usePersona'
 import { useCreatePersonaRRHH, useUpdatePersonaRRHH } from '../../hooks/administracion/usePersonaRRHH'
 import { extraerMensajeError } from '../../utils/errores'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },
@@ -34,7 +35,15 @@ export default function PersonaRRHHForm({ prestadorInicial = null, onSuccess }) 
   const { mutateAsync: createPrestador } = useCreatePersonaRRHH()
   const { mutateAsync: updatePrestador } = useUpdatePersonaRRHH()
 
+  useAtajosTeclado({
+    'F10': { fn: () => { if (resultado && !guardando) handleGuardar() }, soloFueraDeInputs: false },
+  })
+
   const handleGuardar = async () => {
+    if (!formRRHH.cargo || !formRRHH.tipo_contrato) {
+      setError('Cargo y tipo de contrato son obligatorios.')
+      return
+    }
     setError('')
     setGuardando(true)
     try {

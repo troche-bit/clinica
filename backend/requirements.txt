@@ -26,3 +26,6 @@ weasyprint==65.1
 
 # Generación de Excel
 openpyxl==3.1.5
+
+# Validación de números de teléfono
+phonenumbers==9.0.29

@@ -114,6 +114,10 @@ Ver `../CLAUDE.md` — aplica a todas las apps.
 - `Consultorio` → verificar horarios activos en `HorarioPrestador` ✅
 - `TipoDocDigital` → verificar documentos activos ✅
 - `Paciente` → verificar citas activas en `Agenda` (disponible/ocupado/realizado) ✅
+- `Timbrado` → verificar facturas activas en `VentaFactCab` ✅
+- `ProductoServicio` → verificar facturas activas en `VentaFactDet` ✅
+- `VentaFactCab` → verificar `MovimientoCajaBanco` con `vfdc_id` en su cobranza ✅
+- `CuentaMcb` → verificar movimientos activos en `MovimientoCajaBanco` ✅
 - `Persona` → no eliminable — `MethodNotAllowed` en `perform_destroy` ✅
 
 ### Permisos de rol — clases compartidas en `apps/core/permissions.py`
@@ -136,7 +140,10 @@ def get_permissions(self):
     return [IsAuthenticated(), IsAdminOrRecepcionista()]
 ```
 
-Actualmente aplicado en: `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `PersonaViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy), `TipoDocumentoViewSet` (IsAdminRole para todo CUD).
+Actualmente aplicado en: `ConsultorioViewSet`, `EspecialidadViewSet`, `EventoClinicoViewSet`, `PaisViewSet`, `DepartamentoViewSet`, `CiudadViewSet`, `TipoDocDigitalViewSet`, `PersonaViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy), `TipoDocumentoViewSet` (IsAdminRole para todo CUD), `PacienteViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `PacienteResponsableViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `PersonaRRHHViewSet` (IsAdminRole para todo CUD y eliminados), `HorarioPrestadorViewSet` (IsAdminOrRecepcionista para create/update; IsAdminOrRecepcionistaOrSecretaria para generar; IsAdminRole para destroy/eliminados), `AgendaViewSet` (IsAuthenticated para list/retrieve/custom actions lectura/asignar/cambiar_estado/reagendar; IsAdminOrRecepcionistaOrSecretaria para create/update/cancelar_rango; IsAdminRole para destroy/eliminados), `TimbradoViewSet` (IsAdminRole para todo CUD y eliminados), `GrupoViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `ProductoServicioViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `VentaFactCabViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy), `CuentaMcbViewSet` (IsAdminRole para todo CUD y eliminados), `MovimientoCajaBancoViewSet` (IsAdminOrRecepcionista para create/update; IsAdminRole para destroy/eliminados), `CobranzaViewSet` (IsAdminOrRecepcionista para create; IsAdminRole para destroy), `PagoPrestadorViewSet` (IsAdminRole para todo CUD y eliminados).
+
+**Rol `secretaria_medico`:** JWT claim `medicos_asignados` (lista de IDs, M2M). Los viewsets que soportan este rol filtran `get_queryset()` con `__in` — ve y gestiona solo la agenda de sus médicos asignados. Puede: reagendar, asignar pacientes, cambiar estados, generar turnos (HorarioPrestador). No puede: crear/editar horarios template, eliminar turnos.
+En el frontend, `AuthContext.buildUser` expone `medico_asignado_id = medicos_asignados[0] || null` como campo computado de conveniencia para auto-selección de un único médico en la UI.
 `PerfilUsuarioViewSet` usa `IsAdminRole` directamente (lógica propia por ser gestión de usuarios).
 
 ### Módulos sin BaseModel — auditoría manual con _log()
@@ -239,7 +246,7 @@ Claims custom del token (además de los estándar de simplejwt):
 | `iniciales` | string | Primeras 2 letras del nombre completo |
 | `activo` | bool | `PerfilUsuario.activo` |
 | `persona_rrhh_id` | int\|null | `PerfilUsuario.persona_rrhh_id` |
-| `medico_asignado_id` | int\|null | Solo para rol `secretaria_medico` |
+| `medicos_asignados` | int[] | Lista de IDs de `PerfilUsuario.medicos_asignados` (M2M) — solo rol `secretaria_medico` |
 
 Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`
 
@@ -272,9 +279,11 @@ Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`
 | `GET /api/ciudad/?departamento=ID` | Filtrado por departamento |
 | `POST /api/horario-prestador/{id}/generar/` | Genera turnos Agenda para un rango de fechas |
 | `PATCH /api/agenda/{id}/asignar/` | Asigna paciente a turno disponible |
-| `PATCH /api/agenda/{id}/estado/` | Cambia estado disponible/inactivo/cancelado |
+| `PATCH /api/agenda/{id}/estado/` | Cambia estado disponible/inactivo/cancelado/realizado |
+| `PATCH /api/agenda/{id}/reagendar/` | Mueve paciente de turno ocupado a otro disponible del mismo prestador (atómico) — body: `{nuevo_turno_id}` |
+| `POST /api/agenda/cancelar-rango/` | Cancela todos los turnos DISPONIBLES de un prestador en un rango — body: `{persona_rrhh, fecha_desde, fecha_hasta}` — bulk `update()` |
 | `GET /api/agenda/resumen-mes/` | Conteo por fecha de disponibles/ocupados/inactivos/total |
-| `GET /api/agenda/stats-hoy/` | Estadísticas del día actual |
+| `GET /api/agenda/stats-hoy/` | Estadísticas del día actual (timezone-aware, usa `timezone.localtime().date()`) |
 | `POST /api/consultas/{id}/iniciar/` | Estado en_espera→en_consulta, registra hora_desde |
 | `POST /api/consultas/{id}/finalizar/` | Estado en_consulta→finalizada, registra hora_hasta |
 | `GET /api/consultas/stats-hoy/` | `{total, en_espera, en_consulta, finalizadas}` |

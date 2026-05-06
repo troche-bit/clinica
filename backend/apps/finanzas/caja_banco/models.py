@@ -1,5 +1,6 @@
 from datetime import date as date_type
 from django.db import models
+from django.db.models.functions import Lower
 from apps.core.models import BaseModel
 
 
@@ -13,9 +14,9 @@ class CuentaMcb(BaseModel):
         ordering            = ['descripcion']
         constraints         = [
             models.UniqueConstraint(
-                fields=['descripcion'],
+                Lower('descripcion'),
                 condition=models.Q(is_deleted=False),
-                name='unique_cuenta_mcb_descripcion',
+                name='unique_cuenta_mcb_descripcion_lower',
             )
         ]
 

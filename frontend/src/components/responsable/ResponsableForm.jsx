@@ -5,6 +5,7 @@ import FormResponsable  from '../responsable/FormResponsable'
 import { useCreatePersona, useUpdatePersona } from '../../hooks/administracion/usePersona'
 import { useCreateResponsable, useUpdateResponsable } from '../../hooks/clinica/useResponsable'
 import { extraerMensajeError } from '../../utils/errores'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },
@@ -33,6 +34,10 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
   const { mutateAsync: updatePersona }     = useUpdatePersona()
   const { mutateAsync: createResponsable } = useCreateResponsable()
   const { mutateAsync: updateResponsable } = useUpdateResponsable()
+
+  useAtajosTeclado({
+    'F10': { fn: () => { if (resultado && !guardando) handleGuardar() }, soloFueraDeInputs: false },
+  })
 
   const handleGuardar = async () => {
     setError('')

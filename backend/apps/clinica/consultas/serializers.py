@@ -101,6 +101,19 @@ class ConsultaListSerializer(serializers.ModelSerializer):
 
 class ConsultaSerializer(serializers.ModelSerializer):
 
+    def validate(self, data):
+        agenda = data.get('agenda')
+        if agenda and self.instance is None:
+            if agenda.estado != 'ocupado':
+                raise serializers.ValidationError(
+                    {'agenda': 'Solo se puede crear una consulta para un turno ocupado. Estado actual: ' + str(agenda.estado) + '.'}
+                )
+            if Consulta.objects.filter(agenda=agenda, is_deleted=False).exists():
+                raise serializers.ValidationError(
+                    {'agenda': 'Ya existe una consulta activa para este turno.'}
+                )
+        return data
+
     class Meta:
         model  = Consulta
         fields = [
