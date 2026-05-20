@@ -1,0 +1,162 @@
+@startuml 05_componentes_auth
+
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceActorBorderColor #1a3a5c
+skinparam noteBorderColor #e8edf2
+skinparam noteBackgroundColor #fafbfc
+
+skinparam componentBackgroundColor #ffffff
+skinparam componentBorderColor #1a3a5c
+skinparam componentFontSize 13
+skinparam componentArrowColor #1a3a5c
+skinparam packageBackgroundColor #f0f5fb
+skinparam packageBorderColor #b0c4de
+skinparam interfaceBackgroundColor #eef2f7
+skinparam interfaceBorderColor #1a3a5c
+skinparam arrowThickness 1.5
+
+title Diagrama de Componentes — Autenticación
+
+package "Frontend (React + Vite)" #f0f5fb {
+
+  package "Páginas / Rutas" #eef2f7 {
+    component [Login.jsx] as LOGIN
+    component [PrivateRoute] as PRIV
+  }
+
+  package "Contexto Global" #eef2f7 {
+    component [AuthContext] as CTX
+
+    note right of CTX
+      Expone:
+      · user (claims decodificados)
+      · login(username, password)
+      · logout()
+      · decodeJwt(token)
+      · buildUser(token)
+    end note
+  }
+
+  package "Layout y Navegación" #eef2f7 {
+    component [Sidebar] as SB
+    component [Layout.jsx] as LAYOUT
+  }
+
+  package "Hooks — TanStack Query" #eef2f7 {
+    component [useUsuarios] as HUSERS
+
+    note right of HUSERS
+      · useUsuarios(filters)
+      · useCreateUsuario()
+      · useUpdateUsuario()
+      · useCambiarEstadoUsuario()
+      · useResetearPassword()
+      · useCambiarPassword()
+    end note
+  }
+
+  package "Infraestructura HTTP" #eef2f7 {
+    component [apiClient\n(Axios)] as AXIOS
+    interface "localStorage\naccess_token\nrefresh_token" as LS
+  }
+
+}
+
+package "Backend (Django REST Framework)" #f8fafc {
+
+  package "JWT — simplejwt" #eef2f7 {
+    component [TokenObtainPairView\n(custom)] as TOK
+    component [TokenRefreshView] as REF
+
+    component [CustomTokenObtainPairSerializer] as SER_TOK
+
+    note right of SER_TOK
+      Claims agregados al JWT:
+      · rol
+      · nombre (nombre_completo)
+      · iniciales
+      · activo
+      · persona_rrhh_id
+      · medicos_asignados[ ]
+    end note
+  }
+
+  package "API — Usuarios" #eef2f7 {
+    component [PerfilUsuarioViewSet] as VS
+
+    note right of VS
+      Endpoints:
+      GET    /api/usuarios/
+      POST   /api/usuarios/
+      GET    /api/usuarios/{id}/
+      PATCH  /api/usuarios/{id}/
+      GET    /api/usuarios/me/
+      POST   /api/usuarios/cambiar-password/
+      POST   /api/usuarios/{id}/cambiar-estado/
+      POST   /api/usuarios/{id}/resetear-password/
+    end note
+  }
+
+  package "Permisos" #eef2f7 {
+    component [IsAuthenticated] as PERM_AUTH
+    component [IsAdminRole] as PERM_ADMIN
+  }
+
+  database "PostgreSQL" as DB
+
+}
+
+' ── Relaciones Frontend internas ──────────────────────────
+
+LOGIN --> CTX           : login(username, password)
+PRIV  --> CTX           : useAuth() → user\n(null → /login)
+SB    --> CTX           : useAuth() → user.rol\n(filtra menú según PERMISOS)
+LAYOUT --> PRIV         : envuelve rutas protegidas
+
+HUSERS --> AXIOS        : GET / POST / PATCH
+CTX    --> AXIOS        : POST /auth/token/
+CTX    --> LS           : setItem / getItem / clear
+
+' ── Relaciones Frontend → Backend ─────────────────────────
+
+AXIOS ..> TOK           : POST /auth/token/\n{ username, password }
+AXIOS ..> REF           : POST /api/token/refresh/\n{ refresh }
+AXIOS ..> VS            : /api/usuarios/**\nAuthorization: Bearer {access}
+
+' ── Relaciones Backend internas ───────────────────────────
+
+TOK   --> SER_TOK       : validate() + get_token()
+SER_TOK --> DB          : SELECT auth_user\nSELECT users_perfilusuario
+
+REF   --> DB            : VERIFY outstanding_token\n(not blacklisted, not expired)
+
+VS    --> PERM_AUTH     : me, cambiar_password
+VS    --> PERM_ADMIN    : create, list, retrieve,\npartial_update, cambiar_estado,\nresetear_password
+VS    --> DB            : QuerySet[PerfilUsuario]
+
+' ── Respuestas hacia el frontend ──────────────────────────
+
+TOK   ..> CTX           : { access, refresh }\n→ buildUser(access) → setUser()
+REF   ..> AXIOS         : { access: new_token }\n→ reintentar request original
+
+note bottom of CTX
+  buildUser(token):
+  Decodifica el payload base64 del JWT.
+  Extrae todos los claims custom y
+  agrega medico_asignado_id = medicos_asignados[0] || null
+  para uso por secretaria_medico.
+end note
+
+note bottom of AXIOS
+  Interceptor de respuesta (pendiente):
+  Detecta HTTP 401 → intenta POST /api/token/refresh/
+  Si falla → CTX.logout()
+  Si tiene éxito → reintenta la request original
+end note
+
+@enduml

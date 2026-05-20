@@ -1,0 +1,242 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.hc-wrap { width: 100%; }
+
+/* ── Encabezado ── */
+.hc-hdr { border-bottom: 2px solid #1a3a5c; padding-bottom: 6pt; margin-bottom: 8pt; display: table; width: 100%; }
+.hc-hdr-left  { display: table-cell; vertical-align: bottom; }
+.hc-hdr-right { display: table-cell; vertical-align: bottom; text-align: right; }
+.hc-clinica { font-size: 12pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.hc-titulo  { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: .04em; margin-top: 1pt; }
+.hc-fecha   { font-size: 7.5pt; color: #555; margin-top: 2pt; }
+
+/* ── Datos del paciente ── */
+.hc-pac-card {
+  background: #f0f5fb; border: 1pt solid #c7d7ed; border-left: 4pt solid #1a3a5c;
+  border-radius: 3pt; padding: 7pt 9pt; margin-bottom: 10pt;
+  display: table; width: 100%;
+}
+.hc-pac-col { display: table-cell; vertical-align: top; width: 50%; }
+.hc-pac-col + .hc-pac-col { border-left: 1pt solid #d1dce8; padding-left: 9pt; }
+.hc-pac-nombre { font-size: 11pt; font-weight: bold; color: #1a3a5c; margin-bottom: 3pt; }
+.hc-pac-fila { font-size: 8pt; margin-bottom: 2pt; }
+.hc-pac-lbl  { color: #555; display: inline-block; width: 90pt; }
+.hc-pac-val  { font-weight: bold; }
+
+.hc-alerta {
+  background: #fef9c3; border-left: 3pt solid #eab308;
+  padding: 4pt 8pt; margin-bottom: 10pt; font-size: 8pt;
+}
+.hc-alerta-lbl { font-weight: bold; color: #92400e; margin-right: 4pt; }
+
+/* ── Consultas ── */
+.hc-consulta {
+  border: 1pt solid #e2e8f0; border-radius: 3pt;
+  margin-bottom: 8pt; page-break-inside: avoid;
+}
+.hc-consulta-hdr {
+  background: #1a3a5c; color: #fff;
+  padding: 4pt 7pt; display: table; width: 100%;
+}
+.hc-consulta-hdr-left  { display: table-cell; vertical-align: middle; }
+.hc-consulta-hdr-right { display: table-cell; vertical-align: middle; text-align: right; }
+.hc-consulta-fecha { font-size: 9pt; font-weight: bold; }
+.hc-consulta-medico { font-size: 8pt; margin-top: 1pt; opacity: .9; }
+.hc-consulta-esp    { font-size: 7.5pt; opacity: .85; }
+.hc-consulta-estado {
+  display: inline-block; background: rgba(255,255,255,.2);
+  border-radius: 3pt; padding: 1pt 6pt; font-size: 7pt; font-weight: bold; text-transform: uppercase;
+}
+
+.hc-consulta-body { padding: 6pt 8pt; }
+.hc-field { margin-bottom: 4pt; }
+.hc-field-lbl {
+  font-size: 7pt; font-weight: bold; text-transform: uppercase;
+  letter-spacing: .04em; color: #1a3a5c; margin-bottom: 1pt;
+}
+.hc-field-val { font-size: 8.5pt; color: #1c1c1c; line-height: 1.4; }
+.hc-field-empty { font-size: 8.5pt; color: #aaa; font-style: italic; }
+
+.hc-row2 { display: table; width: 100%; margin-bottom: 4pt; }
+.hc-col2 { display: table-cell; width: 50%; vertical-align: top; }
+.hc-col2 + .hc-col2 { padding-left: 8pt; }
+
+.hc-proxima {
+  display: inline-block; background: #ecfdf5; border: 1pt solid #6ee7b7;
+  border-radius: 3pt; padding: 2pt 7pt; font-size: 8pt; color: #065f46; font-weight: bold;
+  margin-top: 4pt;
+}
+
+.hc-docs { margin-top: 5pt; }
+.hc-docs-lbl { font-size: 7pt; font-weight: bold; text-transform: uppercase; color: #555; margin-bottom: 2pt; }
+.hc-doc-item { font-size: 8pt; color: #374151; }
+.hc-doc-item::before { content: "📄 "; }
+
+/* ── Footer ── */
+.hc-footer {
+  margin-top: 10pt; text-align: right;
+  font-size: 7pt; color: #777;
+  border-top: 1pt solid #ccc; padding-top: 4pt;
+}
+.hc-sin-consultas { text-align: center; color: #777; padding: 16pt; font-size: 9pt; }
+{% endblock %}
+
+{% block content %}
+<div class="hc-wrap">
+
+  <!-- Encabezado -->
+  <div class="hc-hdr">
+    <div class="hc-hdr-left">
+      <div class="hc-clinica">Clínica Lichi</div>
+      <div class="hc-titulo">Historia Clínica</div>
+    </div>
+    <div class="hc-hdr-right">
+      <div class="hc-fecha">Emitido: {{ fecha_emision }}</div>
+      <div class="hc-fecha">{{ total }} consulta{{ total|pluralize:"s" }} registrada{{ total|pluralize:"s" }}</div>
+    </div>
+  </div>
+
+  <!-- Datos del paciente -->
+  <div class="hc-pac-card">
+    <div class="hc-pac-col">
+      <div class="hc-pac-nombre">{{ paciente.persona.razon_social }}</div>
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Doc. identidad:</span>
+        <span class="hc-pac-val">{{ paciente.persona.tipo_documento.descripcion }} {{ paciente.persona.nro_documento }}</span>
+      </div>
+      {% if paciente.persona.fecha_nacimiento %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Fecha de nac.:</span>
+        <span class="hc-pac-val">{{ paciente.persona.fecha_nacimiento|date:"d/m/Y" }}{% if edad %} ({{ edad }} años){% endif %}</span>
+      </div>
+      {% endif %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Sexo:</span>
+        <span class="hc-pac-val">{{ paciente.persona.get_sexo_display }}</span>
+      </div>
+      {% if paciente.persona.telefono %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Teléfono:</span>
+        <span class="hc-pac-val">{{ paciente.persona.telefono }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="hc-pac-col">
+      {% if paciente.grupo_sanguineo %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Grupo sanguíneo:</span>
+        <span class="hc-pac-val">{{ paciente.grupo_sanguineo }}</span>
+      </div>
+      {% endif %}
+      {% if paciente.persona.departamento %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Departamento:</span>
+        <span class="hc-pac-val">{{ paciente.persona.departamento.descripcion }}</span>
+      </div>
+      {% endif %}
+      {% if paciente.persona.ciudad %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Ciudad:</span>
+        <span class="hc-pac-val">{{ paciente.persona.ciudad.descripcion }}</span>
+      </div>
+      {% endif %}
+      {% if paciente.responsable %}
+      <div class="hc-pac-fila">
+        <span class="hc-pac-lbl">Responsable:</span>
+        <span class="hc-pac-val">{{ paciente.responsable.persona.razon_social }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Alertas clínicas -->
+  {% if paciente.alergias %}
+  <div class="hc-alerta">
+    <span class="hc-alerta-lbl">⚠ Alergias:</span>{{ paciente.alergias }}
+  </div>
+  {% endif %}
+  {% if paciente.enfermedades_cronicas %}
+  <div class="hc-alerta" style="background:#fff0f0; border-left-color:#ef4444;">
+    <span class="hc-alerta-lbl" style="color:#991b1b;">⚠ Enfermedades crónicas:</span>{{ paciente.enfermedades_cronicas }}
+  </div>
+  {% endif %}
+
+  <!-- Consultas -->
+  {% if consultas %}
+    {% for c in consultas %}
+    <div class="hc-consulta">
+      <div class="hc-consulta-hdr">
+        <div class="hc-consulta-hdr-left">
+          <div class="hc-consulta-fecha">{{ c.fecha }} — {{ c.hora }}</div>
+          <div class="hc-consulta-medico">{{ c.medico }}</div>
+          <div class="hc-consulta-esp">{{ c.especialidad }}{% if c.consultorio != '—' %} · {{ c.consultorio }}{% endif %}</div>
+        </div>
+        <div class="hc-consulta-hdr-right">
+          {% if c.evento != '—' %}<div style="font-size:7.5pt; margin-bottom:3pt;">{{ c.evento }}</div>{% endif %}
+          <span class="hc-consulta-estado">{{ c.estado }}</span>
+        </div>
+      </div>
+
+      <div class="hc-consulta-body">
+        <div class="hc-row2">
+          <div class="hc-col2">
+            <div class="hc-field">
+              <div class="hc-field-lbl">Motivo de consulta</div>
+              {% if c.motivo %}<div class="hc-field-val">{{ c.motivo }}</div>
+              {% else %}<div class="hc-field-empty">Sin registro</div>{% endif %}
+            </div>
+          </div>
+          <div class="hc-col2">
+            <div class="hc-field">
+              <div class="hc-field-lbl">Diagnóstico</div>
+              {% if c.diagnostico %}<div class="hc-field-val">{{ c.diagnostico }}</div>
+              {% else %}<div class="hc-field-empty">Sin registro</div>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="hc-row2">
+          <div class="hc-col2">
+            <div class="hc-field">
+              <div class="hc-field-lbl">Tratamiento</div>
+              {% if c.tratamiento %}<div class="hc-field-val">{{ c.tratamiento }}</div>
+              {% else %}<div class="hc-field-empty">Sin registro</div>{% endif %}
+            </div>
+          </div>
+          <div class="hc-col2">
+            <div class="hc-field">
+              <div class="hc-field-lbl">Indicaciones</div>
+              {% if c.indicaciones %}<div class="hc-field-val">{{ c.indicaciones }}</div>
+              {% else %}<div class="hc-field-empty">Sin registro</div>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if c.proxima_cita %}
+        <div style="margin-top:4pt;">
+          <span class="hc-proxima">▶ Próxima cita: {{ c.proxima_cita }}</span>
+        </div>
+        {% endif %}
+
+        {% if c.documentos %}
+        <div class="hc-docs">
+          <div class="hc-docs-lbl">Documentos adjuntos ({{ c.documentos|length }})</div>
+          {% for doc in c.documentos %}
+          <div class="hc-doc-item">{{ doc }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="hc-sin-consultas">Este paciente no tiene consultas registradas.</div>
+  {% endif %}
+
+  <div class="hc-footer">
+    Documento confidencial · Generado el {% now "d/m/Y H:i" %}
+  </div>
+
+</div>
+{% endblock %}

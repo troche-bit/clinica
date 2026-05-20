@@ -1,0 +1,52 @@
+@startuml 01_clases
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+
+class "User (Django)" as User {
+  + username : CharField
+  + email : EmailField
+  + password : CharField
+  + first_name : CharField
+  + last_name : CharField
+  + is_active : BooleanField
+  + is_superuser : BooleanField
+  --
+  + __str__() : str
+}
+
+class PerfilUsuario {
+  + rol : CharField
+  + activo : BooleanField
+  --
+  + nombre_completo : str <<property>>
+  + iniciales : str <<property>>
+  + __str__() : str
+}
+
+class PersonaRRHH {
+  + persona.razon_social : str
+  + (referencia externa)
+}
+
+User "1" *-right- "1" PerfilUsuario : perfil\n<<OneToOne>>
+PerfilUsuario "0..*" --> "0..1" PersonaRRHH : persona_rrhh\n<<FK, SET NULL>>
+PerfilUsuario "0..*" -- "0..*" PersonaRRHH : medicos_asignados\n<<M2M>>
+
+note on link
+  solo para rol
+  secretaria_medico
+end note
+
+@enduml

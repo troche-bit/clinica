@@ -1,0 +1,208 @@
+@startuml 02_secuencia_ciclo_consulta
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor MEDICO
+
+boundary "ConsultasPage.jsx" as GUI
+control "useConsultas.js" as HOOK
+control "ConsultaViewSet" as VIEW
+control "AuditoriaMixin" as MIXIN
+entity "Consulta" as CONSULTA
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== 1. Medico ve turnos del dia ==
+
+MEDICO -> GUI : abre ConsultasPage\n(rol medico — sin tabs, va directo\na VistaMedico)
+
+GUI -> HOOK : useConsultasDelDia(persona_rrhh_id, hoy)\n[refetchInterval=60s]
+HOOK -> VIEW : GET /api/consultas/?persona_rrhh=X&fecha=hoy
+VIEW -> CONSULTA : filter(is_deleted=False)\n.filter(agenda__horario_prestador\n__persona_rrhh_id=persona_rrhh_id)\n.filter(agenda__fecha=hoy)
+CONSULTA -> BD : SELECT consulta JOIN agenda JOIN horario_prestador JOIN paciente
+BD --> CONSULTA : consultas del dia
+VIEW --> HOOK : { results: [...] }
+
+GUI -> HOOK : useAgendaDia(persona_rrhh_id, hoy)
+HOOK -> VIEW : GET /api/agenda/?persona_rrhh=X&fecha=hoy
+VIEW --> HOOK : turnos del dia
+HOOK --> GUI : turnosData
+
+GUI -> GUI : turnosOcupados = turnosData\n.filter(t => ['ocupado','realizado'].includes(t.estado))
+GUI -> GUI : listaUnificada = turnosOcupados.map(\n  turno => ({ turno, consulta: consultasByAgenda[turno.id] ?? null })\n).sort(por hora_desde)
+
+GUI --> MEDICO : lista de turnos ocupados con\nconsulta vinculada (o sin consulta)\nlistaVisible filtra finalizadas/anuladas\npara roles restringidos
+
+== 2. Medico crea e inicia consulta para un turno ocupado ==
+
+MEDICO -> GUI : click "Iniciar consulta" en turno\n(sin consulta previa)
+
+GUI -> HOOK : crearConsulta({ agenda: turno.id })
+HOOK -> VIEW : POST /api/consultas/\n{ agenda: turno.id }
+
+VIEW -> VIEW : validate()\n  agenda.estado == 'ocupado' OK\n  no existe consulta activa para esa agenda
+
+VIEW -> MIXIN : perform_create(serializer)
+MIXIN -> CONSULTA : serializer.save(id_usu_creator=request.user)
+CONSULTA -> BD : INSERT consulta\n(agenda_id=turno.id, estado='en_espera',\nhora_desde=null, hora_hasta=null)
+BD --> CONSULTA : { id: 55 }
+MIXIN -> BD : INSERT auditoria_registro (CREAR)
+VIEW --> HOOK : 201 { id: 55, estado: 'en_espera' }
+HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+
+GUI -> HOOK : iniciarConsulta(55)
+HOOK -> VIEW : POST /api/consultas/55/iniciar/
+
+VIEW -> VIEW : consulta.estado == 'en_espera' OK
+VIEW -> CONSULTA : consulta.estado = 'en_consulta'\nconsulta.hora_desde = timezone.localtime().time()\nconsulta.id_usu_modificator = request.user\nconsulta.save()
+CONSULTA -> BD : UPDATE consulta SET estado='en_consulta', hora_desde='09:30:00' WHERE id=55
+BD --> CONSULTA : OK
+VIEW --> HOOK : 200 ConsultaListSerializer(consulta)
+HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+HOOK --> GUI : consulta iniciada
+
+GUI -> GUI : setConsultaActiva(iniciada)\nshowToast('Consulta iniciada.', 'success')
+GUI --> MEDICO : PanelConsultaActiva con datos\ndel paciente + formulario clinico\n+ Ticker de minutos transcurridos
+
+== 3. Medico completa datos clinicos (autoguardado) ==
+
+note right of GUI
+  PanelConsultaActiva tiene
+  autoSave cada 30 segundos:
+  setInterval(() => updateConsulta.mutateAsync({
+    id: consulta.id, ...form
+  }), 30_000)
+  Solo activo mientras estado es en_consulta.
+end note
+
+MEDICO -> GUI : ingresa motivo_consulta
+MEDICO -> GUI : ingresa diagnostico
+MEDICO -> GUI : ingresa tratamiento
+MEDICO -> GUI : ingresa indicaciones
+MEDICO -> GUI : selecciona evento_clinico (opcional)
+MEDICO -> GUI : ingresa proxima_cita (opcional)
+
+GUI -> HOOK : [autoguardado 30s] updateConsulta(\n{ id:55, motivo_consulta, diagnostico,\ntratamiento, indicaciones, evento_clinico,\nproxima_cita: form.proxima_cita || null })
+HOOK -> VIEW : PATCH /api/consultas/55/\n{ motivo_consulta: 'Dolor de cabeza', ... }
+
+VIEW -> VIEW : partial_update — estado es en_consulta\n(no finalizada/anulada → sin restriccion de rol)
+VIEW -> MIXIN : perform_update(serializer)
+MIXIN -> CONSULTA : serializer.save(id_usu_modificator=request.user)
+CONSULTA -> BD : UPDATE consulta SET motivo_consulta=..., diagnostico=... WHERE id=55
+BD --> CONSULTA : OK
+MIXIN -> BD : INSERT auditoria_registro (EDITAR)
+VIEW --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['consultas'])
+
+== 4. Medico sube documentos durante la consulta ==
+
+MEDICO -> GUI : selecciona tipo de documento
+MEDICO -> GUI : arrastra archivo (drop) en dropzone
+
+GUI -> HOOK : subirDoc.mutateAsync(FormData{\n  archivo, paciente, tipo_doc_dig, consulta:55 })
+HOOK -> VIEW : POST /api/documentos/ [multipart]
+VIEW --> HOOK : 201 { id: 88 }
+HOOK -> HOOK : invalidateQueries(['documentos'])
+GUI -> GUI : showToast('Documento subido correctamente.', 'success')
+GUI --> MEDICO : archivo aparece en lista\ncon icono segun extension\n(PDF/JPG/DOC)
+
+== 5. Medico finaliza la consulta ==
+
+MEDICO -> GUI : click "Completar consulta"
+GUI -> GUI : handleClickFinalizar()\n  intentoFinalizar = true\n  faltantes = CAMPOS_REQ_CONSULTA\n    .filter(c => !form[c.key]?.trim())\n  [motivo, diagnostico, tratamiento, indicaciones]
+
+alt Faltan campos obligatorios
+  GUI -> GUI : showToast(\n  'Completá los campos obligatorios: ...', 'warning')
+  GUI --> MEDICO : inputs con borde rojo,\ntoast de advertencia
+
+else Todos los campos completos
+  GUI -> GUI : setConfirmFinalizar(true)
+  GUI --> MEDICO : ConfirmDialog\n"¿Confirmar la finalización? El turno\npasará al estado 'Realizado' y no se\npodrán registrar más cambios."
+
+  MEDICO -> GUI : click Confirmar
+  GUI -> HOOK : updateConsulta({ id:55, ...form })
+  HOOK -> VIEW : PATCH /api/consultas/55/\n{ motivo_consulta, diagnostico, ... }
+  VIEW --> HOOK : 200 OK
+
+  GUI -> HOOK : finalizarConsulta(55)
+  HOOK -> VIEW : POST /api/consultas/55/finalizar/
+
+  VIEW -> VIEW : consulta.estado == 'en_consulta' OK
+  VIEW -> CONSULTA : consulta.estado = 'en_consulta' → 'finalizada'\nconsulta.hora_hasta = timezone.localtime().time()\nconsulta.save()
+  CONSULTA -> BD : UPDATE consulta SET estado='finalizada', hora_hasta='10:15:00'
+  BD --> CONSULTA : OK
+
+  VIEW -> AGENDA : agenda = consulta.agenda\nagenda.estado = 'REALIZADO'\nagenda.save()
+  AGENDA -> BD : UPDATE agenda SET estado='REALIZADO' WHERE id=turno.id
+  BD --> AGENDA : OK
+
+  VIEW --> HOOK : 200 ConsultaListSerializer
+  HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+  HOOK --> GUI : consulta finalizada
+
+  GUI -> GUI : showToast('Consulta finalizada correctamente.', 'success')
+  GUI -> GUI : setConsultaActiva(null)
+  GUI -> GUI : setConfirmFinalizar(false)
+  GUI --> MEDICO : vuelve a lista de turnos\nturno ahora en estado Finalizada
+end
+
+== Flujo alternativo: Anular consulta ==
+
+MEDICO -> GUI : click "Anular" (consulta en_consulta)
+GUI -> GUI : setConfirmAnular(true)
+GUI --> MEDICO : ConfirmDialog "¿Anular esta consulta?\nSe usará cuando el paciente no pudo\ncompletar la atención."
+
+MEDICO -> GUI : click Confirmar
+GUI -> HOOK : updateConsulta({ id:55, ...form })
+HOOK -> VIEW : PATCH /api/consultas/55/
+VIEW --> HOOK : 200 OK
+
+GUI -> HOOK : anularConsulta(55)
+HOOK -> VIEW : POST /api/consultas/55/anular/
+VIEW -> VIEW : consulta.estado == 'en_consulta' OK
+VIEW -> CONSULTA : estado = 'anulada'\nhora_hasta = timezone.localtime().time()\nconsulta.save()
+CONSULTA -> BD : UPDATE consulta SET estado='anulada', hora_hasta='09:45:00'
+BD --> CONSULTA : OK
+VIEW --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+GUI -> GUI : showToast('Consulta anulada.', 'success')
+GUI -> GUI : setConsultaActiva(null)
+GUI --> MEDICO : vuelve a lista
+
+note over CONSULTA, AGENDA
+  Al anular: Agenda permanece en estado OCUPADO
+  (no se cambia a REALIZADO).
+  Al finalizar: Agenda pasa a REALIZADO.
+  El Ticker de minutos solo se muestra
+  para consultas en_consulta.
+  Los colores del Ticker:
+  verde < 15 min, amarillo <= 30, rojo > 30.
+end note
+
+== Flujo alternativo: Editar consulta cerrada (dentro de 24 hs) ==
+
+MEDICO -> GUI : click turno finalizado\n(dentroDelLimite24h == true)
+GUI -> GUI : setConsultaActiva(consulta)
+GUI --> MEDICO : PanelConsultaActiva con campos\nhabilitados (puedeEditarAun=true)\nbandera "Tiempo restante para editar: Xh Ym"
+
+MEDICO -> GUI : modifica diagnostico
+MEDICO -> GUI : click "Guardar cambios"
+
+GUI -> HOOK : updateConsulta({ id:55, ...form })
+HOOK -> VIEW : PATCH /api/consultas/55/
+
+VIEW -> VIEW : partial_update — consulta.estado = 'finalizada'\nrol = 'medico' → permitido\nfecha_modificacion + 24h > now() → dentro del limite
+VIEW -> MIXIN : perform_update(serializer)
+MIXIN -> CONSULTA : serializer.save(id_usu_modificator=request.user)
+CONSULTA -> BD : UPDATE consulta SET diagnostico=... WHERE id=55
+BD --> CONSULTA : OK
+MIXIN -> BD : INSERT auditoria_registro (EDITAR)
+VIEW --> HOOK : 200 OK
+GUI -> GUI : showToast('Consulta actualizada correctamente.', 'success')
+GUI -> GUI : setConsultaActiva(null)
+GUI --> MEDICO : vuelve a la lista
+
+@enduml

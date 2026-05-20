@@ -1,0 +1,155 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor RECEP as "Recepcionista"
+
+boundary "PacienteResponsablePage.jsx" as GUI
+boundary "ResponsableForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSC
+control "useResponsable.js" as HOOK
+control "PacienteResponsableViewSet" as RVIEW
+control "PersonaViewSet" as PVIEW
+control "PacienteViewSet" as PACVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "Persona" as PERSONA
+entity "PacienteResponsable" as RESP
+entity "Paciente" as PAC
+
+database "PostgreSQL" as BD
+
+== 1. Recepcionista busca responsable por documento — no existe ==
+
+RECEP -> GUI : click "Nuevo responsable"
+GUI -> GUI : guardAction(() => setModo('crear'))
+GUI --> RECEP : Modal modo crear
+
+RECEP -> FORM : ingresa nro_documento="5000001"
+FORM -> BUSC : buscar()
+BUSC -> RVIEW : GET /api/pacienteresponsable/buscar/?nro_documento=5000001
+RVIEW -> BD : SELECT FROM persona WHERE nro_documento='5000001' AND is_deleted=False
+BD --> RVIEW : (vacio) — persona no existe
+RVIEW --> BUSC : { persona: null, pacienteresponsable: null, es_responsable: false }
+
+BUSC --> FORM : resultado.modo = 'crear_todo'
+FORM --> RECEP : badge azul "Documento no encontrado"\nFormPersona (todos los campos editables)\nFormResponsable (grupo_sanguineo, ocupacion, etc.)
+
+== 2. Crea Persona y PacienteResponsable en modo crear_todo ==
+
+RECEP -> FORM : completa datos de Persona\n(razon_social, tipo_documento,\ntelefono, ciudad, ...)
+RECEP -> FORM : completa datos del Responsable\n(grupo_sanguineo, ocupacion,\nes_contacto_emergencia=true)
+RECEP -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : POST /api/persona/\n{ tipo_documento, nro_documento:'5000001',\nrazon_social:'Ana Lopez', telefono, ... }
+PVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> PERSONA : serializer.save(id_usu_creator=request.user)
+PERSONA -> BD : INSERT persona (nro_documento='5000001', ...)
+BD --> PERSONA : id=50
+MIXIN -> BD : INSERT auditoria_registro (tabla='Persona', accion='CREAR')
+BD --> MIXIN : OK
+PVIEW --> FORM : 201 { id: 50 }
+
+FORM -> RVIEW : POST /api/pacienteresponsable/\n{ persona: 50, grupo_sanguineo:'O+',\nocupacion:'Docente',\nes_contacto_emergencia: true }
+RVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> RESP : serializer.save(id_usu_creator=request.user)
+RESP -> BD : INSERT paciente_responsable\n(persona_id=50, grupo_sanguineo='O+', ...)
+BD --> RESP : id=10
+MIXIN -> BD : INSERT auditoria_registro (tabla='PacienteResponsable', accion='CREAR')
+BD --> MIXIN : OK
+RVIEW --> FORM : 201 { id: 10 }
+
+FORM -> HOOK : invalidateQueries(['responsables'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Responsable guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> RECEP : toast exito — responsable creado
+
+== 3. Responsable queda vinculado a un paciente existente ==
+
+note over PAC, BD
+  La vinculacion se realiza desde la gestion de Pacientes.
+  El Paciente tiene FK responsable_id=10 (PacienteResponsable).
+  Se asume que ya existe Paciente id=7 con responsable_id=10.
+end note
+
+PAC -> BD : UPDATE paciente SET responsable_id=10 WHERE id=7
+BD --> PAC : OK
+
+== 4. Intento de eliminar el responsable — falla por paciente activo ==
+
+RECEP -> GUI : click boton eliminar en fila "Ana Lopez"
+GUI --> RECEP : ConfirmDialog "Si tiene pacientes vinculados\nactivos no se podra eliminar."
+RECEP -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(10)
+HOOK -> RVIEW : DELETE /api/pacienteresponsable/10/
+
+RVIEW -> RESP : perform_destroy(instance)
+RESP -> PAC : Paciente.objects.filter(responsable=instance, is_deleted=False).count()
+PAC -> BD : SELECT COUNT(*) FROM paciente\nWHERE responsable_id=10 AND is_deleted=False
+BD --> PAC : 1
+PAC --> RESP : activos = 1
+
+RESP -> RVIEW : raise ValidationError\n"No se puede eliminar: tiene 1 paciente(s) vinculado(s) activo(s)."
+RVIEW --> HOOK : HTTP 400
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> RECEP : toast error — responsable sin cambios
+
+== 5. Recepcionista desvincula el paciente ==
+
+note over PAC, BD
+  La desvinculacion se realiza desde la gestion de Pacientes.
+  Se actualiza responsable_id=null en el Paciente.
+end note
+
+RECEP -> PACVIEW : PATCH /api/paciente/7/\n{ responsable: null }
+PACVIEW -> MIXIN : perform_update(serializer)
+MIXIN -> PAC : serializer.save(id_usu_modificator=request.user)
+PAC -> BD : UPDATE paciente SET responsable_id=null WHERE id=7
+BD --> PAC : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='Paciente', accion='EDITAR')
+BD --> MIXIN : OK
+PACVIEW --> RECEP : 200 OK
+
+== 6. Eliminacion exitosa del responsable ==
+
+RECEP -> GUI : click boton eliminar en fila "Ana Lopez"
+GUI --> RECEP : ConfirmDialog
+RECEP -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(10)
+HOOK -> RVIEW : DELETE /api/pacienteresponsable/10/
+
+RVIEW -> RESP : perform_destroy(instance)
+RESP -> PAC : Paciente.objects.filter(responsable=instance, is_deleted=False).count()
+PAC -> BD : SELECT COUNT(*) FROM paciente WHERE responsable_id=10 AND is_deleted=False
+BD --> PAC : 0
+PAC --> RESP : activos = 0
+
+RVIEW -> MIXIN : super.perform_destroy()
+MIXIN -> RESP : is_deleted=True, fecha_eliminacion=now(),\nid_usu_modificator=request.user
+RESP -> BD : UPDATE paciente_responsable SET is_deleted=True WHERE id=10
+BD --> RESP : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='PacienteResponsable', accion='ELIMINAR')
+BD --> MIXIN : OK
+
+RVIEW --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['responsables'])
+HOOK -> GUI : showToast("Responsable eliminado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> RECEP : fila desaparece — toast exito
+
+note over PERSONA, BD
+  PacienteResponsable id=10 queda con is_deleted=True.
+  Persona id=50 (Ana Lopez) permanece en BD con is_deleted=False.
+  La Persona no puede eliminarse (PersonaViewSet lanza MethodNotAllowed).
+  La descripcion puede reutilizarse: una nueva alta como Responsable
+  para nro_documento='5000001' creara un nuevo PacienteResponsable
+  vinculado a la misma Persona existente (modo agregar_paciente).
+end note
+
+@enduml

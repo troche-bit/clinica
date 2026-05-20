@@ -1,0 +1,294 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "RecordatoriosPage.jsx" as PAGE
+  component "PanelDetalle" as PANEL
+  component "ModalNotificacion" as MODAL
+  component "HistorialExpandido" as HISTORIAL
+  component "useRecordatorios.js" as HOOK
+  component "client.js" as CLIENT
+
+  note right of PAGE
+    Prefijo CSS: .rec-
+    4 stats cards + tabs de periodo +
+    filtros: medico, estado, busqueda.
+    Tabla: paciente, email-icon, proxima_cita,
+    dias-badge (urgencia: vencida/urgente/normal),
+    medico_sugerido, estado (agendado/pendiente),
+    boton agendar/ver.
+    Click en fila → setSeleccionado(item) → PanelDetalle.
+    expandedRow → HistorialExpandido inline en tabla.
+    Solo esAdmin ve boton "Configuracion".
+  end note
+
+  note right of PANEL
+    Panel lateral 360px.
+    Datos: paciente + contacto (tel/email links),
+    proxima_cita + urgencia + agendado/pendiente,
+    medico_sugerido, diagnostico, indicaciones.
+    Ultimas 3 consultas finalizadas:
+      useConsultasPaciente(paciente.id)
+      .filter(c => c.estado==='finalizada')
+      .slice(0,3)
+    Botones de notificacion:
+      recordatorio_cita / confirmacion_reserva /
+      indicaciones (deshabilitado si sin indicaciones)
+    Si tieneEmail:
+      confirmDirecto inline → handleEnviarDirecto
+      POST canal='email', mensaje_personalizado=''
+    Si sin email:
+      setModalTipo(tipo) → ModalNotificacion
+    historialNotif: last 5 notificaciones del paciente.
+    Boton "Ir a agenda": navigate('/agenda/citas?persona_rrhh=X&fecha=Y').
+  end note
+
+  note right of MODAL
+    Canal: WhatsApp (default) / Email.
+    Destinatario: auto-fill desde paciente
+      (tel si WhatsApp, email si email).
+    Mensaje: buildMensajePlantilla pre-cargado
+      (templating en cliente, sin llamar backend).
+    POST /api/recordatorios/notificar/
+      { consulta_id, tipo, canal, mensaje_personalizado }
+    Si canal=email y estado='enviado': toast exito.
+    Si canal=whatsapp/manual: "Notificacion registrada."
+      (estado queda en pendiente — sin envio Resend).
+    Aviso: "Canal no configurado — queda como pendiente."
+  end note
+
+  note right of HISTORIAL
+    GET /api/notificaciones/?paciente=id&page_size=50
+    Muestra last 5 notificaciones.
+    Columnas: tipo_display, canal_display,
+    estado_display (color: enviado=verde,
+    fallido=rojo, pendiente=ambar),
+    fecha_creacion.
+    Boton Reenviar (RefreshCw) si canal=email
+    y estado=fallido.
+    useReenviarNotificacion:
+      POST /api/notificaciones/{id}/reenviar/
+      Solo IsAdminOrRecepcionista.
+  end note
+
+  note right of HOOK
+    useProximasCitas(filtros): staleTime=60s
+      queryKey=['recordatorios','proximas-citas',filtros]
+    useStatsRecordatorios(): staleTime=60s
+      queryKey=['recordatorios','stats']
+    useNotificar(): mutacion
+      POST /api/recordatorios/notificar/
+      onSuccess: invalida recordatorios + historial-notificaciones
+    useHistorialNotificaciones(pacienteId):
+      enabled: !!pacienteId
+      queryKey=['historial-notificaciones', pacienteId]
+    useMedicosLista(): staleTime=5min
+      GET /api/personarrhh/?cargo=medico&page_size=200
+    useConfiguracion(): staleTime=30s
+      GET /api/notificaciones/configuracion/
+    useUpdateConfiguracion(): PATCH configuracion
+    useProbarConexion(): POST probar-conexion
+    usePlantillas(): GET plantillas page_size=50
+    useCreatePlantilla() / useUpdatePlantilla() /
+    useDeletePlantilla(): invalidan plantillas
+    useSubirImagenPlantilla(): fetch nativo (no axios)
+      POST /api/notificaciones/plantillas/subir-imagen/
+    useReenviarNotificacion():
+      POST /api/notificaciones/{id}/reenviar/
+      onSuccess: invalida historial-notificaciones
+  end note
+}
+
+package "Backend" {
+  component "RecordatorioViewSet\n(GenericViewSet)" as RECVIEW
+  component "NotificacionViewSet\n(ReadOnlyModelViewSet)" as NOTIFVIEW
+  component "PlantillaViewSet\n(ModelViewSet)" as PLANTVIEW
+  component "enviar_notificacion()\nservices.py" as SERVICE
+  component "enviar_recordatorios\n(management command)" as CMD
+
+  note right of RECVIEW
+    permission_classes = [IsAuthenticated]
+    NO es ModelViewSet — solo GenericViewSet
+    con @actions personalizadas.
+
+    @action proximas_citas GET /proximas-citas/
+      Params: periodo, dias, medico, estado
+      Combina Consulta con proxima_cita
+      y anota tiene_agenda (Exists subquery).
+      urgencia: vencida / urgente / normal.
+      ultima_notificacion: notificaciones_prefetch[0].
+
+    @action stats GET /stats/
+      { vencidas, proximos_7_dias,
+        proximos_30_dias, agendadas }
+
+    @action notificar POST /notificar/
+      Crea Notificacion con estado=pendiente.
+      Si canal='email': llama enviar_notificacion().
+      Si canal!='email': solo persiste en BD.
+      Retorna { ok, id, estado }.
+  end note
+
+  note right of NOTIFVIEW
+    permission_classes = [IsAuthenticated] (list/retrieve)
+    Filtros get_queryset: ?paciente= ?consulta=
+
+    @action configuracion GET/PATCH
+      IsAdminRole — singleton ConfiguracionNotificacion
+      GET retorna config actual
+      PATCH actualiza campos parcialmente
+
+    @action probar_conexion POST
+      IsAdminRole — llama probar_conexion()
+      Envia email de prueba al email_remitente
+      Retorna { ok, mensaje }
+      HTTP 200 si ok, 503 si falla
+
+    @action reenviar POST /{id}/reenviar/
+      IsAdminOrRecepcionista
+      Solo canal=email (ValidationError si no)
+      Resetea estado='pendiente'
+      Llama enviar_notificacion()
+  end note
+
+  note right of PLANTVIEW
+    list/retrieve: IsAuthenticated
+    create/update/destroy: IsAdminRole
+
+    get_serializer_class:
+      list/retrieve → PlantillaNotificacionListSerializer
+      resto → PlantillaNotificacionSerializer
+
+    PlantillaNotificacionSerializer.validate_tipo:
+      verifica unicidad de tipo (is_deleted=False)
+      excluye instancia actual en PATCH
+
+    perform_destroy: borrado logico manual
+      (no usa AuditoriaMixin — PlantillaViewSet no hereda de el)
+      instance.is_deleted = True
+      instance.fecha_eliminacion = now()
+      instance.id_usu_modificator = request.user
+
+    @action subir_imagen POST /subir-imagen/
+      IsAdminRole — solo imagenes (content_type check)
+      Guarda en MEDIA_ROOT/plantillas/imagenes/
+      Retorna { url: '/media/plantillas/imagenes/...' }
+  end note
+
+  note right of SERVICE
+    Llamado por RecordatorioViewSet.notificar
+    y enviar_recordatorios command.
+
+    1. Carga Notificacion con select_related
+    2. Verifica canal == EMAIL
+    3. Verifica conf.habilitado (si no: FALLIDO)
+    4. Verifica RESEND_API_KEY en settings
+    5. Verifica destinatario no vacio
+    6. TIPO_MAP: Notificacion.tipo → PlantillaNotificacion.tipo
+    7. Busca PlantillaNotificacion activa y no eliminada
+    8. Si plantilla: _build_contexto + _renderizar
+       Si no: usa notif.mensaje como fallback
+    9. _procesar_imagenes_cid: convierte src="/media/..."
+       a CID attachments base64
+    10. resend.Emails.send(payload + adjuntos)
+    11. Exito: estado=ENVIADO, fecha_envio=now()
+        INSERT RegistroAuditoria(ENVIO_EMAIL)
+        automatico = (id_usu_creator is None)
+    12. Falla: estado=FALLIDO, logger.error()
+  end note
+
+  note right of CMD
+    python manage.py enviar_recordatorios [--horas N]
+    Ejecutado por cron del sistema (ej: cada hora).
+
+    1. Lee ConfiguracionNotificacion
+    2. Guarda si habilitado y auto_recordatorio
+    3. Para cada anticipacion en
+       [horas_anticipacion, horas_anticipacion_2?]:
+       fecha_objetivo = today + days
+       _agenda(fecha_objetivo):
+         Agenda.estado=OCUPADO para esa fecha
+         Deduplicacion: ya existe enviado?
+         Crea Notificacion(agenda FK, sin consulta FK)
+         Llama enviar_notificacion()
+       _proxima_cita(fecha_objetivo):
+         Consulta.proxima_cita = fecha_objetivo
+         Deduplicacion: ya existe enviado?
+         Crea Notificacion(consulta FK, sin agenda FK)
+         Llama enviar_notificacion()
+    4. Log: total enviados/omitidos/fallidos
+  end note
+}
+
+package "Servicios Externos" {
+  boundary "Resend API" as RESEND
+
+  note right of RESEND
+    RESEND_API_KEY en settings (desde .env)
+    Enviado como: resend.api_key = api_key
+    from: 'Nombre <email_remitente>'
+    Si no hay API_KEY: estado=FALLIDO
+    sin llamar a Resend.
+    probar_conexion() envia al email_remitente
+    como autoverificacion.
+  end note
+}
+
+package "Base de Datos" {
+  database "notificacion" as DBNOTIF
+  database "notificacion_plantilla" as DBPLANT
+  database "notificacion_configuracion\n(singleton pk=1)" as DBCONF
+  database "consulta\n(proxima_cita)" as DBCON
+  database "agenda\n(estado OCUPADO)" as DBAG
+  database "auditoria_registro\n(ENVIO_EMAIL)" as DBAUD
+}
+
+PAGE --> PANEL : "setSeleccionado(item)"
+PAGE --> HISTORIAL : "expandedRow inline en tabla"
+PANEL --> MODAL : "sin email → setModalTipo(tipo)"
+PANEL --> HISTORIAL : "historialNotif.slice(0,5)"
+
+PAGE --> HOOK : "useProximasCitas()\nuseStatsRecordatorios()\nuseMedicosLista()"
+PANEL --> HOOK : "useNotificar()\nuseHistorialNotificaciones()\nuseReenviarNotificacion()"
+HISTORIAL --> HOOK : "useHistorialNotificaciones()\nuseReenviarNotificacion()"
+MODAL --> HOOK : "useNotificar()"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> RECVIEW : "GET /api/recordatorios/proximas-citas/\nGET /api/recordatorios/stats/\nPOST /api/recordatorios/notificar/"
+CLIENT --> NOTIFVIEW : "GET /api/notificaciones/?paciente=id\nGET/PATCH /api/notificaciones/configuracion/\nPOST /api/notificaciones/{id}/reenviar/\nPOST /api/notificaciones/probar-conexion/"
+CLIENT --> PLANTVIEW : "GET /api/notificaciones/plantillas/\nPOST/PATCH/DELETE plantillas\nPOST subir-imagen (fetch nativo)"
+
+RECVIEW --> SERVICE : "enviar_notificacion(id)\nsi canal=email"
+NOTIFVIEW --> SERVICE : "enviar_notificacion(id)\nen reenviar"
+CMD --> SERVICE : "enviar_notificacion(id)\npor cada turno/cita"
+SERVICE --> RESEND : "resend.Emails.send(payload)"
+
+RECVIEW ..> DBCON : "SELECT consultas con proxima_cita\n+ Exists(Agenda futura)"
+RECVIEW ..> DBNOTIF : "INSERT notificacion"
+NOTIFVIEW ..> DBNOTIF : "SELECT notificaciones\nUPDATE estado (reenviar)"
+NOTIFVIEW ..> DBCONF : "SELECT/UPDATE configuracion"
+PLANTVIEW ..> DBPLANT : "SELECT/INSERT/UPDATE\nborrado logico"
+SERVICE ..> DBNOTIF : "UPDATE estado, fecha_envio, mensaje"
+SERVICE ..> DBPLANT : "SELECT plantilla activa"
+SERVICE ..> DBCONF : "SELECT configuracion"
+SERVICE ..> DBAUD : "INSERT ENVIO_EMAIL"
+CMD ..> DBAG : "SELECT estado=OCUPADO\npara fecha_objetivo"
+CMD ..> DBCON : "SELECT proxima_cita=fecha_objetivo"
+CMD ..> DBNOTIF : "INSERT notificacion (sin id_usu_creator)\nExists para deduplicacion"
+
+@enduml

@@ -77,3 +77,54 @@ export function useDeleteDocumento() {
     },
   })
 }
+
+const BASE_PRESTADOR = '/documentos-prestador/'
+
+export function useDocumentosPorPrestador(personaRrhhId) {
+  return useQuery({
+    queryKey: ['documentos-prestador', personaRrhhId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(BASE_PRESTADOR, {
+        params: { persona_rrhh: personaRrhhId, page_size: 200 },
+      })
+      return data?.results ?? data ?? []
+    },
+    enabled: !!personaRrhhId,
+  })
+}
+
+export function useSubirDocumentoPrestador() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (formData) => {
+      const token = localStorage.getItem('access_token')
+      const res = await fetch('/api/documentos-prestador/', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        const err = new Error('Error al subir documento')
+        err.response = { data: errBody, status: res.status }
+        throw err
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentos-prestador'] })
+    },
+  })
+}
+
+export function useDeleteDocumentoPrestador() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (documentoId) => {
+      await apiClient.delete(`${BASE_PRESTADOR}${documentoId}/`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documentos-prestador'] })
+    },
+  })
+}

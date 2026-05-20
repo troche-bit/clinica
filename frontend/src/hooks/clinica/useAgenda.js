@@ -146,8 +146,8 @@ export function useReagendar() {
 export function useCancelarRango() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ persona_rrhh, fecha_desde, fecha_hasta }) =>
-      apiClient.post('/agenda/cancelar-rango/', { persona_rrhh, fecha_desde, fecha_hasta }),
+    mutationFn: ({ persona_rrhh, fecha_desde, fecha_hasta, hora_desde, hora_hasta }) =>
+      apiClient.post('/agenda/cancelar-rango/', { persona_rrhh, fecha_desde, fecha_hasta, hora_desde, hora_hasta }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['agenda-dia'] })
       qc.invalidateQueries({ queryKey: ['agenda-mes'] })

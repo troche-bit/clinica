@@ -1,0 +1,152 @@
+@startuml 03_secuencia_vista_recepcionista
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor RECEPCIONISTA
+
+boundary "ConsultasPage.jsx" as GUI
+control "useConsultas.js" as HOOK
+control "useAgenda.js" as AHOOK
+control "ConsultaViewSet" as VIEW
+control "AgendaViewSet" as AVIEW
+database "PostgreSQL" as BD
+
+== 1. Recepcionista abre la pagina ==
+
+RECEPCIONISTA -> GUI : abre ConsultasPage\n(rol recepcionista — ve tabs)
+
+note right of GUI
+  pestaña default = 'recepcionista'
+  (si esRecepcionista → setPestaña('recepcionista'))
+  Admin puede ver ambas pestañas.
+  VistaRecepcionista no permite
+  iniciar ni gestionar consultas.
+  Es una vista de monitoreo.
+end note
+
+GUI -> GUI : VistaRecepcionista monta\nfechaSel = hoy
+
+GUI -> AHOOK : useAgendaDiaGlobal(hoy)
+AHOOK -> AVIEW : GET /api/agenda/?fecha=hoy&page_size=500
+AVIEW -> BD : SELECT agenda JOIN horario_prestador\nJOIN persona_rrhh JOIN paciente\nWHERE agenda.fecha=hoy AND is_deleted=False
+BD --> AVIEW : todos los turnos del dia
+AVIEW --> AHOOK : turnosData
+
+GUI -> HOOK : useConsultasHoy(hoy)\n[refetchInterval=60s]
+HOOK -> VIEW : GET /api/consultas/?fecha=hoy&page_size=100
+VIEW -> BD : SELECT consulta JOIN agenda\nWHERE agenda.fecha=hoy AND is_deleted=False\n(sin filtro por medico — recepcionista ve todo)
+BD --> VIEW : consultas del dia
+VIEW --> HOOK : { results: [...] }
+HOOK --> GUI : consultasData
+
+GUI -> GUI : listaUnificada =\n  turnos(estado ocupado/realizado).map(\n    turno => ({turno, consulta: consultasByAgenda[turno.id]})\n  ).sort(por hora_desde)
+
+GUI -> GUI : stats = {\n  total: listaUnificada.length,\n  pendientes: sin consulta,\n  en_consulta: estado 'en_consulta',\n  finalizadas: estado 'finalizada'\n}
+
+GUI --> RECEPCIONISTA : grilla stats + tabla con\nPaciente / Medico / Horario /\nEspecialidad / Estado
+
+== 2. Auto-refetch cada 60 segundos ==
+
+note right of GUI
+  useConsultasHoy tiene refetchInterval=60s.
+  Cuando un medico cambia el estado de una
+  consulta, la recepcionista ve el cambio
+  automaticamente en el proximo ciclo.
+  El Ticker de minutos se actualiza en tiempo
+  real (cada 10 segundos, via setInterval
+  dentro del componente Ticker).
+end note
+
+loop Cada 60 segundos
+  HOOK -> VIEW : GET /api/consultas/?fecha=hoy&page_size=100
+  VIEW -> BD : SELECT ...
+  BD --> VIEW : estado actualizado
+  VIEW --> HOOK : nueva data
+  HOOK --> GUI : React Query actualiza listaUnificada + stats
+  GUI --> RECEPCIONISTA : tabla con estados actualizados\nTicker de minutos para consultas en_consulta\n(verde < 15 min, amarillo <= 30, rojo > 30)
+end
+
+== 3. Recepcionista filtra por medico ==
+
+RECEPCIONISTA -> GUI : escribe "Garcia" en\ninput filtro medico
+
+GUI -> GUI : filtradas = listaUnificada.filter(\n  turno.horario_prestador_detalle.nombre\n  .toLowerCase().includes('garcia'))\n[filtro cliente-side, sin HTTP]
+
+GUI --> RECEPCIONISTA : tabla reducida a turnos\ndel medico Garcia
+
+== 4. Recepcionista filtra por estado ==
+
+RECEPCIONISTA -> GUI : selecciona "En consulta"\nen select de estado
+
+GUI -> GUI : filtradas = filtradas.filter(\n  estadoItem === 'en_consulta')\n[estadoItem = consulta?.estado ?? 'pendiente']
+
+GUI --> RECEPCIONISTA : tabla con solo los turnos\nactualmente en consulta
+
+== 5. Recepcionista (admin) cambia de fecha ==
+
+note right of GUI
+  SelectorFecha solo visible para admin.
+  Para recepcionista, la fecha es siempre hoy.
+  Para admin: puede ver dias anteriores.
+end note
+
+RECEPCIONISTA -> GUI : [admin] cambia fecha\na 2026-05-19 (ayer)
+
+GUI -> AHOOK : useAgendaDiaGlobal('2026-05-19')
+AHOOK -> AVIEW : GET /api/agenda/?fecha=2026-05-19
+AVIEW -> BD : SELECT ...
+BD --> AVIEW : turnos del 19/05
+AVIEW --> AHOOK : turnosData
+GUI -> HOOK : useConsultasHoy('2026-05-19')
+HOOK -> VIEW : GET /api/consultas/?fecha=2026-05-19
+VIEW -> BD : SELECT ...
+BD --> VIEW : consultas del 19/05
+VIEW --> HOOK : data historica
+HOOK --> GUI : listaUnificada del 19/05
+
+GUI --> RECEPCIONISTA : badge "Viendo: 19/05/2026"\nboton "Volver a hoy"\ntabla con datos historicos
+
+== 6. stats-hoy endpoint (para otros componentes) ==
+
+note over GUI, VIEW
+  GET /api/consultas/stats-hoy/ retorna:
+  { total, en_espera, en_consulta, finalizadas }
+  donde total es el total de consultas del dia actual.
+  useStatsConsultasHoy tiene staleTime=60s y
+  refetchInterval=60s (mismo ciclo que useConsultasHoy).
+  Este endpoint es usado para mostrar stats en
+  otros componentes del sistema (ej: dashboard).
+end note
+
+== 7. Vista Medico vs Vista Recepcionista — diferencias clave ==
+
+note over RECEPCIONISTA, BD
+  Vista Recepcionista:
+  - Monitor de estado (solo lectura)
+  - Ve todos los medicos del dia sin filtro
+  - Auto-refresh cada 60 segundos
+  - Stats: total/pendientes/en_consulta/finalizadas
+  - Filtros cliente-side: por medico y por estado
+  - Ticker de urgencia para en_consulta
+    (color segun tiempo transcurrido)
+  - SelectorFecha solo para admin
+
+  Vista Medico:
+  - Gestion activa: crear, iniciar, completar
+  - Filtrada al medico seleccionado (o el propio)
+  - Panel de consulta con form clinico
+  - Documentos por consulta (upload/delete)
+  - Historia clinica del paciente en modal
+  - Autoguardado cada 30 segundos
+
+  Ambas vistas comparten:
+  - listaUnificada = turnosOcupados + consultas
+  - Cruce por agenda.id
+  - useConsultasHoy/useConsultasDelDia con
+    refetchInterval=60s
+end note
+
+@enduml

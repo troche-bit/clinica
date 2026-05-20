@@ -1,0 +1,202 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "PersonaRRHHPage.jsx" as GUI
+boundary "PersonaRRHHForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSC
+control "usePersonaRRHH.js" as HOOK
+control "PersonaRRHHViewSet" as VIEW
+control "PersonaViewSet" as PVIEW
+control "UsuariosViewSet" as UVIEW
+control "HorarioPrestadorViewSet" as HVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "Persona" as PERSONA
+entity "PersonaRRHH" as RRHH
+entity "Especialidad" as ESP
+entity "HorarioPrestador" as HORARIO
+entity "Agenda" as AGENDA
+entity "PerfilUsuario" as PERFIL
+database "PostgreSQL" as BD
+
+== 1. Admin busca prestador por documento — no existe ==
+
+ADMIN -> GUI : click "Nuevo prestador"
+GUI -> GUI : guardAction(() => setModo('crear'))
+GUI --> ADMIN : Modal modo crear
+
+ADMIN -> FORM : ingresa nro_documento="4000001"
+FORM -> BUSC : buscar()
+BUSC -> VIEW : GET /api/personarrhh/buscar/?nro_documento=4000001
+VIEW -> BD : SELECT FROM persona WHERE nro_documento='4000001' AND is_deleted=False
+BD --> VIEW : (vacio) — persona no existe
+VIEW --> BUSC : { persona: null, personarrhh: null, es_prestador: false }
+
+BUSC --> FORM : resultado.modo = 'crear_todo'
+FORM --> ADMIN : badge azul "Documento no encontrado"\nFormPersona (todos los campos editables)\nFormRRHH (cargo, tipo_contrato,\nespecialidades, nro_matricula, ...)
+
+== 2. Crea Persona y PersonaRRHH con especialidades ==
+
+ADMIN -> FORM : completa datos de Persona\n(razon_social:'Dr. Roberto Diaz', tipo_documento,\ntelefono, ciudad, fecha_nacimiento)
+ADMIN -> FORM : selecciona especialidades\n(SelectorEspecialidades: busca "Cardiologia",\nagrega tag; busca "Pediatria", agrega tag)
+ADMIN -> FORM : completa cargo='medico',\ntipo_contrato='honorarios',\nnro_matricula='98765'
+
+note right of FORM
+  Al ingresar nro_matricula y quitar el foco,
+  FormRRHH llama GET /api/personarrhh/validar-matricula/
+  para verificar unicidad en tiempo real.
+  Si ya existe: muestra error inline.
+end note
+
+ADMIN -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : POST /api/persona/\n{ tipo_documento, nro_documento:'4000001',\nrazon_social:'Dr. Roberto Diaz', ... }
+PVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> PERSONA : serializer.save(id_usu_creator=request.user)
+PERSONA -> BD : INSERT persona (nro_documento='4000001', ...)
+BD --> PERSONA : id=80
+MIXIN -> BD : INSERT auditoria_registro (tabla='Persona', accion='CREAR')
+BD --> MIXIN : OK
+PVIEW --> FORM : 201 { id: 80 }
+
+FORM -> VIEW : POST /api/personarrhh/\n{ persona: 80, cargo:'medico',\ntipo_contrato:'honorarios',\nespecialidades: [1, 3],\nnro_matricula:'98765', ... }
+VIEW -> MIXIN : perform_create(serializer)
+MIXIN -> RRHH : serializer.save(id_usu_creator=request.user)
+RRHH -> BD : INSERT persona_rrhh (persona_id=80, ...)
+BD --> RRHH : id=20
+RRHH -> BD : INSERT persona_rrhh_especialidades\n(personarrhh_id=20, especialidad_id=1)\n(personarrhh_id=20, especialidad_id=3)
+BD --> RRHH : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='PersonaRRHH', accion='CREAR')
+BD --> MIXIN : OK
+VIEW --> FORM : 201 { id: 20 }
+
+FORM -> HOOK : invalidateQueries(['personasrrhh'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Prestador guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> ADMIN : toast exito — prestador creado con especialidades
+
+== 3. Admin crea usuario del sistema vinculado al prestador ==
+
+note over PERFIL, BD
+  La creacion de usuario se realiza desde la gestion de Usuarios.
+  POST /api/usuarios/ con { persona_rrhh: 20, rol: 'medico', ... }
+  El JWT del usuario medico incluye persona_rrhh_id=20.
+  El ViewSet filtra get_queryset() para que el medico
+  vea solo su propio registro al acceder a /api/personarrhh/.
+end note
+
+ADMIN -> UVIEW : POST /api/usuarios/\n{ persona_rrhh: 20, rol: 'medico',\nusername: 'dr.diaz', ... }
+UVIEW -> PERFIL : crear PerfilUsuario
+PERFIL -> BD : INSERT auth_user + perfilusuario\n(persona_rrhh_id=20, rol='medico')
+BD --> PERFIL : OK
+UVIEW --> ADMIN : 201 { id: 5 }
+
+== 4. Se generan horarios semanales para el prestador ==
+
+note over HORARIO, BD
+  La generacion de turnos se realiza desde Horario Prestador.
+  POST /api/horario-prestador/{id}/generar/ crea registros Agenda
+  con estado DISPONIBLE para el rango de fechas indicado.
+end note
+
+ADMIN -> HVIEW : POST /api/horario-prestador/{horarioId}/generar/\n{ fecha_desde, fecha_hasta }
+HVIEW -> AGENDA : crear turnos DISPONIBLE
+AGENDA -> BD : INSERT agenda (horario_prestador_id=...,\nestado='DISPONIBLE', ...)
+BD --> AGENDA : N filas creadas
+HVIEW --> ADMIN : 200 { generados: N }
+
+== 5. Admin intenta eliminar el prestador — falla por turnos activos ==
+
+ADMIN -> GUI : click boton eliminar en fila "Dr. Roberto Diaz"
+GUI --> ADMIN : ConfirmDialog "Si tiene turnos activos\n(disponible, ocupado o realizado)\nno se podra eliminar."
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(20)
+HOOK -> VIEW : DELETE /api/personarrhh/20/
+
+VIEW -> RRHH : perform_destroy(instance)
+RRHH -> AGENDA : filter(horario_prestador__persona_rrhh=instance,\nis_deleted=False,\nestado__in=[DISPONIBLE, OCUPADO, REALIZADO]).exists()
+AGENDA -> BD : SELECT EXISTS WHERE estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : True
+AGENDA --> RRHH : tiene_activos = True
+
+RRHH -> VIEW : raise ValidationError\n"No se puede eliminar un prestador con turnos activos."
+VIEW --> HOOK : HTTP 400
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> ADMIN : toast error — prestador sin cambios
+
+== 6. Admin cancela o finaliza todos los turnos activos ==
+
+note over AGENDA, BD
+  La gestion de turnos se realiza desde la pagina de Agenda.
+  Los turnos DISPONIBLES se cancelan mediante
+  PATCH /api/agenda/{id}/estado/ o POST /api/agenda/cancelar-rango/.
+  Los turnos OCUPADOS/REALIZADOS se finalizan desde Consultas.
+  Una vez que no quedan turnos activos el prestador puede eliminarse.
+end note
+
+ADMIN -> HVIEW : POST /api/agenda/cancelar-rango/\n{ persona_rrhh: 20, fecha_desde, fecha_hasta }
+HVIEW -> AGENDA : cancelar disponibles en rango
+AGENDA -> BD : UPDATE agenda SET estado='CANCELADO'\nWHERE persona_rrhh_id=20\nAND estado='DISPONIBLE' AND ...
+BD --> AGENDA : OK
+HVIEW --> ADMIN : { cancelados: N, no_cancelados: [] }
+
+== 7. Eliminacion exitosa del prestador ==
+
+ADMIN -> GUI : click boton eliminar en fila "Dr. Roberto Diaz"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(20)
+HOOK -> VIEW : DELETE /api/personarrhh/20/
+
+VIEW -> RRHH : perform_destroy(instance)
+RRHH -> AGENDA : filter(...).exists()
+AGENDA -> BD : SELECT EXISTS WHERE estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : False
+AGENDA --> RRHH : tiene_activos = False
+
+RRHH -> AGENDA : filter(horario_prestador__persona_rrhh=instance,\nis_deleted=False).update(is_deleted=True, ...)
+AGENDA -> BD : UPDATE agenda SET is_deleted=True ...\n(turnos CANCELADOS/INACTIVOS)
+BD --> AGENDA : OK
+
+RRHH -> HORARIO : HorarioPrestador.filter(persona_rrhh=instance,\nis_deleted=False).update(is_deleted=True, ...)
+HORARIO -> BD : UPDATE horario_prestador SET is_deleted=True ...
+BD --> HORARIO : OK
+
+RRHH -> ESP : instance.especialidades.clear()
+ESP -> BD : DELETE FROM persona_rrhh_especialidades\nWHERE personarrhh_id=20
+BD --> ESP : OK
+
+VIEW -> MIXIN : super.perform_destroy()
+MIXIN -> RRHH : is_deleted=True, fecha_eliminacion=now(),\nid_usu_modificator=request.user
+RRHH -> BD : UPDATE persona_rrhh SET is_deleted=True WHERE id=20
+BD --> RRHH : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='PersonaRRHH', accion='ELIMINAR')
+BD --> MIXIN : OK
+
+VIEW --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['personasrrhh'])
+HOOK -> GUI : showToast("Prestador eliminado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> ADMIN : fila desaparece — toast exito
+
+note over PERSONA, PERFIL
+  PersonaRRHH id=20 queda con is_deleted=True.
+  Persona id=80 (Dr. Roberto Diaz) permanece en BD con is_deleted=False.
+  La Persona no puede eliminarse (PersonaViewSet lanza MethodNotAllowed).
+  PerfilUsuario id=5 permanece en BD con persona_rrhh_id=20.
+  El historial de agenda queda preservado con is_deleted=True.
+  La Persona puede reutilizarse: una nueva alta como Prestador
+  para nro_documento='4000001' creara un nuevo PersonaRRHH
+  vinculado a la misma Persona existente (modo agregar).
+end note
+
+@enduml

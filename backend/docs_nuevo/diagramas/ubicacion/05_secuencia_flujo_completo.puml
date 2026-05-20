@@ -1,0 +1,168 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "UbicacionesPage.jsx" as GUI
+control "useUbicacion.js" as HOOK
+control "PaisViewSet" as PVIS
+control "DepartamentoViewSet" as DVIS
+control "CiudadViewSet" as CVIS
+control "AuditoriaMixin" as MIXIN
+
+entity "Pais" as MPAIS
+entity "Departamento" as MDEPTO
+entity "Ciudad" as MCIUDAD
+entity "Persona" as MPERS
+
+database "PostgreSQL" as BD
+
+== 1. Admin navega la jerarquia ==
+
+ADMIN -> GUI : abre pagina
+GUI -> HOOK : usePaises()
+HOOK -> PVIS : GET /api/pais/?page_size=100
+PVIS -> BD : SELECT FROM pais WHERE is_deleted=False
+BD --> PVIS : [Paraguay, Argentina, Brasil]
+PVIS --> HOOK : JSON lista paises
+HOOK --> GUI : columna Paises con datos
+GUI --> ADMIN : Departamentos y Ciudades deshabilitados
+
+ADMIN -> GUI : click en "Paraguay"
+GUI -> HOOK : useDepartamentos(paisId=1)
+HOOK -> DVIS : GET /api/departamento/?pais=1
+DVIS -> BD : SELECT FROM departamento WHERE pais_id=1 AND is_deleted=False
+BD --> DVIS : [Central, Cordillera]
+DVIS --> HOOK : JSON lista departamentos
+HOOK --> GUI : columna Departamentos activa
+
+ADMIN -> GUI : click en "Central"
+GUI -> HOOK : useCiudades(departamentoId=1)
+HOOK -> CVIS : GET /api/ciudad/?departamento=1
+CVIS -> BD : SELECT FROM ciudad WHERE departamento_id=1 AND is_deleted=False
+BD --> CVIS : [Luque, San Lorenzo, Capiata]
+CVIS --> HOOK : JSON lista ciudades
+HOOK --> GUI : columna Ciudades activa
+
+== 2. Admin crea una nueva ciudad ==
+
+ADMIN -> GUI : click Agregar en columna Ciudades
+GUI -> GUI : FilaEditable nueva fila
+ADMIN -> GUI : descripcion="Fernando de la Mora"
+ADMIN -> GUI : click icono confirmar
+
+GUI -> HOOK : crearCiudad.mutateAsync({ descripcion: "Fernando de la Mora", departamento: 1 })
+HOOK -> CVIS : POST /api/ciudad/
+
+CVIS -> MCIUDAD : validate() — unicidad en mismo departamento
+MCIUDAD -> BD : SELECT WHERE Lower(descripcion)='fernando de la mora' AND departamento_id=1 AND is_deleted=False
+BD --> MCIUDAD : [] (no existe)
+
+CVIS -> MIXIN : perform_create(serializer)
+MIXIN -> MCIUDAD : serializer.save(id_usu_creator=request.user)
+MCIUDAD -> BD : INSERT ciudad (descripcion, departamento_id, id_usu_creator)
+BD --> MCIUDAD : id=4
+
+MIXIN -> BD : INSERT auditoria_registro (accion='CREAR')
+BD --> MIXIN : OK
+
+CVIS --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['ciudades', 1])
+HOOK -> GUI : showToast("Ciudad creada.", "success")
+GUI --> ADMIN : nueva fila en tabla Ciudades
+
+== 3. Intento fallido de eliminar departamento con ciudades activas ==
+
+ADMIN -> GUI : click icono eliminar en fila "Central"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminarDepto.mutate(1)
+HOOK -> DVIS : DELETE /api/departamento/1/
+
+DVIS -> MDEPTO : perform_destroy(instance)
+MDEPTO -> BD : SELECT 1 FROM ciudad WHERE departamento_id=1 AND is_deleted=False LIMIT 1
+BD --> MDEPTO : existe (id=4)
+MDEPTO -> DVIS : raise ValidationError "No se puede eliminar: tiene ciudades activas vinculadas."
+
+DVIS --> HOOK : HTTP 400
+
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> ADMIN : toast error — departamento sin cambios
+
+note right of BD
+  Departamento Central sigue activo.
+  is_deleted = False.
+  Ciudades intactas.
+end note
+
+== 4. Admin elimina la ciudad recien creada ==
+
+ADMIN -> GUI : click icono eliminar en fila "Fernando de la Mora"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminarCiudad.mutate(4)
+HOOK -> CVIS : DELETE /api/ciudad/4/
+
+CVIS -> MCIUDAD : perform_destroy(instance)
+MCIUDAD -> MPERS : instance.ciudades.filter(is_deleted=False).exists()
+MPERS -> BD : SELECT 1 FROM persona WHERE ciudad_id=4 AND is_deleted=False LIMIT 1
+BD --> MPERS : (vacio)
+MPERS --> MCIUDAD : False
+
+CVIS -> MIXIN : super.perform_destroy()
+MIXIN -> MCIUDAD : is_deleted=True, fecha_eliminacion=now()
+MCIUDAD -> BD : UPDATE ciudad SET is_deleted=True WHERE id=4
+BD --> MCIUDAD : OK
+
+MIXIN -> BD : INSERT auditoria_registro (accion='ELIMINAR')
+BD --> MIXIN : OK
+
+CVIS --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['ciudades', 1])
+HOOK -> GUI : showToast("Ciudad eliminada.", "success")
+GUI --> ADMIN : fila desaparece de tabla Ciudades
+
+== 5. Admin elimina el departamento ya sin ciudades activas ==
+
+ADMIN -> GUI : click icono eliminar en fila "Cordillera"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminarDepto.mutate(2)
+HOOK -> DVIS : DELETE /api/departamento/2/
+
+DVIS -> MDEPTO : perform_destroy(instance)
+MDEPTO -> BD : SELECT 1 FROM ciudad WHERE departamento_id=2 AND is_deleted=False LIMIT 1
+BD --> MDEPTO : (vacio)
+
+MDEPTO -> MPERS : instance.personas.filter(is_deleted=False).exists()
+MPERS -> BD : SELECT 1 FROM persona WHERE ciudad__departamento_id=2 AND is_deleted=False LIMIT 1
+BD --> MPERS : (vacio)
+MPERS --> MDEPTO : False
+
+DVIS -> MIXIN : super.perform_destroy()
+MIXIN -> MDEPTO : is_deleted=True, fecha_eliminacion=now()
+MDEPTO -> BD : UPDATE departamento SET is_deleted=True WHERE id=2
+BD --> MDEPTO : OK
+
+MIXIN -> BD : INSERT auditoria_registro (accion='ELIMINAR')
+BD --> MIXIN : OK
+
+DVIS --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['departamentos', 1])
+HOOK -> GUI : showToast("Departamento eliminado.", "success")
+GUI --> ADMIN : fila desaparece de tabla Departamentos
+
+note over BD
+  Departamento queda con is_deleted=True.
+  Ciudades vinculadas mantienen su is_deleted propio.
+  La descripcion puede reutilizarse en un nuevo registro.
+end note
+
+@enduml

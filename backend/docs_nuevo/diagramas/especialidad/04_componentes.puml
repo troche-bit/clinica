@@ -1,0 +1,79 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "EspecialidadPage.jsx" as PAGE
+  component "PanelSimple.jsx" as PANEL
+  component "useEspecialidades.js" as HOOK
+  component "FormRRHH.jsx" as FORM
+  note right of FORM
+    usa useEspecialidades
+    para el SelectorEspecialidades
+    (M2M con prestador)
+    page_size=200, staleTime=5min
+  end note
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+}
+
+package "Backend" {
+  component "EspecialidadViewSet" as VIEWSET
+  component "EspecialidadSerializer" as SERIAL
+  component "EspecialidadListSerializer" as LISTSERIAL
+  component "AuditoriaMixin" as MIXIN
+}
+
+package "Base de Datos" {
+  database "especialidad" as DB
+  database "personarrhh_especialidades\n(tabla M2M)" as DBM2M
+}
+
+PAGE --> PANEL : "Master-Detail pattern"
+PAGE --> HOOK : usa
+PAGE --> DIALOG : confirmación eliminación
+
+FORM --> HOOK : "useEspecialidades()\nSelectorEspecialidades\n+ crear inline"
+
+HOOK --> CLIENT : peticiones HTTP
+
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/especialidad/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve\n(page_size=200)"
+VIEWSET --> SERIAL : "create / update / destroy\n(validate case-insensitive)"
+
+MIXIN ..> VIEWSET : "registra auditoría\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey\n['especialidades']"
+HOOK ..> FORM : "invalida queryKey\n['especialidades']"
+
+SERIAL --> DB : "INSERT / UPDATE"
+LISTSERIAL --> DB : "SELECT WHERE is_deleted=False"
+
+VIEWSET --> DBM2M : "verifica prestadores activos\nantes de borrado lógico"
+DB --> DBM2M : "relación M2M\n(Especialidad ↔ PersonaRRHH)"
+
+@enduml

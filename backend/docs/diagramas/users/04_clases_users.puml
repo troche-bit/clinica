@@ -1,0 +1,201 @@
+@startuml 04_clases_users
+
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceActorBorderColor #1a3a5c
+skinparam noteBorderColor #e8edf2
+skinparam noteBackgroundColor #fafbfc
+
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #1a3a5c
+skinparam classHeaderBackgroundColor #eef2f7
+skinparam classArrowColor #1a3a5c
+skinparam classFontSize 13
+
+title Diagrama de Clases — Módulo Users
+
+package "django.contrib.auth" #f8fafc {
+  class User {
+    + id : int
+    + username : str
+    + password : str  <<hashed PBKDF2>>
+    + first_name : str
+    + last_name : str
+    + email : str
+    + is_active : bool
+    + is_superuser : bool
+    + is_staff : bool
+    + date_joined : datetime
+    + last_login : datetime
+    --
+    + check_password(raw) : bool
+    + set_password(raw) : void
+    + create_user(username, password, **kwargs)
+  }
+}
+
+package "apps.administracion.users" #f0f5fb {
+
+  class PerfilUsuario {
+    + id : int
+    + rol : str  <<choices: ROLES>>
+    + activo : bool
+    --
+    <<property>>
+    + nombre_completo : str
+    + iniciales : str
+    --
+    + __str__() : str
+    --
+    <<Meta>>
+    db_table = 'users_perfilusuario'
+  }
+
+  enum ROLES {
+    admin
+    medico
+    recepcionista
+    secretaria_medico
+  }
+
+  class CustomTokenObtainPairSerializer {
+    <<extends TokenObtainPairSerializer>>
+    --
+    + get_token(user) : Token
+    + validate(attrs) : dict
+    --
+    Claims custom agregados:
+    · rol
+    · nombre
+    · iniciales
+    · activo
+    · persona_rrhh_id
+    · medicos_asignados[ ]
+  }
+
+  class PerfilUsuarioSerializer {
+    <<ModelSerializer — lectura>>
+    --
+    + username : str  <<read_only>>
+    + email : str  <<read_only>>
+    + nombre_completo : str  <<read_only>>
+    + iniciales : str  <<read_only>>
+    + rol_display : str  <<read_only>>
+    + persona_rrhh_nombre : str  <<read_only>>
+    + medicos_asignados_ids : list[int]
+    + medicos_asignados_nombres : list[str]
+    + es_master : bool  <<is_superuser>>
+  }
+
+  class UsuarioCreateSerializer {
+    <<Serializer — escritura>>
+    --
+    + username : str
+    + password : str  <<write_only, min_length=8>>
+    + first_name : str
+    + last_name : str
+    + email : str
+    + rol : str
+    + persona_rrhh : int | null
+    + medicos_asignados : list[int]
+    --
+    + validate_username(value) : str
+    + validate(data) : dict
+    + create(validated_data) : PerfilUsuario
+  }
+
+  class UsuarioUpdateSerializer {
+    <<Serializer — escritura parcial>>
+    --
+    + first_name : str
+    + last_name : str
+    + email : str
+    + rol : str
+    + persona_rrhh : int | null
+    + medicos_asignados : list[int]
+    --
+    + update(instance, validated_data) : PerfilUsuario
+  }
+
+  class PerfilUsuarioViewSet {
+    <<GenericViewSet>>
+    --
+    + queryset : QuerySet[PerfilUsuario]
+    --
+    + list(request) : Response
+    + create(request) : Response  <<201>>
+    + retrieve(request, pk) : Response
+    + partial_update(request, pk) : Response
+    --
+    <<actions>>
+    + me(request) : Response
+    + cambiar_password(request) : Response
+    + cambiar_estado(request, pk) : Response
+    + resetear_password(request, pk) : Response
+    --
+    <<permisos>>
+    me, cambiar_password → IsAuthenticated
+    resto → IsAuthenticated + IsAdminRole
+  }
+
+}
+
+package "apps.administracion.persona_rrhh" #f8fafc {
+  class PersonaRRHH {
+    + id : int
+    + persona : FK → Persona
+    + matricula : str
+    + cargo : str
+    + especialidades : M2M → Especialidad
+    + is_deleted : bool
+    ..
+  }
+}
+
+package "apps.administracion.auditoria" #f8fafc {
+  class RegistroAuditoria {
+    + tabla : str
+    + registro_id : int
+    + accion : str  <<CREAR|EDITAR|ELIMINAR>>
+    + datos_antes : JSON
+    + datos_despues : JSON
+    + usuario : FK → User
+    + fecha : datetime
+    + ip : str
+  }
+}
+
+' Relaciones
+User "1" *-- "1" PerfilUsuario : user (OneToOne CASCADE)
+PerfilUsuario "many" --> "0..1" PersonaRRHH : persona_rrhh (FK SET_NULL)
+PerfilUsuario "many" --> "many" PersonaRRHH : medicos_asignados (M2M)
+PerfilUsuario ..> ROLES : usa
+
+PerfilUsuarioViewSet ..> PerfilUsuarioSerializer : list / retrieve
+PerfilUsuarioViewSet ..> UsuarioCreateSerializer : create
+PerfilUsuarioViewSet ..> UsuarioUpdateSerializer : partial_update
+PerfilUsuarioViewSet ..> RegistroAuditoria : _log()
+
+CustomTokenObtainPairSerializer ..> PerfilUsuario : lee claims
+UsuarioCreateSerializer ..> User : create_user()
+UsuarioCreateSerializer ..> PerfilUsuario : get_or_create()
+
+note bottom of PerfilUsuario
+  No hereda BaseModel.
+  Sin borrado lógico — los usuarios
+  se desactivan con activo=False.
+  La auditoría se hace con _log()
+  manual, no con AuditoriaMixin.
+end note
+
+note bottom of User
+  Usuario master: is_superuser=True.
+  Protegido: no se puede desactivar
+  ni cambiar su rol.
+end note
+
+@enduml

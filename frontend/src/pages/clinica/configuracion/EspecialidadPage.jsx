@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Plus, Search, Stethoscope, Pencil, Trash2 } from 'lucide-react'
 import PanelSimple from '../../../components/ui/PanelSimple'
 import Toast from '../../../components/ui/Toast'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useEspecialidades, useEspecialidadMutations } from '../../../hooks/clinica/useEspecialidades'
 import { useToast } from '../../../hooks/useToast'
+import { useAtajosTeclado } from '../../../hooks/useAtajosTeclado'
+import { useAuth } from '../../../context/AuthContext'
 import { extraerMensajeError } from '../../../utils/errores'
+import { useNavigationGuard } from '../../../hooks/useNavigationGuard'
 
 const CAMPOS_ESPECIALIDAD = [
   { name: 'descripcion', label: 'Descripción', placeholder: 'Ej: Cardiología, Pediatría...', requerido: true },
@@ -13,13 +16,16 @@ const CAMPOS_ESPECIALIDAD = [
 
 const TITULOS_PANEL = { nuevo: 'Nueva especialidad', editar: 'Editar especialidad', ver: 'Detalle' }
 
-
 export default function EspecialidadPage() {
   const [search,       setSearch]       = useState('')
-  const [searchInput,  setSearchInput]  = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
   const [modo,         setModo]         = useState(null)
   const [confirmId,    setConfirmId]    = useState(null)
+  const debounceRef = useRef(null)
+
+  const { user }                        = useAuth()
+  const puedeEliminar                   = user?.rol === 'admin'
+  const { guardAction }                 = useNavigationGuard()
 
   const { data, isLoading }             = useEspecialidades(search)
   const { crear, actualizar, eliminar } = useEspecialidadMutations()
@@ -27,15 +33,13 @@ export default function EspecialidadPage() {
 
   const especialidades = data?.results || data || []
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    setSearch(searchInput)
+  const handleSearchChange = (e) => {
+    const val = e.target.value
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(val), 300)
   }
 
-  const cerrarPanel = () => {
-    setSeleccionado(null)
-    setModo(null)
-  }
+  const cerrarPanel = () => { setSeleccionado(null); setModo(null) }
 
   const handleGuardar = async (form) => {
     try {
@@ -64,26 +68,24 @@ export default function EspecialidadPage() {
 
   const guardando = crear.isPending || actualizar.isPending
 
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (modo === null) { setSeleccionado(null); setModo('crear') } } },
+  })
+
   return (
     <>
       <style>{`
         .esp-root { font-family: 'DM Sans', sans-serif; }
-        .esp-header {
-          display: flex; align-items: flex-start; justify-content: space-between;
-          margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+        .esp-toolbar {
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 16px; flex-wrap: wrap;
         }
-        .esp-title    { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
-        .esp-subtitle { font-size: 13px; color: #6b7280; }
-        .esp-btn-nuevo {
-          display: inline-flex; align-items: center; gap: 7px;
-          padding: 9px 18px; background: #1a3a5c; color: #fff;
-          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
-          font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
-          transition: background 0.15s, box-shadow 0.15s;
+        .esp-title-group { flex: 1 1 auto; order: 1; min-width: 0; }
+        .esp-title    { font-size: 18px; font-weight: 600; color: #1a3a5c; }
+        .esp-subtitle { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+        .esp-search-wrap {
+          position: relative; flex: 1 1 200px; max-width: 360px; order: 2;
         }
-        .esp-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        .esp-search-row  { display: flex; gap: 8px; margin-bottom: 16px; }
-        .esp-search-wrap { position: relative; flex: 1; max-width: 380px; }
         .esp-search-icon {
           position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
           color: #9ca3af; pointer-events: none;
@@ -92,14 +94,21 @@ export default function EspecialidadPage() {
           width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px;
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827;
           background: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+          box-sizing: border-box;
         }
         .esp-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
         .esp-search-input::placeholder { color: #d1d5db; }
-        .esp-btn-search {
-          padding: 9px 16px; background: #f8fafc; border: 1.5px solid #e5e7eb; border-radius: 9px;
-          font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #374151; cursor: pointer;
+        .esp-btn-nuevo {
+          display: inline-flex; align-items: center; gap: 7px; order: 3; flex-shrink: 0;
+          padding: 9px 18px; background: #1a3a5c; color: #fff;
+          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
+          transition: background 0.15s, box-shadow 0.15s;
         }
-        .esp-btn-search:hover { background: #f0f4f8; }
+        .esp-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
+        @media (max-width: 600px) {
+          .esp-search-wrap { flex: 0 0 100%; order: 4; max-width: none; }
+        }
         .esp-layout { display: flex; gap: 16px; align-items: flex-start; }
         .esp-table-card {
           flex: 1; background: #fff; border: 1px solid #e8edf2;
@@ -144,8 +153,8 @@ export default function EspecialidadPage() {
       />
 
       <div className="esp-root">
-        <div className="esp-header">
-          <div>
+        <div className="esp-toolbar">
+          <div className="esp-title-group">
             <div className="esp-title">Especialidades</div>
             <div className="esp-subtitle">
               {especialidades.length > 0
@@ -153,24 +162,19 @@ export default function EspecialidadPage() {
                 : 'Gestión de especialidades'}
             </div>
           </div>
-          <button className="esp-btn-nuevo" onClick={() => { setSeleccionado(null); setModo('crear') }}>
-            <Plus size={15} /> Nueva especialidad
-          </button>
-        </div>
-
-        <form onSubmit={handleSearch} className="esp-search-row">
           <div className="esp-search-wrap">
             <Search size={15} className="esp-search-icon" />
             <input
               type="text"
               placeholder="Buscar por especialidad..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
               className="esp-search-input"
             />
           </div>
-          <button type="submit" className="esp-btn-search">Buscar</button>
-        </form>
+          <button className="esp-btn-nuevo" onClick={() => guardAction(() => { setSeleccionado(null); setModo('crear') })}>
+            <Plus size={15} /> Nueva especialidad
+          </button>
+        </div>
 
         <div className="esp-layout">
           <div className="esp-table-card">
@@ -197,7 +201,7 @@ export default function EspecialidadPage() {
                   <tr
                     key={e.id}
                     className={seleccionado?.id === e.id ? 'activo' : ''}
-                    onClick={() => { setSeleccionado(e); setModo('ver') }}
+                    onClick={() => guardAction(() => { setSeleccionado(e); setModo('ver') })}
                   >
                     <td>
                       {e.descripcion}
@@ -209,16 +213,18 @@ export default function EspecialidadPage() {
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           className="esp-action-btn edit"
-                          onClick={(ev) => { ev.stopPropagation(); setSeleccionado(e); setModo('editar') }}
+                          onClick={(ev) => { ev.stopPropagation(); guardAction(() => { setSeleccionado(e); setModo('editar') }) }}
                         >
                           <Pencil size={13} />
                         </button>
-                        <button
-                          className="esp-action-btn trash"
-                          onClick={(ev) => { ev.stopPropagation(); handleEliminar(e.id) }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {puedeEliminar && (
+                          <button
+                            className="esp-action-btn trash"
+                            onClick={(ev) => { ev.stopPropagation(); handleEliminar(e.id) }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -239,6 +245,7 @@ export default function EspecialidadPage() {
               onEditar={() => setModo('editar')}
               onEliminar={handleEliminar}
               guardando={guardando}
+              ocultarEliminar={!puedeEliminar}
             />
           )}
         </div>

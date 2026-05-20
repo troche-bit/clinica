@@ -204,7 +204,8 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 | Horario Prestador | ✅ migrado a `apps/clinica/configuracion/horario_prestador/` | ✅ migrado a `pages/clinica/configuracion/` |
 | Agenda | ✅ migrado a `apps/clinica/agenda/` | ✅ migrado a `pages/clinica/` |
 | Consultas | ✅ migrado a `apps/clinica/consultas/` | ✅ migrado a `pages/clinica/` |
-| Documentos digitalizados | ✅ migrado a `apps/clinica/configuracion/documentos/` | ✅ migrado a `pages/mantenimiento/` |
+| Documentos digitalizados (pacientes) | ✅ migrado a `apps/clinica/configuracion/documentos/` | ✅ migrado a `pages/mantenimiento/` |
+| Documentos digitalizados (prestadores) | ✅ modelo `DocumentoDigPrestador` · endpoint `/api/documentos-prestador/` | ✅ tab "Documentos" en `PersonaRRHHPage` |
 | Recordatorios | ✅ migrado a `apps/mantenimiento/notificaciones/` | ✅ migrado a `pages/clinica/` |
 | Timbrado | ✅ migrado a `apps/facturacion/configuracion/timbrado/` | ✅ migrado a `pages/facturacion/` |
 | Grupos y Productos | ✅ migrado a `apps/stock/productos/` | ✅ migrado a `pages/stock/` |
@@ -276,7 +277,7 @@ def perform_destroy(self, instance):
 | `Especialidad` | prestadores activos (`persona_rrhh`) | ✅ |
 | `EventoClinico` | consultas activas | ✅ |
 | `Consultorio` | horarios activos en `HorarioPrestador` | ✅ |
-| `TipoDocDigital` | documentos activos | ✅ |
+| `TipoDocDigital` | documentos activos en `DocumentoDigPaciente` (`documentos`) + `DocumentoDigPrestador` (`documentos_prestador`) | ⚠️ verificar que el perform_destroy cubra ambas relaciones |
 | `Paciente` | citas activas en `Agenda` (disponible/ocupado/realizado) | ✅ |
 | `Agenda` | consultas activas (`Consulta.agenda`) | ✅ |
 | `AgendaViewSet` (secretaria_medico) | filtrado por `medicos_asignados` del JWT (`__in`) — ve/gestiona solo la agenda de sus médicos asignados | ✅ |

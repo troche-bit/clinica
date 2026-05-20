@@ -1,0 +1,150 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "EspecialidadPage.jsx" as GUI
+boundary "FormRRHH.jsx" as FORM
+control "useEspecialidades.js" as HOOK
+control "EspecialidadViewSet" as EVIEW
+control "PersonaRRHHViewSet" as RVIEW
+control "AuditoriaMixin" as MIXIN
+entity "Especialidad" as MODEL
+entity "PersonaRRHH" as RRHH
+database "PostgreSQL" as BD
+
+== 1. Admin crea la especialidad ==
+
+USUARIO -> GUI : click "Nueva especialidad"
+GUI --> USUARIO : PanelSimple modo crear
+
+USUARIO -> GUI : ingresa descripcion="Neurología"
+USUARIO -> GUI : click Guardar
+GUI -> HOOK : crear.mutateAsync({ descripcion: "Neurología" })
+HOOK -> EVIEW : POST /api/especialidad/
+
+EVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> MODEL : serializer.save(id_usu_creator=request.user)
+MODEL -> BD : INSERT INTO especialidad\n(descripcion="Neurología", ...)
+BD --> MODEL : { id: 12, descripcion: "Neurología" }
+
+MIXIN -> BD : INSERT INTO auditoria_registro\n(tabla='Especialidad', registro_id=12,\naccion='CREAR')
+BD --> MIXIN : OK
+MIXIN --> EVIEW : 201 Created
+
+EVIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['especialidades'])
+HOOK --> GUI : onSuccess
+GUI --> USUARIO : toast "Especialidad creada correctamente."
+
+== 2. Admin asigna la especialidad a un prestador en FormRRHH ==
+
+USUARIO -> FORM : abre formulario de edición\nde un prestador existente
+FORM -> HOOK : useEspecialidades()\n(page_size=200, staleTime=5min)
+HOOK -> EVIEW : GET /api/especialidad/?page_size=200
+EVIEW -> BD : SELECT WHERE is_deleted=False
+BD --> EVIEW : [todas las especialidades, incluye "Neurología"]
+EVIEW --> HOOK : lista completa
+HOOK --> FORM : data con "Neurología" disponible
+
+USUARIO -> FORM : selecciona "Neurología"\nen SelectorEspecialidades
+USUARIO -> FORM : click Guardar
+FORM -> RVIEW : PATCH /api/personarrhh/{id}/\n{ especialidades: [..., 12] }
+RVIEW -> MIXIN : perform_update(serializer)
+MIXIN -> RRHH : serializer.save(id_usu_modificator=request.user)
+RRHH -> BD : UPDATE persona_rrhh ...\nDELETE FROM personarrhh_especialidades\nWHERE persona_rrhh_id=id\nINSERT INTO personarrhh_especialidades\n(persona_rrhh_id, especialidad_id=12)
+BD --> RRHH : OK
+
+MIXIN -> BD : INSERT INTO auditoria_registro\n(tabla='PersonaRRHH', accion='EDITAR')
+BD --> MIXIN : OK
+MIXIN --> RVIEW : 200 OK
+RVIEW --> FORM : registro actualizado
+FORM --> USUARIO : toast "Prestador actualizado correctamente."
+
+== 3. Intento de eliminar con prestador activo (falla) ==
+
+USUARIO -> GUI : click botón eliminar en fila "Neurología" (id=12)
+GUI --> USUARIO : ConfirmDialog: "¿Estás seguro?\nSi tiene prestadores asignados\nno se podrá eliminar."
+
+USUARIO -> GUI : click Confirmar
+GUI -> HOOK : eliminar.mutate(12)
+HOOK -> EVIEW : DELETE /api/especialidad/12/
+
+EVIEW -> MODEL : perform_destroy(instance)
+MODEL -> BD : SELECT COUNT(*) FROM personarrhh_especialidades\nJOIN persona_rrhh ON ...\nWHERE especialidad_id=12\nAND persona_rrhh.is_deleted=False
+BD --> MODEL : 1
+
+MODEL -> EVIEW : raise ValidationError\n'No se puede eliminar: 1 prestador(es)\ntienen esta especialidad asignada.'
+
+note right of BD
+  Registro id=12 permanece intacto.
+  is_deleted=False.
+  No se crea RegistroAuditoria.
+end note
+
+EVIEW --> HOOK : HTTP 400
+HOOK -> GUI : onError(err)
+GUI --> USUARIO : toast "No se puede eliminar:\n1 prestador(es) tienen\nesta especialidad asignada."
+
+== 4. Admin desvincula el prestador ==
+
+USUARIO -> FORM : edita el prestador,\nquita "Neurología" del selector
+USUARIO -> FORM : click Guardar
+FORM -> RVIEW : PATCH /api/personarrhh/{id}/\n{ especialidades: [...sin id 12] }
+RVIEW -> MIXIN : perform_update(serializer)
+MIXIN -> RRHH : serializer.save(...)
+RRHH -> BD : DELETE FROM personarrhh_especialidades\nWHERE persona_rrhh_id=id AND especialidad_id=12
+BD --> RRHH : OK
+
+MIXIN -> BD : INSERT INTO auditoria_registro\n(tabla='PersonaRRHH', accion='EDITAR')
+BD --> MIXIN : OK
+MIXIN --> RVIEW : 200 OK
+RVIEW --> FORM : OK
+FORM --> USUARIO : toast "Prestador actualizado correctamente."
+
+== 5. Eliminación exitosa ==
+
+USUARIO -> GUI : click botón eliminar en fila "Neurología" (id=12)
+GUI --> USUARIO : ConfirmDialog confirmación
+
+USUARIO -> GUI : click Confirmar
+GUI -> HOOK : eliminar.mutate(12)
+HOOK -> EVIEW : DELETE /api/especialidad/12/
+
+EVIEW -> MODEL : perform_destroy(instance)
+MODEL -> BD : SELECT COUNT(*) WHERE especialidad_id=12\nAND persona_rrhh.is_deleted=False
+BD --> MODEL : 0
+
+EVIEW -> MIXIN : super().perform_destroy(instance)
+MIXIN -> MODEL : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+MODEL -> BD : UPDATE especialidad SET is_deleted=True, ...\nWHERE id=12
+BD --> MODEL : OK
+
+MIXIN -> BD : INSERT INTO auditoria_registro\n(tabla='Especialidad', registro_id=12,\naccion='ELIMINAR')
+BD --> MIXIN : OK
+MIXIN --> EVIEW : 204 No Content
+
+EVIEW --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['especialidades'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Especialidad eliminada."
+
+note over BD
+  Registro id=12 permanece en PostgreSQL con is_deleted=True.
+  Los registros en personarrhh_especialidades subsisten pero
+  los queries filtran siempre is_deleted=False en persona_rrhh.
+end note
+
+@enduml

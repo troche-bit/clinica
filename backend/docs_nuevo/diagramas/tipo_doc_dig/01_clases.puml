@@ -1,0 +1,74 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class TipoDocDigital {
+  + id : AutoField <<PK>>
+  + descripcion : CharField(100)
+  + storage_key : SlugField(50) <<inmutable>>
+  --
+  db_table = 'tipo_doc_dig'
+  ordering = ['descripcion']
+  unique: Lower(descripcion) WHERE is_deleted=False
+  unique: storage_key WHERE is_deleted=False
+  index: idx_tipo_doc_dig_desc_del
+  --
+  + __str__() : str
+}
+
+class DocumentoDigPaciente {
+  + id : AutoField <<PK>>
+  + tipo_doc_dig : ForeignKey
+  + paciente : ForeignKey
+  + archivo : FileField
+  + ...
+  --
+  related_name = 'documentos'
+}
+
+note right of TipoDocDigital
+  storage_key — SlugField
+  Desacopla el nombre visible
+  de la ruta física del archivo.
+  Permite renombrar la descripción
+  sin romper rutas ya almacenadas.
+  Inmutable: el serializer descarta
+  storage_key en update().
+  Ruta generada:
+  documentos/{storage_key}/{year}/
+  {timestamp}_{storage_key}.{ext}
+end note
+
+BaseModel <|-- TipoDocDigital : hereda
+BaseModel <|-- DocumentoDigPaciente : hereda
+
+TipoDocDigital "1" <-- "0..*" DocumentoDigPaciente : tipo_doc_dig\n(FK, related_name='documentos')
+
+@enduml

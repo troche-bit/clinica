@@ -1,0 +1,73 @@
+@startuml 02_secuencia_login
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "Login.jsx" as GUI
+control "AuthContext" as CTX
+control "TokenObtainPair\nView" as VIEW
+entity "PerfilUsuario" as PERFIL
+database "PostgreSQL" as BD
+
+== Login exitoso ==
+
+USUARIO -> GUI : ingresa username + password
+GUI -> CTX : login(username, password)
+CTX -> VIEW : POST /api/auth/token/
+VIEW -> BD : SELECT auth_user WHERE username=...
+BD --> VIEW : User object
+VIEW -> BD : SELECT users_perfilusuario WHERE user_id=...
+BD --> VIEW : PerfilUsuario object
+VIEW -> VIEW : check PerfilUsuario.activo
+VIEW -> VIEW : get_token(user)\nadd claims: rol, nombre,\niniciales, activo,\npersona_rrhh_id,\nmedicos_asignados
+VIEW --> CTX : 200 { access, refresh }
+CTX -> CTX : localStorage.setItem\n('access_token')\n('refresh_token')
+CTX -> CTX : buildUser(access)\ndecodeJwt(token)
+CTX -> CTX : setUser(user)
+CTX --> GUI : user actualizado
+GUI -> GUI : redirige a /\nSidebar filtra menú\nsegún user.rol
+
+== Credenciales incorrectas ==
+
+USUARIO -> GUI : username o password inválidos
+GUI -> CTX : login(username, password)
+CTX -> VIEW : POST /api/auth/token/
+VIEW -> BD : SELECT auth_user
+BD --> VIEW : no encontrado / password inválido
+VIEW --> CTX : 401 Unauthorized
+CTX --> GUI : throw error
+GUI --> USUARIO : "Credenciales inválidas"
+
+== Cuenta desactivada ==
+
+USUARIO -> GUI : credenciales válidas, perfil inactivo
+GUI -> CTX : login(username, password)
+CTX -> VIEW : POST /api/auth/token/
+VIEW -> BD : SELECT users_perfilusuario
+BD --> VIEW : PerfilUsuario { activo: false }
+VIEW -> VIEW : activo == false\nraise AuthenticationFailed
+VIEW --> CTX : 401 "Usuario desactivado.\nContacte al administrador."
+CTX --> GUI : throw error
+GUI --> USUARIO : mensaje de cuenta inactiva
+
+== Logout ==
+
+USUARIO -> GUI : click Cerrar sesión
+GUI -> CTX : logout()
+CTX -> CTX : queryClient.clear()
+CTX -> CTX : localStorage.clear()
+CTX -> CTX : setUser(null)
+CTX --> GUI : user = null
+GUI -> GUI : redirige a /login
+
+@enduml

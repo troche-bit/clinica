@@ -1,0 +1,241 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+note as N1
+  Los informes no tienen modelos propios.
+  Consumen datos de los modulos existentes
+  y los agregan directamente en el backend
+  mediante @action en los ViewSets.
+end note
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey [null]
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey [null]
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Persona {
+  + id : AutoField <<PK>>
+  + razon_social : CharField
+  + documento : CharField
+  + correo_electronico : EmailField [null]
+  + telefono : CharField [null]
+  + fecha_nacimiento : DateField [null]
+  + sexo : CharField [null]
+  --
+  Sexo: M / F / O
+}
+
+class Paciente {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey
+  + grupo_sanguineo : CharField [null]
+  + responsable : CharField [null]
+  --
+  db_table = 'paciente'
+  --
+  Filtros de reporte:
+  pais / departamento / ciudad
+  sexo / grupo_sanguineo
+  fecha_registro (fecha_creacion)
+  --
+  @actions de informe:
+  reporte_lista → PDF (WeasyPrint)
+  reporte_lista_excel → Excel (openpyxl)
+  count → { total }
+  dashboard_mensual → JSON agregado
+}
+
+class Ciudad {
+  + id : AutoField <<PK>>
+  + nombre : CharField
+  + departamento : ForeignKey
+}
+
+class Departamento {
+  + id : AutoField <<PK>>
+  + nombre : CharField
+  + pais : ForeignKey
+}
+
+class Pais {
+  + id : AutoField <<PK>>
+  + nombre : CharField
+}
+
+class PersonaRRHH {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey
+  + cargo : CharField
+  --
+  Para filtros: persona_rrhh
+  (prestadores/medicos)
+}
+
+class EventoClinico {
+  + id : AutoField <<PK>>
+  + nombre : CharField
+  --
+  Filtro de reporte consultas
+}
+
+class Especialidad {
+  + id : AutoField <<PK>>
+  + nombre : CharField
+  --
+  Filtro de reporte consultas
+  y agenda
+}
+
+class Consulta {
+  + id : AutoField <<PK>>
+  + agenda : ForeignKey
+  + estado : CharField
+  + diagnostico : TextField [null]
+  + indicaciones : TextField [null]
+  + proxima_cita : DateField [null]
+  + evento_clinico : ForeignKey [null]
+  --
+  db_table = 'consulta'
+  --
+  estado: en_espera / en_consulta /
+          finalizada / cancelada
+  --
+  @actions de informe:
+  stats_hoy → { total, en_espera,
+    en_consulta, finalizadas }
+  reporte_consultas → PDF agrupado
+    por especialidad
+  reporte_consultas_excel → Excel
+    con separadores de grupo
+  dashboard_consultas → JSON agregado
+  historia_clinica → PDF por paciente
+}
+
+class Agenda {
+  + id : AutoField <<PK>>
+  + paciente : ForeignKey [null]
+  + horario_prestador : ForeignKey
+  + fecha : DateField
+  + hora_desde : TimeField
+  + hora_hasta : TimeField
+  + estado : CharField
+  + pagado_prestador : BooleanField
+  --
+  db_table = 'agenda'
+  --
+  estado: DISPONIBLE / OCUPADO /
+          REALIZADO / CANCELADO /
+          INACTIVO
+  --
+  @actions de informe:
+  stats_hoy → { total, confirmadas,
+    pendientes, realizadas,
+    inactivos, cancelados }
+  reporte_agenda → PDF agrupado
+    por medico
+  dashboard_agenda → JSON agregado
+  dashboard_prestadores → ocupacion
+  dashboard_ocupacion → mapa de calor
+}
+
+class DocumentoDigPaciente {
+  + id : AutoField <<PK>>
+  + consulta : ForeignKey
+  + archivo : FileField
+  + descripcion : CharField [null]
+  --
+  Incluido en historia_clinica PDF.
+  Agrupado por consulta_id
+  como docs_map.
+}
+
+note right of Paciente
+  dashboard_mensual retorna:
+  - total_mes: pacientes del mes
+  - por_dia: todos los dias del mes
+    con es_futuro bool
+  - por_semana: grupos de 7 dias
+  - por_sexo: { M, F, O }
+  - por_grupo_etario: 7 rangos
+    (0-10, 11-17, 18-29, 30-44,
+     45-59, 60-74, 75+)
+  - por_departamento: top5 + otros
+  - tendencia_6meses: ultimos 6 meses
+end note
+
+note right of Consulta
+  reporte_consultas usa
+  _consultas_agrupadas(request):
+  agrupa por especialidad.
+  Filtros: persona_rrhh, especialidad,
+  evento_clinico (BuscadorFiltrable),
+  paciente (debounce 300ms),
+  fecha_desde / fecha_hasta.
+
+  dashboard_consultas retorna:
+  - total_mes
+  - por_estado
+  - top_prestadores[:5]
+  - por_especialidad[:8]
+  - comparativa_6_meses
+
+  historia_clinica:
+  - requiere paciente_id
+  - carga todas las consultas
+  - adjunta docs_map (DocumentoDigPaciente)
+  - filename: historia_{safe_name}.pdf
+end note
+
+note right of Agenda
+  reporte_agenda usa grupos_dict:
+  agrupa turnos por medico.
+  Filtros: fecha_desde, fecha_hasta,
+  persona_rrhh, especialidad, estado.
+
+  dashboard_prestadores retorna:
+  - turnos_por_medico[:10]
+    con pct_ocupacion
+  - comparativa_especialidades[:8]
+  - dias_mas_demandados (ISO Mon-Sun)
+  - horarios_mas_demandados[:8]
+  - ocupacion_promedio
+  - total_mes
+
+  dashboard_ocupacion:
+  - mapa_calor: dia_dj x hora x total
+    via ExtractWeekDay + ExtractHour
+end note
+
+BaseModel <|-- Paciente
+BaseModel <|-- Consulta
+BaseModel <|-- Agenda
+BaseModel <|-- DocumentoDigPaciente
+
+Persona "1" <-- "0..*" Paciente : persona
+Ciudad "0..1" <-- "0..*" Paciente : ciudad
+Ciudad "0..*" --> "1" Departamento
+Departamento "0..*" --> "1" Pais
+
+Agenda "1" <-- "0..*" Consulta : agenda
+EventoClinico "0..1" <-- "0..*" Consulta : evento_clinico
+Consulta "1" <-- "0..*" DocumentoDigPaciente : consulta
+
+PersonaRRHH "1" <-- "0..*" Agenda : (via horario_prestador)
+Especialidad "0..*" <-- "0..*" PersonaRRHH : especialidades
+
+@enduml

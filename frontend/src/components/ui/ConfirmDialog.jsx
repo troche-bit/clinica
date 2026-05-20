@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
 
-export default function ConfirmDialog({ isOpen, title, description, onConfirm, onCancel, loading = false }) {
+export default function ConfirmDialog({
+  isOpen, title, description, onConfirm, onCancel, loading = false,
+  confirmText = 'Eliminar', cancelText = 'Cancelar',
+}) {
   useEffect(() => {
     const handleEsc = (e) => { if (e.key === 'Escape' && !loading) onCancel() }
     if (isOpen) window.addEventListener('keydown', handleEsc)
@@ -105,10 +108,10 @@ export default function ConfirmDialog({ isOpen, title, description, onConfirm, o
 
           <div className="cd-footer">
             <button className="btn btn-secondary" onClick={onCancel} disabled={loading}>
-              Cancelar
+              {cancelText}
             </button>
             <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-              {loading ? 'Eliminando...' : 'Eliminar'}
+              {loading ? `${confirmText}...` : confirmText}
             </button>
           </div>
         </div>

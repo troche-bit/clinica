@@ -1,0 +1,66 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "ConsultorioPage.jsx" as PAGE
+  component "PanelSimple.jsx" as PANEL
+  component "useConsultorios.js" as HOOK
+  component "client.js" as CLIENT
+  component "utils/errores.js" as ERRORES
+  component "ConfirmDialog.jsx" as DIALOG
+}
+
+package "Backend" {
+  component "ConsultorioViewSet" as VIEWSET
+  component "ConsultorioSerializer" as SERIAL
+  component "ConsultorioListSerializer" as LISTSERIAL
+  component "AuditoriaMixin" as MIXIN
+}
+
+package "Base de Datos" {
+  database "consultorio" as DB
+}
+
+PAGE --> PANEL : "Master-Detail pattern"
+PAGE --> HOOK : usa
+PAGE --> DIALOG : confirmación eliminación
+HOOK --> CLIENT : peticiones HTTP
+HOOK ..> ERRORES : extraerMensajeError
+
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/consultorio/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : list / retrieve
+VIEWSET --> SERIAL : create / update / destroy
+
+MIXIN ..> VIEWSET : "registra auditoría\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey\n['consultorios']"
+
+SERIAL --> DB : "borrado lógico\n(is_deleted=True)"
+LISTSERIAL --> DB : "SELECT WHERE\nis_deleted=False"
+
+@enduml

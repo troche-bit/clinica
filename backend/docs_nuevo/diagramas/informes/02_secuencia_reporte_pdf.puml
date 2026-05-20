@@ -1,0 +1,161 @@
+@startuml 02_secuencia_reporte_pdf
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+boundary "InformesPacientePage.jsx" as GUI
+control "client.js\n(axios)" as CLIENT
+control "PacienteViewSet" as PVIEW
+control "ConsultaViewSet" as CVIEW
+control "AgendaViewSet" as AVIEW
+control "HorarioPrestadorViewSet" as HVIEW
+entity "Paciente / Consulta\n/ Agenda" as MODELS
+database "PostgreSQL" as BD
+control "WeasyPrint" as WEASY
+control "openpyxl" as OPENPYXL
+
+== 1. Usuario selecciona seccion Listados exportables ==
+
+USUARIO -> GUI : abre InformesPacientePage\n(ruta /informes)
+
+GUI -> CLIENT : GET /api/paciente/count/\n(si esResumen)
+CLIENT -> PVIEW : count()
+PVIEW -> BD : SELECT COUNT(*) FROM paciente\nWHERE is_deleted=False
+BD --> PVIEW : { total: 142 }
+PVIEW --> CLIENT : { total: 142 }
+
+GUI --> USUARIO : 5 cards de Listados exportables\n5 cards de Estadisticas
+
+== 2. Modal Pacientes — filtros en cascada ==
+
+USUARIO -> GUI : click card "Pacientes"
+GUI --> USUARIO : ModalFiltrosPacientes:\n- Pais → Departamento → Ciudad\n  (cascada: cada select filtra el siguiente)\n- Sexo: M / F / O\n- Grupo sanguineo: A+ / A- / B+ ...\n- Fecha registro desde/hasta\n- Botones: "Ver PDF" · "Descargar Excel"
+
+USUARIO -> GUI : selecciona Pais=Paraguay\ndepartamento=Central\nsexo=F\nfecha_desde=2026-01-01
+
+== 3. Ver PDF de pacientes ==
+
+USUARIO -> GUI : click "Ver PDF"
+
+GUI -> GUI : buildQS(filtros):\n  params = new URLSearchParams()\n  skips empty values\n  '?pais=1&departamento=2&sexo=F\n  &fecha_desde=2026-01-01'
+
+GUI -> CLIENT : GET /api/paciente/reporte-lista/?pais=1\n&departamento=2&sexo=F&fecha_desde=2026-01-01\n{ responseType: 'blob' }
+
+CLIENT -> PVIEW : reporte_lista(request)
+PVIEW -> BD : SELECT paciente JOIN persona JOIN ciudad\nJOIN departamento JOIN pais\nWHERE is_deleted=False\nAND pais_id=1\nAND departamento_id=2\nAND persona__sexo='F'\nAND fecha_creacion >= 2026-01-01\nORDER BY persona__razon_social
+BD --> PVIEW : queryset filtrado
+
+PVIEW -> PVIEW : contexto = {\n  pacientes: queryset,\n  filtros_aplicados: {...},\n  fecha_generacion: now() }
+
+PVIEW -> WEASY : render_to_string(\n  'informes/paciente_lista.html',\n  contexto )\nHTML.write_pdf(html_string)
+WEASY --> PVIEW : bytes PDF
+
+PVIEW --> CLIENT : HttpResponse(pdf_bytes,\n  content_type='application/pdf',\n  Content-Disposition: inline; filename=...)
+
+CLIENT --> GUI : blob (application/pdf)
+GUI -> GUI : url = URL.createObjectURL(blob)\nwindow.open(url, '_blank')
+GUI --> USUARIO : se abre el PDF en nueva pestana\nColumnas: N° / Nombre / Documento /\nEdad / Sexo / Telefono / Responsable
+
+== 4. Descargar Excel de pacientes ==
+
+USUARIO -> GUI : click "Descargar Excel"
+
+GUI -> CLIENT : GET /api/paciente/reporte-lista-excel/\n?pais=1&departamento=2&sexo=F\n&fecha_desde=2026-01-01\n{ responseType: 'blob' }
+
+CLIENT -> PVIEW : reporte_lista_excel(request)
+PVIEW -> BD : [mismos filtros que PDF]
+BD --> PVIEW : queryset
+
+PVIEW -> OPENPYXL : Workbook()\nheader fill: PatternFill(#1A3A5C)\nfont blanco, bold\neven rows fill: PatternFill(#F8FAFC)\nColumnas: N° / Nombre / Documento /\nEdad / Sexo / Telefono / Responsable\nseccion filtros_aplicados al final
+OPENPYXL --> PVIEW : workbook.save(response)
+
+PVIEW --> CLIENT : HttpResponse(.xlsx,\n  content_type=application/vnd.openxmlformats...)\n  Content-Disposition: attachment; filename=pacientes.xlsx
+
+CLIENT --> GUI : blob (.xlsx)
+GUI -> GUI : link = document.createElement('a')\nlink.href = URL.createObjectURL(blob)\nlink.download = 'pacientes.xlsx'\nlink.click()
+GUI --> USUARIO : descarga el archivo Excel
+
+== 5. Modal Consultas ==
+
+USUARIO -> GUI : click card "Consultas"
+GUI --> USUARIO : ModalFiltrosConsultas:\n- Persona RRHH (BuscadorFiltrable)\n- Especialidad (BuscadorFiltrable)\n- Evento clinico (BuscadorFiltrable)\n- Paciente (debounce 300ms)\n- Fecha desde / hasta\n- Botones: "Ver PDF" · "Descargar Excel"
+
+USUARIO -> GUI : click "Ver PDF"
+
+GUI -> CLIENT : GET /api/consultas/reporte-consultas/\n?persona_rrhh=3&fecha_desde=2026-05-01\n{ responseType: 'blob' }
+
+CLIENT -> CVIEW : reporte_consultas(request)
+CVIEW -> CVIEW : _consultas_agrupadas(request):\n  consultas = Consulta.filter(is_deleted=False)\n  grupos por especialidad
+
+CVIEW -> WEASY : render_to_string(\n  'informes/consultas_lista.html', contexto)
+WEASY --> CVIEW : bytes PDF
+CVIEW --> CLIENT : HttpResponse(pdf_bytes)
+
+CLIENT --> GUI : blob → window.open(url, '_blank')
+GUI --> USUARIO : PDF agrupado por especialidad\nColumnas: N° / Fecha / Paciente /\nPrestador / Evento Clinico / Estado
+
+note right of CVIEW
+  reporte_consultas_excel usa openpyxl
+  con fill_grupo (#EEF2F7) para
+  separadores de cada especialidad.
+  6 columnas: N° / Fecha / Paciente /
+  Prestador / Evento Clinico / Estado.
+end note
+
+== 6. Modal Historia Clinica ==
+
+USUARIO -> GUI : click card "Historia clinica"
+GUI --> USUARIO : buscador de paciente\n(debounce 300ms, navegacion ↑↓ Enter/Escape)
+
+USUARIO -> GUI : escribe "Rodriguez"\nselecciona paciente Maria Rodriguez
+
+GUI -> CLIENT : GET /api/consultas/historia-clinica/\n?paciente=25\n{ responseType: 'blob' }
+
+CLIENT -> CVIEW : historia_clinica(request)
+CVIEW -> BD : SELECT consulta WHERE\nagenda__paciente_id=25\nAND is_deleted=False\nORDER BY agenda__fecha DESC
+BD --> CVIEW : todas las consultas del paciente
+
+CVIEW -> BD : SELECT documentodigpaciente\nWHERE consulta_id IN [...]\nAND is_deleted=False
+BD --> CVIEW : docs_map (por consulta_id)
+
+CVIEW -> WEASY : render_to_string(\n  'informes/historia_clinica.html', contexto)
+WEASY --> CVIEW : bytes PDF
+
+CVIEW --> CLIENT : HttpResponse(pdf_bytes,\n  filename='historia_Maria_Rodriguez.pdf')
+CLIENT --> GUI : blob → window.open(url, '_blank')
+GUI --> USUARIO : PDF historia clinica completa
+
+== 7. Modal Agenda ==
+
+USUARIO -> GUI : click card "Agenda del dia/semana"
+GUI --> USUARIO : ModalFiltrosAgenda:\n- Fecha desde / hasta (max='2099-12-31')\n- Persona RRHH (BuscadorFiltrable)\n- Especialidad (BuscadorFiltrable)\n- Estado select\n- Solo boton "Ver PDF" (sin Excel)
+
+USUARIO -> GUI : selecciona rango fechas + medico
+GUI -> CLIENT : GET /api/agenda/reporte-agenda/\n?fecha_desde=...&fecha_hasta=...&persona_rrhh=3\n{ responseType: 'blob' }
+
+CLIENT -> AVIEW : reporte_agenda(request)
+AVIEW -> AVIEW : grupos_dict: turnos\nagrupados por medico
+AVIEW -> WEASY : render_to_string(\n  'informes/agenda_lista.html', contexto)
+WEASY --> AVIEW : bytes PDF
+AVIEW --> CLIENT : HttpResponse(pdf_bytes)
+CLIENT --> GUI : blob → window.open(url, '_blank')
+GUI --> USUARIO : PDF turnos agrupados por medico
+
+== 8. Modal Horarios Prestadores ==
+
+USUARIO -> GUI : click card "Horarios prestadores"
+GUI --> USUARIO : ModalFiltrosHorarios:\n- Persona RRHH (BuscadorFiltrable)\n- Dia semana select\n- Botones: "Ver PDF" · "Descargar Excel"
+
+GUI -> CLIENT : GET /api/horario-prestador/reporte-horarios/\n?persona_rrhh=3\n{ responseType: 'blob' }
+
+CLIENT -> HVIEW : reporte_horarios(request)
+HVIEW -> WEASY : genera PDF con horarios
+WEASY --> HVIEW : bytes
+HVIEW --> CLIENT : HttpResponse(pdf_bytes)
+CLIENT --> GUI : blob → window.open(url, '_blank')
+GUI --> USUARIO : PDF horarios del prestador
+
+@enduml

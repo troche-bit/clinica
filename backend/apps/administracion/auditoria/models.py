@@ -5,13 +5,14 @@ from django.conf import settings
 class RegistroAuditoria(models.Model):
 
     class Accion(models.TextChoices):
-        CREAR    = 'CREAR',    'Crear'
-        EDITAR   = 'EDITAR',   'Editar'
-        ELIMINAR = 'ELIMINAR', 'Eliminar'
+        CREAR       = 'CREAR',       'Crear'
+        EDITAR      = 'EDITAR',      'Editar'
+        ELIMINAR    = 'ELIMINAR',    'Eliminar'
+        ENVIO_EMAIL = 'ENVIO_EMAIL', 'Envío de Email'
 
     tabla       = models.CharField(max_length=100)
     registro_id = models.IntegerField()
-    accion      = models.CharField(max_length=10, choices=Accion.choices)
+    accion      = models.CharField(max_length=12, choices=Accion.choices)
     datos_antes = models.JSONField(null=True, blank=True)
     datos_despues = models.JSONField(null=True, blank=True)
     usuario     = models.ForeignKey(

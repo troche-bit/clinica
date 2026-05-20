@@ -50,6 +50,22 @@ class AgendaSerializer(serializers.ModelSerializer):
             'estado', 'observacion',
         ]
         read_only_fields = ['fecha_creacion', 'fecha_modificacion']
+        validators = []
+
+    def validate(self, data):
+        qs = Agenda.objects.filter(
+            horario_prestador=data.get('horario_prestador'),
+            fecha=data.get('fecha'),
+            hora_desde=data.get('hora_desde'),
+            is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                'Ya existe un turno para este horario en la misma fecha y hora de inicio.'
+            )
+        return data
 
 
 class AgendaListSerializer(serializers.ModelSerializer):
@@ -59,6 +75,14 @@ class AgendaListSerializer(serializers.ModelSerializer):
     paciente_detalle = AgendaPacienteDetalleSerializer(
         source='paciente', read_only=True,
     )
+    consulta_estado = serializers.SerializerMethodField()
+
+    def get_consulta_estado(self, obj):
+        consulta = next(
+            (c for c in obj.consultas.all() if not c.is_deleted),
+            None,
+        )
+        return consulta.estado if consulta else None
 
     class Meta:
         model  = Agenda
@@ -68,5 +92,6 @@ class AgendaListSerializer(serializers.ModelSerializer):
             'fecha', 'hora_desde', 'hora_hasta',
             'estado', 'observacion',
             'pagado_prestador', 'pago_prestador',
+            'consulta_estado',
         ]
         read_only_fields = ['fecha_creacion', 'fecha_modificacion']

@@ -1,0 +1,120 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "UbicacionesPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useUbicacion.js" as HOOK
+control "PaisViewSet" as PVIS
+control "DepartamentoViewSet" as DVIS
+control "CiudadViewSet" as CVIS
+entity "Pais" as MPAIS
+entity "Departamento" as MDEPTO
+entity "Ciudad" as MCIUDAD
+entity "Persona" as MPERS
+database "PostgreSQL" as BD
+
+== Flujo 1: Borrar ciudad sin personas vinculadas ==
+
+ADMIN -> GUI : click icono eliminar en fila Ciudad
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : confirmacion eliminar ciudad
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminarCiudad.mutate(ciudadId)
+HOOK -> CVIS : DELETE /api/ciudad/{id}/
+
+CVIS -> MCIUDAD : perform_destroy(instance)
+MCIUDAD -> MPERS : instance.ciudades.filter(is_deleted=False).exists()
+MPERS -> BD : SELECT 1 FROM persona WHERE ciudad_id=id AND is_deleted=False LIMIT 1
+BD --> MPERS : (vacio)
+MPERS --> MCIUDAD : False
+
+CVIS -> CVIS : AuditoriaMixin.perform_destroy()
+CVIS -> MCIUDAD : is_deleted=True, fecha_eliminacion=now(), id_usu_modificator=request.user
+MCIUDAD -> BD : UPDATE ciudad SET is_deleted=True WHERE id=id
+BD --> MCIUDAD : OK
+
+CVIS -> BD : INSERT auditoria_registro (accion='ELIMINAR')
+BD --> CVIS : OK
+CVIS --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['ciudades', deptoId])
+HOOK -> GUI : showToast("Ciudad eliminada.", "success")
+GUI --> ADMIN : fila desaparece de la tabla
+
+== Flujo 2: Borrar departamento — bloqueado por ciudades activas ==
+
+ADMIN -> GUI : click icono eliminar en fila Departamento
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : confirmacion eliminar departamento
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminarDepto.mutate(deptoId)
+HOOK -> DVIS : DELETE /api/departamento/{id}/
+
+DVIS -> MDEPTO : perform_destroy(instance)
+MDEPTO -> MCIUDAD : instance.ciudades.filter(is_deleted=False).exists()
+MCIUDAD -> BD : SELECT 1 FROM ciudad WHERE departamento_id=id AND is_deleted=False LIMIT 1
+BD --> MCIUDAD : (un registro)
+MCIUDAD --> MDEPTO : True
+
+MDEPTO -> DVIS : raise ValidationError\n'No se puede eliminar:\ntiene ciudades activas vinculadas.'
+
+note right of DVIS
+  AuditoriaMixin.perform_destroy()
+  NO se ejecuta.
+  El departamento NO se modifica.
+end note
+
+DVIS --> HOOK : HTTP 400 { detail: 'No se puede eliminar: tiene ciudades activas vinculadas.' }
+HOOK -> GUI : onError -> showToast(extraerMensajeError(err), 'error')
+GUI --> ADMIN : toast con mensaje de error
+
+== Flujo 3: Borrar pais — doble validacion (departamentos y personas) ==
+
+ADMIN -> GUI : click icono eliminar en fila Pais
+GUI -> DIALOG : isOpen=true
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminarPais.mutate(paisId)
+HOOK -> PVIS : DELETE /api/pais/{id}/
+
+PVIS -> MPAIS : perform_destroy(instance)
+MPAIS -> MDEPTO : instance.departamentos.filter(is_deleted=False).exists()
+MDEPTO -> BD : SELECT 1 FROM departamento WHERE pais_id=id AND is_deleted=False LIMIT 1
+BD --> MDEPTO : (vacio)
+MDEPTO --> MPAIS : False
+
+MPAIS -> MPERS : instance.personas.filter(is_deleted=False).exists()
+MPERS -> BD : SELECT 1 FROM persona WHERE ciudad__departamento__pais_id=id AND is_deleted=False LIMIT 1
+BD --> MPERS : (vacio)
+MPERS --> MPAIS : False
+
+PVIS -> PVIS : AuditoriaMixin.perform_destroy()
+PVIS -> MPAIS : is_deleted=True, fecha_eliminacion=now(), id_usu_modificator=request.user
+MPAIS -> BD : UPDATE pais SET is_deleted=True WHERE id=id
+BD --> MPAIS : OK
+
+PVIS -> BD : INSERT auditoria_registro (accion='ELIMINAR')
+BD --> PVIS : OK
+PVIS --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['paises'])
+HOOK -> GUI : showToast("Pais eliminado.", "success")
+GUI --> ADMIN : fila desaparece de la tabla
+
+note over BD
+  El registro queda en PostgreSQL con is_deleted=True.
+  Se puede reutilizar la descripcion en un nuevo registro.
+  UniqueConstraint usa condition=Q(is_deleted=False).
+end note
+
+@enduml

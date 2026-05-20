@@ -1,0 +1,171 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "PersonaRRHHPage.jsx" as PAGE
+  component "PersonaRRHHForm.jsx" as PFORM
+  component "BuscadorPersona.jsx" as BUSC
+  component "FormRRHH.jsx" as FRRHH
+  component "FormPersona.jsx" as FPER
+  component "SelectorEspecialidades" as SESP
+  component "usePersonaRRHH.js" as HOOK
+  component "useEspecialidades.js" as HESPE
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+
+  note right of PAGE
+    Patron Modal
+    modo: ver / editar / crear / null
+    isOpen={modo !== null}
+    Pestanas en modo 'ver':
+      Ficha / Documentos
+    Paginacion 20 por pagina
+    PDF + Excel export (blob autenticado)
+    Insert abre modo crear
+    puedeEliminar = rol admin
+    SeccionDocumentos read-only en detalle
+    fetchDocumentoPrestadorBlob() via fetch nativo
+    Imagen overlay para previsualizacion
+  end note
+
+  note right of PFORM
+    Orquestador:
+    BuscadorPersona + FormPersona + FormRRHH.
+    SeccionDocumentos (staged) solo en editar.
+    Guardado secuencial Persona -> PersonaRRHH.
+    markDirty() al detectar resultado.
+    markClean() al guardar o desmontar.
+    F10 para guardar.
+  end note
+
+  note right of BUSC
+    Detecta modo segun /api/personarrhh/buscar/:
+    crear_todo (persona: null)
+    agregar (persona existe, no prestador)
+    editar (es_prestador: true)
+    Badge de color por modo.
+    Endpoint: GET /api/personarrhh/buscar/?nro_documento=X
+    Retorna: {persona, personarrhh, es_prestador}
+  end note
+
+  note right of FRRHH
+    Sub-formulario campos propios:
+    cargo (required), tipo_contrato (required),
+    estado, nro_matricula (validacion async),
+    especialidades (SelectorEspecialidades),
+    honorario, observacion.
+    Notifica padre via onChange(form).
+  end note
+
+  note right of SESP
+    Selector M2M con tags.
+    Busqueda con dropdown y navegacion
+    UpDownEnterEscape Backspace.
+    Opcion "+ Crear [texto]" al final
+    del dropdown si busqueda.trim > 0.
+    Crea especialidad via
+    useEspecialidadMutations.mutateAsync()
+    y auto-selecciona la nueva.
+  end note
+}
+
+package "Backend" {
+  component "PersonaRRHHViewSet" as VIEWSET
+  component "PersonaViewSet" as PVIEW
+  component "PersonaRRHHListSerializer" as LISTSERIAL
+  component "PersonaRRHHSerializer" as SERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of PVIEW
+    perform_destroy lanza MethodNotAllowed.
+    Persona es indestructible.
+  end note
+
+  note right of VIEWSET
+    Permisos: list/retrieve/buscar/\nvalidar_matricula/reporte_lista/\nreporte_lista_excel = IsAuthenticated.\nResto = IsAdminRole.
+    get_queryset filtra por rol:
+    medico ve solo su propio registro,
+    secretaria_medico ve sus medicos asignados.
+    @action buscar: detecta modo segun
+    existencia de persona y prestador.
+    @action validar_matricula: unicidad async.
+    @action eliminados: lista borrados.
+    @action reporte_lista: PDF WeasyPrint.
+    @action reporte_lista_excel: Excel openpyxl.
+    perform_destroy: verifica turnos activos,
+    cascada logica Agenda+Horario,
+    clear M2M, super().
+  end note
+
+  note right of LISTSERIAL
+    Campos planos: nombre, documento
+    (source=persona.*).
+    especialidades_detalle (many=True).
+    Usado en list/retrieve/buscar/eliminados.
+  end note
+}
+
+package "Base de Datos" {
+  database "persona" as DBPER
+  database "persona_rrhh" as DBRRHH
+  database "persona_rrhh_especialidades\n(tabla M2M)" as DBM2M
+  database "especialidad" as DBESP
+  database "horario_prestador\n(FK a persona_rrhh)" as DBHOR
+  database "agenda\n(FK a horario_prestador)" as DBAG
+  database "perfilusuario\n(FK a persona_rrhh)" as DBPERFIL
+}
+
+PAGE --> PFORM : "modal crear / editar"
+PAGE --> HOOK : "usePersonasRRHH (paginado)\nusePersonaRRHHMutations(showToast)"
+PAGE --> DIALOG : "confirmacion eliminacion\n(menciona turnos activos)"
+
+PFORM --> BUSC : "buscar por documento"
+PFORM --> FPER : "sub-formulario persona"
+PFORM --> FRRHH : "sub-formulario prestador"
+
+FRRHH --> SESP : "selector M2M especialidades"
+SESP --> HESPE : "useEspecialidades (page_size=200)\nuseEspecialidadMutations (crear inline)"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/personarrhh/"
+CLIENT --> PVIEW : "POST/PATCH /api/persona/"
+
+BUSC --> CLIENT : "GET /api/personarrhh/buscar/?nro_documento=X"
+FRRHH --> CLIENT : "GET /api/personarrhh/validar-matricula/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados / buscar"
+VIEWSET --> SERIAL : "create / update / destroy"
+
+MIXIN ..> VIEWSET : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey ['personasrrhh']\n+ toast desde el hook (eliminar)\n+ toast desde la pagina (guardar)"
+
+SERIAL --> DBRRHH : "INSERT / UPDATE persona_rrhh"
+SERIAL --> DBM2M : "INSERT / DELETE M2M especialidades"
+LISTSERIAL --> DBRRHH : "SELECT JOIN persona, especialidades\nWHERE is_deleted=False"
+
+VIEWSET ..> DBAG : "verifica turnos activos\nantes de borrado logico"
+VIEWSET ..> DBHOR : "cascade logica HorarioPrestador\nen perform_destroy"
+VIEWSET ..> DBM2M : "instance.especialidades.clear()\nen perform_destroy"
+VIEWSET ..> DBPER : "buscar nro_documento"
+PVIEW ..> DBPER : "INSERT / UPDATE persona"
+
+HESPE ..> DBESP : "GET especialidades\nPOST nueva especialidad"
+
+@enduml

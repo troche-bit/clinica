@@ -3,6 +3,7 @@ from .models import HorarioPrestador
 from apps.mantenimiento.diasemana.models import DiaSemana
 from apps.mantenimiento.diasemana.serializers import DiaSemanaSerializer
 from apps.clinica.configuracion.especialidad.serializers import EspecialidadListSerializer
+from apps.clinica.configuracion.consultorio.serializers import ConsultorioListSerializer
 from apps.administracion.persona_rrhh.serializers import PersonaRRHHListSerializer
 
 
@@ -19,10 +20,11 @@ class HorarioPrestadorSerializer(serializers.ModelSerializer):
     class Meta:
         model  = HorarioPrestador
         fields = [
-            'id', 'persona_rrhh', 'dia_semana', 'hora_desde', 'hora_hasta',
+            'id', 'persona_rrhh', 'consultorio', 'dia_semana', 'hora_desde', 'hora_hasta',
             'intervalo', 'especialidades', 'estado', 'excepcion', 'fecha_excepcion',
         ]
         read_only_fields = ['fecha_creacion', 'fecha_modificacion']
+        validators = []
 
     def validate(self, data):
         hora_desde      = data.get('hora_desde')
@@ -60,19 +62,36 @@ class HorarioPrestadorSerializer(serializers.ModelSerializer):
                     {'fecha_excepcion': 'No se pudo determinar el día de la semana.'}
                 )
 
+        # Unicidad: mismo prestador, día y hora de inicio (solo horarios no excepción)
+        if not excepcion:
+            qs = HorarioPrestador.objects.filter(
+                persona_rrhh=data.get('persona_rrhh'),
+                dia_semana=data.get('dia_semana'),
+                hora_desde=hora_desde,
+                is_deleted=False,
+                excepcion=False,
+            )
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    'Ya existe un horario para este prestador con el mismo día y hora de inicio.'
+                )
+
         return data
 
 
 class HorarioPrestadorListSerializer(serializers.ModelSerializer):
-    """Serializer de lectura — expande relaciones."""
     dia_semana_detalle     = DiaSemanaSerializer(source='dia_semana',     read_only=True)
     especialidades_detalle = EspecialidadListSerializer(source='especialidades', many=True, read_only=True)
     persona_rrhh_detalle   = PersonaRRHHListSerializer(source='persona_rrhh', read_only=True)
+    consultorio_detalle    = ConsultorioListSerializer(source='consultorio', read_only=True)
 
     class Meta:
         model  = HorarioPrestador
         fields = [
             'id', 'persona_rrhh', 'persona_rrhh_detalle',
+            'consultorio', 'consultorio_detalle',
             'dia_semana', 'dia_semana_detalle',
             'hora_desde', 'hora_hasta', 'intervalo',
             'especialidades', 'especialidades_detalle',

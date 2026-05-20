@@ -30,7 +30,7 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     ordering_fields  = ["persona__razon_social", "fecha_creacion"]
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve', 'reporte_lista', 'reporte_lista_excel', 'dashboard_mensual'):
+        if self.action in ('list', 'retrieve', 'reporte_lista', 'reporte_lista_excel', 'dashboard_mensual', 'count'):
             return [IsAuthenticated()]
         if self.action in ('destroy', 'eliminados'):
             return [IsAuthenticated(), IsAdminRole()]
@@ -270,6 +270,11 @@ class PacienteViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         )
         response["Content-Disposition"] = f'attachment; filename="listado_pacientes_{hoy.strftime("%Y%m%d")}.xlsx"'
         return response
+
+    @action(detail=False, methods=["get"], url_path="count")
+    def count(self, request):
+        total = Paciente.objects.filter(is_deleted=False).count()
+        return Response({"count": total})
 
     @action(detail=False, methods=["get"], url_path="dashboard-mensual")
     def dashboard_mensual(self, request):

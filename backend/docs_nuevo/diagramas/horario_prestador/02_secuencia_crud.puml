@@ -1,0 +1,174 @@
+@startuml 02_secuencia_crud
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "HorarioPrestadorPage.jsx" as GUI
+control "useHorarioPrestador.js" as HOOK
+control "usePersonaRRHH.js" as RHOOK
+control "HorarioPrestadorViewSet" as VIEW
+entity "HorarioPrestador" as MODEL
+entity "PersonaRRHH" as RRHH
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar prestadores con horarios ==
+
+ADMIN -> GUI : abre pagina
+GUI -> RHOOK : usePersonasRRHH({ page:1, search:'' })
+RHOOK -> RRHH : GET /api/personarrhh/?page=1
+RRHH -> BD : SELECT FROM persona_rrhh WHERE is_deleted=False
+BD --> RRHH : prestadores paginados
+RHOOK --> GUI : lista de prestadores
+
+GUI -> HOOK : useHorariosPrestador() — sin filtro
+HOOK -> VIEW : GET /api/horario-prestador/?page_size=200
+VIEW -> MODEL : filter(is_deleted=False,\npersona_rrhh__is_deleted=False)\n.select_related(...)\n.prefetch_related('especialidades')
+MODEL -> BD : SELECT con JOIN persona_rrhh,\ndia_semana WHERE is_deleted=False
+BD --> MODEL : todos los horarios activos
+VIEW --> HOOK : JSON { results: [...] }
+HOOK --> GUI : todosHorarios (sin paginar, page_size=200)
+
+GUI --> ADMIN : tabla de prestadores con\npills de dias/horas por fila
+
+note right of GUI
+  La tabla muestra los horarios
+  como pills (LUN 08:00-12:00, etc.)
+  calculados cliente-side filtrando
+  todosHorarios por persona_rrhh.
+  No hay llamada HTTP por cada fila.
+end note
+
+ADMIN -> GUI : escribe en busqueda (debounce 300ms)
+GUI -> RHOOK : usePersonasRRHH({ search:'garcia' })
+RHOOK -> RRHH : GET /api/personarrhh/?search=garcia
+BD --> RRHH : prestadores filtrados
+GUI --> ADMIN : tabla actualizada
+
+== Flujo 2: Ver horarios de un prestador ==
+
+ADMIN -> GUI : click fila de prestador (o boton ver)
+GUI -> GUI : guardAction(() => abrirPanel(prestador, 'ver'))
+GUI --> ADMIN : panel lateral modo 'ver'\nhorarios agrupados por dia de la semana\n+ seccion Generar turnos
+
+note right of GUI
+  abrirPanel en modo 'ver' filtra
+  horariosActuales = todosHorarios
+    .filter(h => h.persona_rrhh === seleccionado.id)
+  No hace llamada HTTP adicional.
+  Los datos ya estan en cache.
+end note
+
+== Flujo 3: Crear horario nuevo ==
+
+ADMIN -> GUI : click "Editar horarios" en panel ver
+GUI -> GUI : guardAction(() => abrirPanel(prestador, 'editar'))
+GUI --> ADMIN : panel modo 'editar'\nbloques = horarios existentes mapeados
+
+ADMIN -> GUI : click "Agregar horario"
+GUI -> GUI : setBloques([...bloques, HORARIO_VACIO()])
+GUI -> GUI : setBloqueIdx(bloques.length)
+GUI --> ADMIN : nuevo bloque vacio con campos\n(dia_semana, hora_desde, hora_hasta,\nintervalo, especialidades, estado, excepcion)
+
+ADMIN -> GUI : completa campos del nuevo bloque\n(dia='Martes', desde='08:00',\nhasta='12:00', intervalo=30)
+
+note right of GUI
+  solapamientos se calcula useMemo:
+  detecta si otro bloque del mismo dia
+  se superpone en horario con el actual.
+  Si hay solapamiento muestra warning
+  en el panel (alerta amarilla).
+  Es solo advertencia — no bloquea el guardado.
+end note
+
+ADMIN -> GUI : click Guardar (o F10)
+GUI -> GUI : validarBloques()
+
+note right of GUI
+  validarBloques() verifica:
+  - si !excepcion: dia_semana requerido
+  - si excepcion: fecha_excepcion requerida
+  - hora_desde formato HH:MM
+  - hora_hasta formato HH:MM y > hora_desde
+  Si hay errores: setBloqueErrors, setErrorPanel
+  y mueve al primer bloque con error.
+end note
+
+GUI -> GUI : originales vs editados —\ncantEliminar = 0 (no se quitaron bloques)
+GUI -> GUI : ejecutarGuardar(bloques)
+
+loop Por cada bloque nuevo (sin id)
+  GUI -> VIEW : POST /api/horario-prestador/\n{ persona_rrhh, dia_semana: 2,\nhora_desde:'08:00', hora_hasta:'12:00',\nintervalo: 30, especialidades: [1],\nestado:'activo', excepcion: false }
+  VIEW -> VIEW : validate() — unicidad, horas, dia_semana
+  VIEW -> MODEL : serializer.save(id_usu_creator=request.user)
+  MODEL -> BD : INSERT horario_prestador
+  BD --> MODEL : { id: 30 }
+  MODEL -> BD : INSERT horario_prestador_especialidades
+  VIEW -> BD : INSERT auditoria_registro (CREAR)
+  VIEW --> GUI : 201 { id: 30 }
+end
+
+HOOK -> HOOK : invalidateQueries(['horarios-prestador'])
+GUI -> GUI : showToast("Horarios guardados correctamente.", "success")
+GUI -> GUI : setModo('ver')
+GUI --> ADMIN : panel vuelve a modo ver con nuevo horario
+
+== Flujo 4: Editar horario existente ==
+
+ADMIN -> GUI : click "Editar horarios" en panel ver
+GUI --> ADMIN : panel modo editar con bloques cargados
+
+ADMIN -> GUI : navega a bloque existente\ny modifica campos (hora_desde, intervalo, etc.)
+ADMIN -> GUI : click Guardar
+
+GUI -> GUI : ejecutarGuardar(bloques)\n(cantEliminar = 0)
+
+loop Por cada bloque con id (existente)
+  GUI -> VIEW : PATCH /api/horario-prestador/{id}/\n{ hora_desde:'09:00', intervalo: 20, ... }
+  VIEW -> VIEW : _check_medico_ownership(instance.persona_rrhh)
+  VIEW -> MODEL : serializer.save(id_usu_modificator=request.user)
+  MODEL -> BD : UPDATE horario_prestador SET ...
+  VIEW -> BD : INSERT auditoria_registro (EDITAR)
+  VIEW --> GUI : 200 OK
+end
+
+GUI -> GUI : showToast("Horarios guardados correctamente.", "success")
+GUI -> GUI : setModo('ver')
+GUI --> ADMIN : panel actualizado
+
+== Flujo 5: Eliminar horario (quitar bloque y guardar) ==
+
+ADMIN -> GUI : click icono basura en bloque del panel editar
+GUI -> GUI : eliminarBloqueActual()\n(quita el bloque del array local)
+GUI --> ADMIN : panel muestra bloque siguiente
+
+ADMIN -> GUI : click Guardar
+GUI -> GUI : cantEliminar = 1\n(habia 1 bloque con id que se quito)
+GUI -> GUI : setConfirmGuardar(true)\nsetPendienteGuardar(bloques)
+GUI --> ADMIN : ConfirmDialog "Se van a eliminar horarios\nque ya estan guardados.\nSi tienen turnos activos\nla operacion fallara en el servidor."
+
+ADMIN -> GUI : click Confirmar
+GUI -> GUI : ejecutarGuardar(pendienteGuardar)
+
+GUI -> VIEW : DELETE /api/horario-prestador/{idEliminado}/
+VIEW -> VIEW : _check_medico_ownership(instance.persona_rrhh)
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> AGENDA : Agenda.filter(horario_prestador=instance,\nis_deleted=False,\nestado__in=[DISPONIBLE,OCUPADO,REALIZADO]).exists()
+AGENDA -> BD : SELECT EXISTS FROM agenda WHERE ...
+BD --> AGENDA : False
+MODEL -> ESP : instance.especialidades.clear()
+ESP -> BD : DELETE FROM horario_prestador_especialidades
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+MODEL -> BD : UPDATE horario_prestador SET is_deleted=True
+VIEW -> BD : INSERT auditoria_registro (ELIMINAR)
+VIEW --> GUI : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['horarios-prestador'])
+GUI -> GUI : showToast("Horarios guardados correctamente.", "success")
+GUI -> GUI : setModo('ver')
+GUI --> ADMIN : horario eliminado, panel actualizado
+
+@enduml

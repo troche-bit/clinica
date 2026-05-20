@@ -1,0 +1,97 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "EspecialidadPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useEspecialidades.js" as HOOK
+control "EspecialidadViewSet" as VIEW
+entity "Especialidad" as MODEL
+entity "PersonaRRHH" as RRHH
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado lógico sin dependencias ==
+
+USUARIO -> GUI : click botón eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : "¿Estás seguro de que querés eliminar\nesta especialidad? Si tiene prestadores\nasignados no se podrá eliminar."
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/especialidad/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> RRHH : PersonaRRHH.objects.filter(\n  especialidades=instance,\n  is_deleted=False\n).count()
+RRHH -> BD : SELECT COUNT(*) FROM personarrhh_especialidades\nJOIN persona_rrhh ON ...\nWHERE especialidad_id=id\nAND persona_rrhh.is_deleted=False
+BD --> RRHH : 0
+RRHH --> MODEL : activos = 0
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> MODEL : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+MODEL -> BD : UPDATE especialidad SET is_deleted=True,\nfecha_eliminacion=...\nWHERE id=id
+BD --> MODEL : OK
+
+note right of BD
+  La fila de especialidad permanece
+  en PostgreSQL con is_deleted=True.
+  Los vínculos en personarrhh_especialidades
+  no se eliminan físicamente.
+end note
+
+VIEW -> BD : INSERT INTO auditoria_registro\n(tabla='Especialidad', accion='ELIMINAR')
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['especialidades'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Especialidad eliminada."
+
+== Flujo alternativo: borrado bloqueado por prestadores activos ==
+
+USUARIO -> GUI : click botón eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : confirmación
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/especialidad/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> RRHH : PersonaRRHH.objects.filter(\n  especialidades=instance,\n  is_deleted=False\n).count()
+RRHH -> BD : SELECT COUNT(*) FROM personarrhh_especialidades\nJOIN persona_rrhh ON ...\nWHERE especialidad_id=id\nAND persona_rrhh.is_deleted=False
+BD --> RRHH : 3
+RRHH --> MODEL : activos = 3
+
+MODEL -> VIEW : raise ValidationError\n'No se puede eliminar: 3 prestador(es)\ntienen esta especialidad asignada.'
+
+note right of VIEW
+  AuditoriaMixin.perform_destroy()
+  NO se ejecuta.
+  No se crea RegistroAuditoria.
+  El registro NO se modifica.
+end note
+
+VIEW --> HOOK : HTTP 400 { detail: 'No se puede eliminar:\n3 prestador(es) tienen\nesta especialidad asignada.' }
+
+HOOK -> GUI : onError(err)
+GUI -> GUI : extraerMensajeError(err)
+GUI --> USUARIO : toast con mensaje de error
+
+@enduml

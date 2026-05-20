@@ -1,0 +1,175 @@
+@startuml 03_secuencia_notificacion_automatica
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor "Cron Job\n(Sistema)" as CRON
+control "enviar_recordatorios\n(management command)" as CMD
+control "enviar_notificacion()" as SERVICE
+entity "Consulta" as CONSULTA
+entity "Agenda" as AGENDA
+entity "Notificacion" as NOTIF
+entity "ConfiguracionNotificacion" as CONFIG
+entity "PlantillaNotificacion" as PLANTILLA
+entity "RegistroAuditoria" as AUDITORIA
+database "PostgreSQL" as BD
+boundary "Resend API" as RESEND
+
+== 1. Cron ejecuta el comando ==
+
+CRON -> CMD : python manage.py enviar_recordatorios\n[cada hora via cron del sistema]
+
+CMD -> CONFIG : ConfiguracionNotificacion.get_solo()
+CONFIG -> BD : SELECT notificacion_configuracion WHERE pk=1
+BD --> CONFIG : config
+
+alt habilitado = False
+  CMD -> CRON : "Notificaciones deshabilitadas — sin accion."
+  note right : Sin envios. Fin del comando.
+end
+
+alt auto_recordatorio = False
+  CMD -> CRON : "Recordatorios automaticos desactivados — sin accion."
+  note right : Sin envios. Fin del comando.
+end
+
+CMD -> CMD : anticipaciones = [conf.horas_anticipacion]\nsi conf.horas_anticipacion_2:\n  anticipaciones.append(conf.horas_anticipacion_2)\n[ej: [24] o [24, 48]]
+
+== 2. Primera anticipacion — 24 horas ==
+
+CMD -> CMD : horas=24\ndias = max(1, round(24 / 24)) = 1\nfecha_objetivo = date.today() + timedelta(days=1)
+
+CMD -> CMD : [llamar _agenda(fecha_objetivo)]
+
+== 2A. Turnos agendados (Agenda.estado = OCUPADO) ==
+
+CMD -> AGENDA : Agenda.objects.filter(\n  is_deleted=False,\n  estado='OCUPADO',\n  fecha=fecha_objetivo )\n.select_related('paciente__persona',\n  'horario_prestador__persona_rrhh__persona')\n.prefetch_related('especialidades')
+
+AGENDA -> BD : SELECT agenda JOIN horario_prestador\nJOIN persona_rrhh JOIN paciente\nWHERE is_deleted=False\nAND estado='OCUPADO'\nAND fecha=fecha_objetivo
+BD --> AGENDA : turnos confirmados para manana
+
+loop Por cada turno en turnos
+  CMD -> CMD : email = paciente.persona.correo_electronico
+
+  alt sin email
+    CMD -> CMD : omitidos += 1
+    note right : Se omite sin error.
+  end
+
+  CMD -> NOTIF : Notificacion.objects.filter(\n  is_deleted=False,\n  agenda=turno,\n  tipo='recordatorio_cita',\n  canal='email',\n  estado='enviado' ).exists()
+  NOTIF -> BD : SELECT EXISTS notificacion WHERE\nagenda_id=turno.id AND tipo='recordatorio_cita'\nAND estado='enviado' AND is_deleted=False
+  BD --> NOTIF : ya_enviado (True/False)
+
+  alt ya_enviado = True
+    CMD -> CMD : omitidos += 1
+    note right : Deduplicacion — evita envio duplicado.
+  end
+
+  CMD -> NOTIF : Notificacion.objects.create(\n  paciente=paciente,\n  agenda=turno,\n  tipo='recordatorio_cita',\n  canal='email',\n  estado='pendiente',\n  mensaje='',\n  destinatario=email\n  [id_usu_creator=None → automatico] )
+  NOTIF -> BD : INSERT notificacion (sin id_usu_creator)
+  BD --> NOTIF : id=55
+
+  CMD -> SERVICE : enviar_notificacion(55)
+  SERVICE -> BD : SELECT notificacion WHERE id=55\nSELECT related paciente, agenda, rrhh
+  BD --> SERVICE : notif con datos
+
+  SERVICE -> CONFIG : ConfiguracionNotificacion.get_solo()
+  BD --> CONFIG : conf.habilitado=True
+
+  SERVICE -> PLANTILLA : PlantillaNotificacion.objects.get(\ntipo='recordatorio', activa=True, is_deleted=False)
+  BD --> PLANTILLA : plantilla recordatorio
+
+  SERVICE -> SERVICE : _build_contexto(notif):\n  usa notif.agenda (no notif.consulta)\n  fecha = agenda.fecha\n  hora = agenda.hora_desde
+
+  SERVICE -> SERVICE : _renderizar(plantilla, contexto):\n  reemplaza {nombre} {fecha} {hora}\n  {medico} {especialidad}
+
+  SERVICE -> RESEND : resend.Emails.send({...})
+
+  alt envio exitoso
+    RESEND --> SERVICE : 200 OK
+    SERVICE -> BD : UPDATE notificacion SET estado='enviado',\nfecha_envio=now(), mensaje=html_body\nWHERE id=55
+
+    SERVICE -> AUDITORIA : RegistroAuditoria.objects.create(\n  tabla='notificacion', registro_id=55,\n  accion='ENVIO_EMAIL',\n  datos_despues={ ..., automatico: True },\n  usuario=None )
+    AUDITORIA -> BD : INSERT auditoria_registro (ENVIO_EMAIL)\n[usuario=None → automatico del sistema]
+
+    CMD -> CMD : enviados += 1
+
+  else Resend falla
+    SERVICE -> BD : UPDATE notificacion\nSET estado='fallido' WHERE id=55
+    CMD -> CMD : fallidos += 1
+  end
+end
+
+CMD -> CRON : "Turnos agendados: +N env, M omit, P fall"
+
+== 2B. Proximas citas sugeridas por medico ==
+
+CMD -> CMD : [llamar _proxima_cita(fecha_objetivo)]
+
+CMD -> CONSULTA : Consulta.objects.filter(\n  is_deleted=False,\n  proxima_cita=fecha_objetivo )\n.select_related('agenda__paciente__persona')
+
+CONSULTA -> BD : SELECT consulta JOIN agenda JOIN paciente\nWHERE proxima_cita=fecha_objetivo\nAND is_deleted=False
+BD --> CONSULTA : consultas con proxima_cita para manana
+
+loop Por cada consulta
+  CMD -> CMD : email = consulta.agenda.paciente.persona.correo_electronico
+
+  alt sin email
+    CMD -> CMD : omitidos += 1
+  end
+
+  CMD -> NOTIF : Notificacion.objects.filter(\n  is_deleted=False,\n  consulta=consulta,\n  tipo='recordatorio_cita',\n  canal='email',\n  estado='enviado' ).exists()
+  BD --> NOTIF : ya_enviado (False — primer envio)
+
+  CMD -> NOTIF : Notificacion.objects.create(\n  paciente, consulta=consulta,\n  tipo='recordatorio_cita', canal='email',\n  estado='pendiente', mensaje='',\n  destinatario=email\n  [id_usu_creator=None] )
+  NOTIF -> BD : INSERT notificacion (consulta FK, sin agenda FK)
+
+  CMD -> SERVICE : enviar_notificacion(notif.id)
+
+  note right of SERVICE
+    _build_contexto usa notif.consulta:
+    fecha = consulta.proxima_cita (no agenda.fecha)
+    indicaciones = consulta.indicaciones
+    medico via consulta.agenda.horario_prestador
+  end note
+
+  SERVICE -> RESEND : resend.Emails.send()
+  RESEND --> SERVICE : (exito o fallo)
+  SERVICE -> BD : UPDATE notificacion + INSERT auditoria
+  CMD -> CMD : enviados += 1 (o fallidos += 1)
+end
+
+CMD -> CRON : "Citas sugeridas: +N env, M omit, P fall"
+
+== 3. Segunda anticipacion (si horas_anticipacion_2 configurado) ==
+
+note over CMD, RESEND
+  Si conf.horas_anticipacion_2 = 48:
+  Segunda iteracion con fecha_objetivo = today + 2 dias.
+  Misma logica de deduplicacion:
+  Notificacion.objects.filter(agenda=turno, estado='enviado').exists()
+  El turno que ya recibio el envio de 24h
+  NO recibira otro de 48h — ya_enviado=True lo omite.
+  Util cuando el turno es para pasado manana:
+  se envian dos recordatorios en dias distintos.
+end note
+
+== 4. Resumen final ==
+
+CMD -> CRON : Style.SUCCESS\n"Total — enviados: N,\nomitidos: M, fallidos: P"
+
+note over CRON, BD
+  Automatico distingue manual por:
+  - Notificacion.id_usu_creator = None (no tiene usuario)
+  - En RegistroAuditoria: usuario=None, automatico=True
+  - En RecordatoriosPage historial:
+    la notificacion automatica aparece
+    en HistorialExpandido igual que la manual,
+    con tipo_display y estado_display.
+    No hay diferenciacion visual entre ambas
+    en la UI — la distinction es solo en BD.
+end note
+
+@enduml

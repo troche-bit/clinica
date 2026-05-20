@@ -1,0 +1,113 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left  { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right { display: table-cell; vertical-align: bottom; text-align: right; }
+
+.rpt-clinica { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo  { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-meta    { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-prestador { margin-top: 10pt; }
+.rpt-prestador-nombre {
+  font-size: 9.5pt; font-weight: bold; color: #1a3a5c;
+  background: #eef2f7; padding: 4pt 6pt;
+  border-left: 3px solid #1a3a5c;
+  margin-bottom: 2pt;
+}
+
+.rpt-table { margin-top: 0; width: 100%; }
+.rpt-table th {
+  background: #1a3a5c;
+  color: #fff;
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 4pt 5pt;
+  text-align: left;
+}
+.rpt-table td {
+  font-size: 9pt;
+  padding: 4pt 5pt;
+  border-bottom: 1px solid #e8e8e8;
+  vertical-align: middle;
+}
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+.col-nro      { width: 4%;  text-align: center; }
+.col-dia      { width: 18%; }
+.col-desde    { width: 7%;  text-align: center; }
+.col-hasta    { width: 7%;  text-align: center; }
+.col-int      { width: 9%;  text-align: center; }
+.col-esp      { width: 38%; }
+.col-estado   { width: 10%; text-align: center; }
+
+.rpt-footer {
+  margin-top: 10pt;
+  text-align: right;
+  font-size: 7.5pt;
+  color: #777;
+  border-top: 1px solid #ccc;
+  padding-top: 5pt;
+}
+{% endblock %}
+
+{% block content %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Horarios de Prestadores</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }}</div>
+      <div class="rpt-meta">Total: {{ total }} horario{{ total|pluralize:",s" }}</div>
+    </div>
+  </div>
+
+  {% for prestador in prestadores %}
+  <div class="rpt-prestador">
+    <div class="rpt-prestador-nombre">{{ prestador.nombre }}</div>
+    <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+      <thead>
+        <tr>
+          <th class="col-nro">#</th>
+          <th class="col-dia">Día / Fecha</th>
+          <th class="col-desde">Desde</th>
+          <th class="col-hasta">Hasta</th>
+          <th class="col-int">Intervalo</th>
+          <th class="col-esp">Especialidades</th>
+          <th class="col-estado">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in prestador.horarios %}
+        <tr>
+          <td class="col-nro">{{ forloop.counter }}</td>
+          <td class="col-dia">{{ h.dia }}</td>
+          <td class="col-desde">{{ h.desde }}</td>
+          <td class="col-hasta">{{ h.hasta }}</td>
+          <td class="col-int">{{ h.intervalo }}</td>
+          <td class="col-esp">{{ h.especialidades }}</td>
+          <td class="col-estado">{{ h.estado }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center; color:#888; padding: 8pt;">Sin horarios</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% empty %}
+  <div style="text-align:center; color:#888; padding: 20pt; font-size: 10pt;">Sin registros</div>
+  {% endfor %}
+
+  <div class="rpt-footer">
+    Generado el {{ fecha|date:"d/m/Y" }} — Sistema de Gestión Clínica Lichi
+  </div>
+
+</div>
+{% endblock %}

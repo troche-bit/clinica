@@ -1,0 +1,111 @@
+@startuml 02_secuencia_crud
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "EspecialidadPage.jsx" as GUI
+control "useEspecialidades.js" as HOOK
+control "EspecialidadViewSet" as VIEW
+entity "Especialidad" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar con búsqueda ==
+
+USUARIO -> GUI : abre página
+GUI -> HOOK : useEspecialidades(search='')
+note right of HOOK
+  page_size=200
+  staleTime=5 min
+  (carga completa para
+  SelectorEspecialidades
+  en FormRRHH)
+end note
+HOOK -> VIEW : GET /api/especialidad/?page_size=200
+VIEW -> MODEL : filter(is_deleted=False)
+MODEL -> BD : SELECT WHERE is_deleted=False\nORDER BY descripcion
+BD --> MODEL : registros
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON [{ id, descripcion }]
+HOOK --> GUI : data (hasta 200 registros)
+GUI --> USUARIO : renderiza tabla + panel cerrado
+
+USUARIO -> GUI : escribe en búsqueda (debounce 300ms)
+GUI -> HOOK : useEspecialidades(search='cardio')
+HOOK -> VIEW : GET /api/especialidad/?page_size=200&search=cardio
+VIEW -> MODEL : filter(is_deleted=False) + SearchFilter
+MODEL -> BD : SELECT WHERE descripcion ILIKE '%cardio%'
+BD --> MODEL : registros filtrados
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON filtrado
+HOOK --> GUI : data actualizada
+GUI --> USUARIO : tabla actualizada
+
+== Flujo 2: Crear especialidad ==
+
+USUARIO -> GUI : click "Nueva especialidad"
+GUI -> GUI : setModo('crear'), setSeleccionado(null)
+GUI --> USUARIO : PanelSimple modo crear
+
+USUARIO -> GUI : ingresa descripcion="Cardiología"
+USUARIO -> GUI : click Guardar
+GUI -> HOOK : crear.mutateAsync({ descripcion: "Cardiología" })
+HOOK -> VIEW : POST /api/especialidad/
+
+VIEW -> MODEL : validate_descripcion("Cardiología")
+MODEL -> BD : SELECT WHERE Lower(descripcion)='cardiología'\nAND is_deleted=False
+BD --> MODEL : [] (no existe)
+
+VIEW -> VIEW : AuditoriaMixin.perform_create()
+VIEW -> MODEL : serializer.save(id_usu_creator=request.user)
+MODEL -> BD : INSERT INTO especialidad (descripcion, id_usu_creator, ...)
+BD --> MODEL : { id: 7, descripcion: "Cardiología", ... }
+MODEL --> VIEW : instancia creada
+
+VIEW -> BD : INSERT INTO auditoria_registro\n(tabla='Especialidad', accion='CREAR')
+VIEW --> HOOK : 201 Created
+
+HOOK -> HOOK : invalidateQueries(['especialidades'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Especialidad creada correctamente."
+
+== Flujo 3: Editar especialidad ==
+
+USUARIO -> GUI : click botón Editar en tabla
+GUI -> GUI : setSeleccionado(e), setModo('editar')
+GUI --> USUARIO : PanelSimple modo editar con datos
+
+USUARIO -> GUI : cambia descripcion="Cardiología Clínica"
+USUARIO -> GUI : click Guardar
+GUI -> HOOK : actualizar.mutateAsync({ id: 7, descripcion: "Cardiología Clínica" })
+HOOK -> VIEW : PATCH /api/especialidad/7/
+
+VIEW -> MODEL : validate_descripcion("Cardiología Clínica")
+MODEL -> BD : SELECT WHERE Lower(descripcion)='cardiología clínica'\nAND is_deleted=False AND id<>7
+BD --> MODEL : [] (no existe)
+
+VIEW -> VIEW : AuditoriaMixin.perform_update()
+VIEW -> MODEL : serializer.save(id_usu_modificator=request.user)
+MODEL -> BD : UPDATE especialidad SET descripcion=...,\nid_usu_modificator=...\nWHERE id=7
+BD --> MODEL : OK
+
+VIEW -> BD : INSERT INTO auditoria_registro\n(tabla='Especialidad', accion='EDITAR',\ndatos_antes={...}, datos_despues={...})
+VIEW --> HOOK : 200 OK
+
+HOOK -> HOOK : invalidateQueries(['especialidades'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Especialidad actualizada correctamente."
+
+@enduml

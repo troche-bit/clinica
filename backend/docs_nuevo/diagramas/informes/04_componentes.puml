@@ -1,0 +1,356 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "InformesPacientePage.jsx" as INFPAGE
+  component "DashboardPacientesPage.jsx" as DASHPAC
+  component "DashboardConsultasPage.jsx" as DASHCON
+  component "DashboardAgendaPage.jsx" as DASHAG
+  component "BuscadorFiltrable" as BUSCADOR
+  component "useConsultas.js\n(hooks)" as HOOKCON
+  component "useAgenda.js\n(hooks)" as HOOKAG
+  component "client.js\n(axios)" as CLIENT
+
+  note right of INFPAGE
+    Ruta: /informes
+    CSS prefix: .inf-pac-
+    esResumen = admin || recepcionista
+    3 stats cards (si esResumen):
+      - pacientesCount: GET /api/paciente/count/
+      - statsConsultas.total: useStatsConsultasHoy
+        queryKey: ['consultas','stats-hoy']
+      - statsHoy.pendientes: useStatsHoy
+        queryKey: ['agenda-stats-hoy']
+
+    Seccion "Listados exportables" (5 cards):
+      - Pacientes → ModalFiltrosPacientes
+        filtros cascada: pais→departamento→ciudad
+        + sexo + grupo_sanguineo + fecha_registro
+        PDF: blob → window.open(url,'_blank')
+        Excel: blob → link.download + link.click()
+      - Horarios prestadores → ModalFiltrosHorarios
+        BuscadorFiltrable persona_rrhh + dia_semana
+      - Consultas → ModalFiltrosConsultas
+        BuscadorFiltrable: persona_rrhh, especialidad,
+        evento_clinico, paciente (debounce 300ms)
+        + fecha range
+      - Agenda → ModalFiltrosAgenda
+        fecha_desde/hasta (max='2099-12-31')
+        + persona_rrhh + especialidad + estado
+        Solo PDF (sin Excel)
+      - Historia clinica → buscador paciente
+        debounce 300ms, teclado ↑↓ Enter/Escape
+        Solo PDF (sin Excel)
+
+    Seccion "Estadisticas" (5 cards):
+      navigate('/informes/dashboard/{slug}'):
+        pacientes / consultas / agenda /
+        prestadores / ocupacion
+    Boton "Configuracion": solo esAdmin
+  end note
+
+  note right of DASHPAC
+    Ruta: /informes/dashboard/pacientes
+    CSS prefix: .dash-pac-
+    NO usa React Query — useEffect([])
+    apiClient.get('/api/paciente/dashboard-mensual/')
+    .then(res => setData(res.data))
+
+    Graficos (sin libreria externa):
+    DonutSexo:
+      conic-gradient CSS
+      Colores: M=#1a3a5c / F=#e77c8e / O=#7c8ee7
+      Centro: div superpuesto con total (position absolute)
+
+    CalendarioBars:
+      toggle local: useState('dia')
+      opciones: 'dia' / 'semana' / 'mes'
+      NO fetch al cambiar — datos pre-cargados
+      barras flexbox, height=(cantidad/max)*100%
+      es_futuro=true → barra atenuada
+
+    BarraH (top5 departamentos):
+      div width=(total/maxTotal)*100%
+      transition CSS, hover darkens fill
+
+    TendenciaCurva (SVG):
+      viewBox='0 0 800 200'
+      bezier cubico: path comando C
+      area fill: rgba(26,58,92,0.08)
+      max point: circle destacado + label
+
+    Boton "Volver a Informes" → navigate('/informes')
+  end note
+
+  note right of DASHCON
+    Ruta: /informes/dashboard/consultas
+    useEffect([]) → GET /api/consultas/dashboard-consultas/
+    Graficos:
+      BarraH top_prestadores[:5]
+      BarraH por_especialidad[:8]
+      TendenciaCurva comparativa_6_meses
+    Datos: total_mes, por_estado,
+      top_prestadores, por_especialidad,
+      comparativa_6_meses
+  end note
+
+  note right of DASHAG
+    Ruta: /informes/dashboard/agenda|prestadores|ocupacion
+    useEffect([]) segun ruta activa:
+      /agenda      → GET /api/agenda/dashboard-agenda/
+      /prestadores → GET /api/agenda/dashboard-prestadores/
+      /ocupacion   → GET /api/agenda/dashboard-ocupacion/
+    Graficos agenda:
+      DonutEstado, BarraH prestadores,
+      TendenciaCurva realizados vs cancelados
+    Graficos prestadores:
+      BarraH pct_ocupacion, dias_mas_demandados,
+      horarios_mas_demandados
+    Graficos ocupacion:
+      Mapa de calor (dia_dj x hora x total)
+      celda opacity proporcional al total
+  end note
+
+  note right of BUSCADOR
+    BuscadorFiltrable:
+      - Filtra array pre-cargado (client-side)
+      - debounce 300ms solo para pacientes
+        (busqueda en BD)
+      - Para persona_rrhh, especialidad,
+        evento_clinico: no debounce —
+        datos ya en memoria
+    Usado en:
+      ModalFiltrosConsultas (persona_rrhh,
+        especialidad, evento_clinico, paciente)
+      ModalFiltrosHorarios (persona_rrhh)
+      ModalFiltrosAgenda (persona_rrhh, especialidad)
+      ModalHistoriaClinica (paciente)
+  end note
+
+  note right of HOOKCON
+    useStatsConsultasHoy():
+      queryKey: ['consultas','stats-hoy']
+      staleTime: 60_000
+      GET /api/consultas/stats-hoy/
+      Retorna: { total, en_espera,
+        en_consulta, finalizadas }
+  end note
+
+  note right of HOOKAG
+    useStatsHoy():
+      queryKey: ['agenda-stats-hoy']
+      staleTime: 60_000
+      GET /api/agenda/stats-hoy/
+      Retorna: { total, confirmadas,
+        pendientes, realizadas,
+        inactivos, cancelados }
+  end note
+}
+
+package "Backend" {
+  component "PacienteViewSet\n(ModelViewSet)" as PVIEW
+  component "ConsultaViewSet\n(ModelViewSet)" as CVIEW
+  component "AgendaViewSet\n(ModelViewSet)" as AVIEW
+  component "HorarioPrestadorViewSet\n(ModelViewSet)" as HVIEW
+  component "WeasyPrint" as WEASY
+  component "openpyxl" as OPENPYXL
+
+  note right of PVIEW
+    @action reporte_lista GET
+      Filtros: sexo, grupo_sanguineo,
+      pais, departamento, ciudad,
+      fecha_desde, fecha_hasta
+      render_to_string('informes/paciente_lista.html')
+      → HttpResponse PDF
+      Columnas: N° / Nombre / Documento /
+        Edad / Sexo / Telefono / Responsable
+
+    @action reporte_lista_excel GET
+      Mismos filtros
+      openpyxl: header fill #1A3A5C
+      even rows fill #F8FAFC, 7 columnas
+      seccion filtros_aplicados al final
+      → HttpResponse .xlsx
+
+    @action count GET
+      Paciente.objects.filter(is_deleted=False).count()
+      → { total }
+
+    @action dashboard_mensual GET
+      Sin filtros — mes en curso
+      total_mes, por_dia (todos los dias
+        con es_futuro bool),
+      por_semana (grupos de 7),
+      por_sexo, por_grupo_etario (7 rangos),
+      por_departamento (top5+otros),
+      tendencia_6meses
+
+    REGLA: queries directas (no get_queryset)
+    Siempre incluir is_deleted=False explicitamente
+  end note
+
+  note right of CVIEW
+    @action stats_hoy GET
+      fecha = timezone.localtime().date()
+      { total, en_espera,
+        en_consulta, finalizadas }
+
+    @action reporte_consultas GET
+      _consultas_agrupadas(request)
+      agrupado por especialidad
+      render_to_string('informes/consultas_lista.html')
+      → PDF
+
+    @action reporte_consultas_excel GET
+      openpyxl: fill_grupo #EEF2F7
+      para separadores de especialidad
+      6 columnas: N° / Fecha / Paciente /
+        Prestador / Evento Clinico / Estado
+
+    @action dashboard_consultas GET
+      total_mes, por_estado,
+      top_prestadores[:5],
+      por_especialidad[:8],
+      comparativa_6_meses
+
+    @action historia_clinica GET
+      requiere ?paciente=id
+      todas las consultas del paciente
+      docs_map: DocumentoDigPaciente
+        agrupados por consulta_id
+      filename: historia_{safe_name}.pdf
+  end note
+
+  note right of AVIEW
+    @action stats_hoy GET
+      timezone.localtime().date()
+      { total, confirmadas, pendientes,
+        realizadas, inactivos, cancelados }
+
+    @action reporte_agenda GET
+      filtros: fecha_desde/hasta,
+      persona_rrhh, especialidad, estado
+      grupos_dict: agrupado por medico
+      render_to_string('informes/agenda_lista.html')
+      → PDF (sin Excel)
+
+    @action dashboard_agenda GET
+      total_mes, por_estado,
+      top_prestadores[:5],
+      comparativa_6_meses
+      (realizados / cancelados / total)
+
+    @action dashboard_prestadores GET
+      turnos_por_medico[:10]
+        con pct_ocupacion calculado
+      comparativa_especialidades[:8]
+      dias_mas_demandados (ISO Mon=1...Sun=7)
+      horarios_mas_demandados[:8]
+      ocupacion_promedio, total_mes
+
+    @action dashboard_ocupacion GET
+      SELECT ExtractWeekDay, ExtractHour,
+      COUNT(*) GROUP BY dia_dj, hora
+      mapa_calor: [{ dia_dj, hora, total }]
+  end note
+
+  note right of HVIEW
+    @action reporte_horarios GET
+      Filtros: persona_rrhh, dia_semana
+      render_to_string('informes/horario_prestador_lista.html')
+      → PDF
+
+    @action reporte_horarios_excel GET
+      openpyxl → .xlsx
+  end note
+}
+
+package "Templates (WeasyPrint)" {
+  component "base_informe.html" as TBASE
+  component "paciente_lista.html" as TPAC
+  component "consultas_lista.html" as TCON
+  component "agenda_lista.html" as TAG
+  component "historia_clinica.html" as THIST
+  component "horario_prestador_lista.html" as THOR
+
+  note right of TBASE
+    Herencia base para todos los informes.
+    Header con logo clinica + fecha generacion.
+    Footer con numero de pagina.
+    Estilos CSS inlineados para WeasyPrint
+    (WeasyPrint no soporta estilos externos).
+  end note
+
+  note right of THIST
+    Listado completo de consultas por paciente.
+    Por cada consulta: fecha, medico, diagnostico,
+    indicaciones, evento_clinico.
+    Seccion docs_map: lista de documentos
+    digitalizados adjuntos a cada consulta.
+  end note
+}
+
+package "Base de Datos" {
+  database "paciente" as DBPAC
+  database "consulta" as DBCON
+  database "agenda" as DBAG
+  database "persona" as DBPERS
+  database "persona_rrhh" as DBRRHH
+  database "documentodigpaciente" as DBDOC
+}
+
+INFPAGE --> HOOKCON : "useStatsConsultasHoy()"
+INFPAGE --> HOOKAG : "useStatsHoy()"
+INFPAGE --> BUSCADOR : "BuscadorFiltrable en modals"
+DASHPAC --> CLIENT : "useEffect([]) → apiClient.get"
+DASHCON --> CLIENT : "useEffect([]) → apiClient.get"
+DASHAG --> CLIENT : "useEffect([]) → apiClient.get"
+
+HOOKCON --> CLIENT : "React Query → axios"
+HOOKAG --> CLIENT : "React Query → axios"
+
+CLIENT --> PVIEW : "GET /api/paciente/\nreporte-lista/\nreporte-lista-excel/\ncount/ dashboard-mensual/"
+CLIENT --> CVIEW : "GET /api/consultas/\nstats-hoy/ reporte-consultas/\nreporte-consultas-excel/\ndashboard-consultas/\nhistoria-clinica/"
+CLIENT --> AVIEW : "GET /api/agenda/\nstats-hoy/ reporte-agenda/\ndashboard-agenda/\ndashboard-prestadores/\ndashboard-ocupacion/"
+CLIENT --> HVIEW : "GET /api/horario-prestador/\nreporte-horarios/\nreporte-horarios-excel/"
+
+PVIEW --> WEASY : "render_to_string + HTML.write_pdf"
+PVIEW --> OPENPYXL : "Workbook().save(response)"
+CVIEW --> WEASY : "render_to_string + HTML.write_pdf"
+CVIEW --> OPENPYXL : "Workbook().save(response)"
+AVIEW --> WEASY : "render_to_string + HTML.write_pdf"
+HVIEW --> WEASY : "render_to_string + HTML.write_pdf"
+HVIEW --> OPENPYXL : "Workbook().save(response)"
+
+WEASY --> TBASE : "extiende"
+TPAC --> TBASE : "extiende"
+TCON --> TBASE : "extiende"
+TAG --> TBASE : "extiende"
+THIST --> TBASE : "extiende"
+THOR --> TBASE : "extiende"
+
+PVIEW ..> DBPAC : "SELECT is_deleted=False\nfiltros aplicados"
+PVIEW ..> DBPERS : "JOIN persona"
+CVIEW ..> DBCON : "SELECT is_deleted=False"
+CVIEW ..> DBAG : "JOIN agenda"
+CVIEW ..> DBDOC : "SELECT docs por consulta_id"
+AVIEW ..> DBAG : "SELECT is_deleted=False\nExtractWeekDay ExtractHour"
+AVIEW ..> DBRRHH : "JOIN persona_rrhh"
+HVIEW ..> DBRRHH : "JOIN persona_rrhh"
+
+@enduml

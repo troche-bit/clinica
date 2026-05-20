@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Plus, Search, Activity, Pencil, Trash2 } from 'lucide-react'
 import PanelSimple from '../../components/ui/PanelSimple'
 import Toast from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useEventosClinicos, useEventoClinicoMutations } from '../../hooks/mantenimiento/useEventosClinicos'
 import { useToast } from '../../hooks/useToast'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
+import { useAuth } from '../../context/AuthContext'
 import { extraerMensajeError } from '../../utils/errores'
+import { useNavigationGuard } from '../../hooks/useNavigationGuard'
 
 const CAMPOS_EVENTO = [
   { name: 'tipo_evento', label: 'Tipo de evento', placeholder: 'Ej: Consulta, Cirugía, Urgencia...', requerido: true },
@@ -13,13 +16,16 @@ const CAMPOS_EVENTO = [
 
 const TITULOS_PANEL = { nuevo: 'Nuevo evento clínico', editar: 'Editar evento clínico', ver: 'Detalle' }
 
-
 export default function EventoClinicoPage() {
   const [search,       setSearch]       = useState('')
-  const [searchInput,  setSearchInput]  = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
   const [modo,         setModo]         = useState(null)
   const [confirmId,    setConfirmId]    = useState(null)
+  const debounceRef = useRef(null)
+
+  const { user }                        = useAuth()
+  const puedeEliminar                   = user?.rol === 'admin'
+  const { guardAction }                 = useNavigationGuard()
 
   const { data, isLoading }             = useEventosClinicos(search)
   const { crear, actualizar, eliminar } = useEventoClinicoMutations()
@@ -27,15 +33,13 @@ export default function EventoClinicoPage() {
 
   const eventos = data?.results || data || []
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    setSearch(searchInput)
+  const handleSearchChange = (e) => {
+    const val = e.target.value
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(val), 300)
   }
 
-  const cerrarPanel = () => {
-    setSeleccionado(null)
-    setModo(null)
-  }
+  const cerrarPanel = () => { setSeleccionado(null); setModo(null) }
 
   const handleGuardar = async (form) => {
     try {
@@ -64,26 +68,24 @@ export default function EventoClinicoPage() {
 
   const guardando = crear.isPending || actualizar.isPending
 
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (modo === null) { setSeleccionado(null); setModo('crear') } } },
+  })
+
   return (
     <>
       <style>{`
         .ec-root { font-family: 'DM Sans', sans-serif; }
-        .ec-header {
-          display: flex; align-items: flex-start; justify-content: space-between;
-          margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+        .ec-toolbar {
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 16px; flex-wrap: wrap;
         }
-        .ec-title    { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
-        .ec-subtitle { font-size: 13px; color: #6b7280; }
-        .ec-btn-nuevo {
-          display: inline-flex; align-items: center; gap: 7px;
-          padding: 9px 18px; background: #1a3a5c; color: #fff;
-          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
-          font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
-          transition: background 0.15s, box-shadow 0.15s;
+        .ec-title-group { flex: 1 1 auto; order: 1; min-width: 0; }
+        .ec-title    { font-size: 18px; font-weight: 600; color: #1a3a5c; }
+        .ec-subtitle { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+        .ec-search-wrap {
+          position: relative; flex: 1 1 200px; max-width: 360px; order: 2;
         }
-        .ec-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        .ec-search-row  { display: flex; gap: 8px; margin-bottom: 16px; }
-        .ec-search-wrap { position: relative; flex: 1; max-width: 380px; }
         .ec-search-icon {
           position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
           color: #9ca3af; pointer-events: none;
@@ -92,14 +94,21 @@ export default function EventoClinicoPage() {
           width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px;
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827;
           background: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+          box-sizing: border-box;
         }
         .ec-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
         .ec-search-input::placeholder { color: #d1d5db; }
-        .ec-btn-search {
-          padding: 9px 16px; background: #f8fafc; border: 1.5px solid #e5e7eb; border-radius: 9px;
-          font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #374151; cursor: pointer;
+        .ec-btn-nuevo {
+          display: inline-flex; align-items: center; gap: 7px; order: 3; flex-shrink: 0;
+          padding: 9px 18px; background: #1a3a5c; color: #fff;
+          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
+          transition: background 0.15s, box-shadow 0.15s;
         }
-        .ec-btn-search:hover { background: #f0f4f8; }
+        .ec-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
+        @media (max-width: 600px) {
+          .ec-search-wrap { flex: 0 0 100%; order: 4; max-width: none; }
+        }
         .ec-layout { display: flex; gap: 16px; align-items: flex-start; }
         .ec-table-card {
           flex: 1; background: #fff; border: 1px solid #e8edf2;
@@ -144,8 +153,8 @@ export default function EventoClinicoPage() {
       />
 
       <div className="ec-root">
-        <div className="ec-header">
-          <div>
+        <div className="ec-toolbar">
+          <div className="ec-title-group">
             <div className="ec-title">Eventos Clínicos</div>
             <div className="ec-subtitle">
               {eventos.length > 0
@@ -153,24 +162,19 @@ export default function EventoClinicoPage() {
                 : 'Gestión de eventos clínicos'}
             </div>
           </div>
-          <button className="ec-btn-nuevo" onClick={() => { setSeleccionado(null); setModo('crear') }}>
-            <Plus size={15} /> Nuevo evento clínico
-          </button>
-        </div>
-
-        <form onSubmit={handleSearch} className="ec-search-row">
           <div className="ec-search-wrap">
             <Search size={15} className="ec-search-icon" />
             <input
               type="text"
               placeholder="Buscar por tipo de evento..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
               className="ec-search-input"
             />
           </div>
-          <button type="submit" className="ec-btn-search">Buscar</button>
-        </form>
+          <button className="ec-btn-nuevo" onClick={() => guardAction(() => { setSeleccionado(null); setModo('crear') })}>
+            <Plus size={15} /> Nuevo evento clínico
+          </button>
+        </div>
 
         <div className="ec-layout">
           <div className="ec-table-card">
@@ -197,7 +201,7 @@ export default function EventoClinicoPage() {
                   <tr
                     key={ev.id}
                     className={seleccionado?.id === ev.id ? 'activo' : ''}
-                    onClick={() => { setSeleccionado(ev); setModo('ver') }}
+                    onClick={() => guardAction(() => { setSeleccionado(ev); setModo('ver') })}
                   >
                     <td>
                       {ev.tipo_evento}
@@ -209,16 +213,18 @@ export default function EventoClinicoPage() {
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           className="ec-action-btn edit"
-                          onClick={(e) => { e.stopPropagation(); setSeleccionado(ev); setModo('editar') }}
+                          onClick={(e) => { e.stopPropagation(); guardAction(() => { setSeleccionado(ev); setModo('editar') }) }}
                         >
                           <Pencil size={13} />
                         </button>
-                        <button
-                          className="ec-action-btn trash"
-                          onClick={(e) => { e.stopPropagation(); handleEliminar(ev.id) }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {puedeEliminar && (
+                          <button
+                            className="ec-action-btn trash"
+                            onClick={(e) => { e.stopPropagation(); handleEliminar(ev.id) }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -239,6 +245,7 @@ export default function EventoClinicoPage() {
               onEditar={() => setModo('editar')}
               onEliminar={handleEliminar}
               guardando={guardando}
+              ocultarEliminar={!puedeEliminar}
             />
           )}
         </div>

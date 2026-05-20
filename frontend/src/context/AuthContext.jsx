@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import apiClient from '../api/client'
 
 const AuthContext = createContext(null)
@@ -33,15 +34,18 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('access_token')
     return buildUser(token)
   })
+  const queryClient = useQueryClient()
 
   const login = async (username, password) => {
     const { data } = await apiClient.post('/auth/token/', { username, password })
     localStorage.setItem('access_token', data.access)
     localStorage.setItem('refresh_token', data.refresh)
+    queryClient.clear()
     setUser(buildUser(data.access))
   }
 
   const logout = () => {
+    queryClient.clear()
     localStorage.clear()
     setUser(null)
   }

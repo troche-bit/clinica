@@ -1,0 +1,189 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor MEDICO
+actor RECEPCIONISTA
+actor "Cron Job\n(Sistema)" as CRON
+
+boundary "ConsultasPage.jsx" as CGUI
+boundary "RecordatoriosPage.jsx" as RGUI
+control "useRecordatorios.js" as RHOOK
+control "ConsultaViewSet" as CVIEW
+control "RecordatorioViewSet" as RVIEW
+control "enviar_notificacion()" as SERVICE
+control "enviar_recordatorios\n(management command)" as CMD
+entity "Consulta" as CONSULTA
+entity "Notificacion" as NOTIF
+entity "ConfiguracionNotificacion" as CONFIG
+entity "PlantillaNotificacion" as PLANTILLA
+entity "RegistroAuditoria" as AUDITORIA
+database "PostgreSQL" as BD
+boundary "Resend API" as RESEND
+
+== 1. Medico finaliza consulta con proxima cita ==
+
+MEDICO -> CGUI : finaliza consulta de Maria Rodriguez\nselecciona proxima_cita: 2026-05-27\n(7 dias a partir de hoy)
+
+CGUI -> CVIEW : PATCH /api/consultas/55/\n{ proxima_cita: '2026-05-27', ... }
+CVIEW -> CONSULTA : UPDATE consulta\nSET proxima_cita='2026-05-27'
+CONSULTA -> BD : UPDATE consulta SET proxima_cita='2026-05-27' WHERE id=55
+BD --> CONSULTA : OK
+
+CGUI -> CVIEW : POST /api/consultas/55/finalizar/
+CVIEW -> BD : UPDATE consulta SET estado='finalizada', hora_hasta=...
+BD --> CVIEW : OK
+CVIEW --> CGUI : 200 OK
+
+CGUI --> MEDICO : "Consulta finalizada correctamente."
+
+== 2. Recepcionista ve la nueva cita en Recordatorios ==
+
+RECEPCIONISTA -> RGUI : abre RecordatoriosPage\ntab "7 dias" activo
+
+RGUI -> RHOOK : useProximasCitas({ dias: 7 })
+RHOOK -> RVIEW : GET /api/recordatorios/proximas-citas/?dias=7
+
+RVIEW -> BD : SELECT consulta JOIN agenda JOIN paciente\nWHERE proxima_cita IS NOT NULL\nAND proxima_cita >= 2026-05-20\nAND proxima_cita <= 2026-05-27\nAND is_deleted=False\nORDER BY proxima_cita
+BD --> RVIEW : consultas incluyendo c.id=55
+
+RVIEW -> RVIEW : _serializar_consulta(c55):\n  dias_restantes = 2026-05-27 - 2026-05-20 = 7\n  urgencia = 'urgente'\n  estado = 'pendiente' (no hay agenda futura)\n  ultima_notificacion = None
+
+RVIEW --> RHOOK : [..., {\n  consulta_id: 55,\n  paciente: { nombre: 'Maria Rodriguez',\n    email: 'maria@email.com', telefono: '+595...' },\n  proxima_cita: '2026-05-27',\n  dias_restantes: 7,\n  urgencia: 'urgente',\n  medico_sugerido: { nombre: 'Dr. Garcia', especialidad: 'Cardiologia' },\n  diagnostico: 'HTA estadio II',\n  indicaciones: 'Control en 30 dias',\n  estado: 'pendiente',\n  ultima_notificacion: None\n}]
+
+RGUI --> RECEPCIONISTA : tabla con fila de Maria Rodriguez\nbadge ambar "7 dia(s)"\nicono email: CheckCircle verde\nestado: Pendiente (ambar)
+
+== 3. Recepcionista envia notificacion manual ==
+
+RECEPCIONISTA -> RGUI : click fila de Maria Rodriguez
+RGUI -> RGUI : setSeleccionado(item)
+RGUI --> RECEPCIONISTA : PanelDetalle:\n- Maria Rodriguez, maria@email.com\n- 27/05/2026 · 7 dias · Pendiente\n- Dr. Garcia · Cardiologia\n- Diagnostico: HTA estadio II\n- Indicaciones: Control en 30 dias\n- Botones: Recordatorio / Confirmacion / Indicaciones
+
+RECEPCIONISTA -> RGUI : click "Recordatorio de cita"
+RGUI -> RGUI : tieneEmail = true\nsetConfirmDirecto('recordatorio_cita')
+RGUI --> RECEPCIONISTA : "¿Enviar a maria@email.com? [Enviar][Cancelar]"
+
+RECEPCIONISTA -> RGUI : click "Enviar"
+
+RGUI -> RHOOK : notificar.mutateAsync({\n  consulta_id: 55,\n  tipo: 'recordatorio_cita',\n  canal: 'email',\n  mensaje_personalizado: '' })
+RHOOK -> RVIEW : POST /api/recordatorios/notificar/\n{ consulta_id: 55, tipo: 'recordatorio_cita', canal: 'email' }
+
+RVIEW -> NOTIF : Notificacion.objects.create(\n  paciente=maria, consulta=c55,\n  tipo='recordatorio_cita', canal='email',\n  estado='pendiente',\n  destinatario='maria@email.com',\n  id_usu_creator=request.user )
+NOTIF -> BD : INSERT notificacion id=100\n(id_usu_creator=recepcionista)
+BD --> NOTIF : id=100
+
+RVIEW -> SERVICE : enviar_notificacion(100)
+
+SERVICE -> CONFIG : ConfiguracionNotificacion.get_solo()
+BD --> CONFIG : { habilitado=True, email_remitente='noreply@clinicalichi.com' }
+
+SERVICE -> PLANTILLA : PlantillaNotificacion.objects.get(\ntipo='recordatorio', activa=True, is_deleted=False)
+BD --> PLANTILLA : { asunto: 'Recordatorio de cita', cuerpo: 'Hola {nombre}...' }
+
+SERVICE -> SERVICE : _build_contexto(notif100):\n  nombre='Maria Rodriguez', fecha='27/05/2026'\n  hora='', medico='Dr. Garcia'\n  especialidad='Cardiologia'\n  indicaciones='Control en 30 dias'
+
+SERVICE -> SERVICE : _renderizar(plantilla, contexto):\n  html_body = 'Hola Maria Rodriguez, le recordamos\n  que tiene una cita programada para el\n  27/05/2026 con Dr. Garcia en Clinica Lichi.'
+
+SERVICE -> RESEND : resend.Emails.send({\n  from: 'Clinica Lichi <noreply@clinicalichi.com>',\n  to: ['maria@email.com'],\n  subject: 'Recordatorio de cita',\n  html: html_body })
+RESEND --> SERVICE : 200 OK
+
+SERVICE -> BD : UPDATE notificacion SET estado='enviado',\nfecha_envio=2026-05-20T10:15:00 WHERE id=100
+
+SERVICE -> AUDITORIA : INSERT auditoria_registro\n(accion=ENVIO_EMAIL, tabla='notificacion',\nregistro_id=100,\ndatos_despues={automatico: False, estado:'enviado'},\nusuario=recepcionista)
+AUDITORIA -> BD : INSERT auditoria_registro
+
+SERVICE --> RVIEW : (retorna)
+RVIEW -> BD : notif.refresh_from_db() → estado='enviado'
+RVIEW --> RHOOK : { ok: True, id: 100, estado: 'enviado' }
+
+RHOOK -> RHOOK : invalidateQueries(['recordatorios'])\ninvalidateQueries(['historial-notificaciones'])
+
+RGUI -> RGUI : showToast('Email enviado correctamente.', 'success')
+RGUI --> RECEPCIONISTA : toast exito + fila actualizada:\nultima_notificacion = { tipo: 'Recordatorio de cita',\nestado: 'enviado', fecha }
+
+== 4. Cron del dia siguiente — sin accion (deduplicacion) ==
+
+note over CRON, BD
+  Al dia siguiente 2026-05-21:
+  Cron ejecuta enviar_recordatorios.
+  horas_anticipacion = 24 → fecha_objetivo = 2026-05-22.
+  proxima_cita de c55 es 2026-05-27, no 2026-05-22.
+  c55 NO aparece en _proxima_cita(2026-05-22).
+  Sin accion sobre c55 en este ciclo.
+end note
+
+== 5. Cron 24 horas antes de la cita ==
+
+CRON -> CMD : python manage.py enviar_recordatorios\n(2026-05-26 — dia antes de la cita)
+
+CMD -> CONFIG : ConfiguracionNotificacion.get_solo()
+BD --> CONFIG : { habilitado=True, auto_recordatorio=True,\nhoras_anticipacion=24, horas_anticipacion_2=null }
+
+CMD -> CMD : anticipaciones = [24]\nfecha_objetivo = 2026-05-26 + 1 = 2026-05-27
+
+CMD -> CMD : _proxima_cita(2026-05-27)
+
+CMD -> CONSULTA : Consulta.objects.filter(\n  proxima_cita='2026-05-27', is_deleted=False)
+CONSULTA -> BD : SELECT consulta WHERE proxima_cita='2026-05-27'
+BD --> CONSULTA : [c55, ...]
+
+CMD -> NOTIF : Notificacion.objects.filter(\n  is_deleted=False,\n  consulta=c55,\n  tipo='recordatorio_cita',\n  canal='email',\n  estado='enviado' ).exists()
+NOTIF -> BD : SELECT EXISTS notificacion\nWHERE consulta_id=55 AND tipo='recordatorio_cita'\nAND estado='enviado' AND is_deleted=False
+BD --> NOTIF : True (notif 100 ya fue enviada)
+
+CMD -> CMD : omitidos += 1
+note right : Deduplicacion actua:\nno se envia segundo recordatorio.
+
+CMD -> CRON : "Citas sugeridas: +0 env, 1 omit, 0 fall"
+
+== 6. Recepcionista ve el historial completo ==
+
+RECEPCIONISTA -> RGUI : vuelve a RecordatoriosPage\nclick en fila de Maria Rodriguez
+
+RGUI -> RGUI : click en ChevronRight (expandedRow)
+RGUI --> RECEPCIONISTA : HistorialExpandido inline:\n+------------------+----------+----------+\n| Recordatorio cita | Email | Enviado  | 20/05/2026 |\n+------------------+----------+----------+\n(una sola notificacion — el cron no envio duplicado)
+
+RECEPCIONISTA -> RGUI : click fila → PanelDetalle
+
+note right of RGUI
+  useHistorialNotificaciones(paciente.id)
+  GET /api/notificaciones/?paciente=maria.id
+  Retorna las ultimas notificaciones ordenadas
+  por -fecha_creacion.
+  La automatica del cron NO aparece aqui
+  (se omitio por deduplicacion).
+  Solo la manual de la recepcionista.
+end note
+
+RGUI --> RECEPCIONISTA : PanelDetalle historial:\n- "Recordatorio de cita · Email · Enviado"\n  (manual, 20/05/2026)\nSin segundo registro automatico.
+
+== 7. Escenario alternativo — cron envia recordatorio automatico ==
+
+note over CRON, AUDITORIA
+  Si la recepcionista NO hubiera notificado manualmente:
+  - Notificacion.objects.filter(...).exists() → False
+  - CMD crea Notificacion(consulta=c55, id_usu_creator=None)
+  - Llama enviar_notificacion()
+  - SERVICE: automatico = (id_usu_creator is None) → True
+  - RegistroAuditoria.create(usuario=None, automatico=True)
+  - Notificacion queda en BD como automatica
+
+  En HistorialExpandido:
+  - "Recordatorio de cita · Email · Enviado"
+    apareceria con misma apariencia que la manual.
+    La distincion manual/automatico no se muestra
+    en la UI — es un dato solo en la tabla BD.
+
+  Si hubiera horas_anticipacion_2 = 48:
+  - 2026-05-25: cron envia recordatorio de 48h
+    (notif automatica #1)
+  - 2026-05-26: cron evalua 24h → ya_enviado=True
+    (deduplicacion por consulta+tipo+estado='enviado')
+    → omite segundo recordatorio automatico
+  - Historial: 1 notificacion automatica (la de 48h)
+end note
+
+@enduml

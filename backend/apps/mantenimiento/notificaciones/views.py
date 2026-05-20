@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 
 from django.db.models import Exists, OuterRef, Prefetch
@@ -9,8 +10,14 @@ from rest_framework.exceptions import ValidationError
 
 from apps.clinica.consultas.models import Consulta
 from apps.clinica.agenda.models import Agenda
-from .models import Notificacion
-from .serializers import NotificacionListSerializer
+from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
+from .models import Notificacion, ConfiguracionNotificacion, PlantillaNotificacion
+from .serializers import (
+    NotificacionListSerializer,
+    ConfiguracionNotificacionSerializer,
+    PlantillaNotificacionListSerializer,
+    PlantillaNotificacionSerializer,
+)
 
 
 PLANTILLAS = {
@@ -237,12 +244,15 @@ class RecordatorioViewSet(viewsets.GenericViewSet):
             id_usu_creator=request.user,
         )
 
-        # TODO: Agregar lógica de envío real aquí (django-anymail / Twilio)
+        if canal == Notificacion.Canal.EMAIL:
+            from .services import enviar_notificacion
+            enviar_notificacion(notif.id)
+            notif.refresh_from_db()
 
         return Response({
             'ok':     True,
             'id':     notif.id,
-            'mensaje': 'Notificación registrada. Envío por configurar.',
+            'estado': notif.estado,
         })
 
 
@@ -254,11 +264,99 @@ class NotificacionViewSet(viewsets.ReadOnlyModelViewSet):
     ordering           = ['-fecha_creacion']
 
     def get_queryset(self):
-        qs        = Notificacion.objects.filter(is_deleted=False)
-        paciente  = self.request.query_params.get('paciente')
-        consulta  = self.request.query_params.get('consulta')
+        qs       = Notificacion.objects.filter(is_deleted=False)
+        paciente = self.request.query_params.get('paciente')
+        consulta = self.request.query_params.get('consulta')
         if paciente:
             qs = qs.filter(paciente_id=paciente)
         if consulta:
             qs = qs.filter(consulta_id=consulta)
         return qs
+
+    @action(detail=False, methods=['get', 'patch'], url_path='configuracion',
+            permission_classes=[IsAuthenticated, IsAdminRole])
+    def configuracion(self, request):
+        conf = ConfiguracionNotificacion.get_solo()
+        if request.method == 'PATCH':
+            serializer = ConfiguracionNotificacionSerializer(conf, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        return Response(ConfiguracionNotificacionSerializer(conf).data)
+
+    @action(detail=False, methods=['post'], url_path='probar-conexion',
+            permission_classes=[IsAuthenticated, IsAdminRole])
+    def probar_conexion(self, request):
+        from .services import probar_conexion
+        ok, mensaje = probar_conexion()
+        return Response({'ok': ok, 'mensaje': mensaje},
+                        status=status.HTTP_200_OK if ok else status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    @action(detail=True, methods=['post'], url_path='reenviar',
+            permission_classes=[IsAuthenticated, IsAdminOrRecepcionista])
+    def reenviar(self, request, pk=None):
+        notif = self.get_object()
+        if notif.canal != Notificacion.Canal.EMAIL:
+            raise ValidationError({'error': 'Solo se pueden reenviar notificaciones por email.'})
+        from .services import enviar_notificacion
+        notif.estado = Notificacion.Estado.PENDIENTE
+        notif.save(update_fields=['estado'])
+        enviar_notificacion(notif.id)
+        notif.refresh_from_db()
+        return Response(NotificacionListSerializer(notif).data)
+
+
+class PlantillaViewSet(viewsets.ModelViewSet):
+    filter_backends = [filters.OrderingFilter]
+    ordering        = ['tipo']
+
+    def get_queryset(self):
+        return PlantillaNotificacion.objects.filter(is_deleted=False)
+
+    def get_serializer_class(self):
+        if self.action in ('list', 'retrieve'):
+            return PlantillaNotificacionListSerializer
+        return PlantillaNotificacionSerializer
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdminRole()]
+
+    def perform_create(self, serializer):
+        serializer.save(id_usu_creator=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(id_usu_modificator=self.request.user)
+
+    def perform_destroy(self, instance):
+        from django.utils import timezone
+        instance.is_deleted        = True
+        instance.fecha_eliminacion = timezone.now()
+        instance.id_usu_modificator = self.request.user
+        instance.save()
+
+    @action(detail=False, methods=['post'], url_path='subir-imagen',
+            permission_classes=[IsAuthenticated, IsAdminRole])
+    def subir_imagen(self, request):
+        import os
+        from datetime import datetime
+        from django.conf import settings
+
+        archivo = request.FILES.get('file')
+        if not archivo:
+            return Response({'error': 'No se envió ningún archivo.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not archivo.content_type.startswith('image/'):
+            return Response({'error': 'Solo se permiten imágenes.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        nombre_seguro = re.sub(r'[^\w.\-]', '_', archivo.name)
+        nombre        = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{nombre_seguro}"
+        rel           = f'plantillas/imagenes/{nombre}'
+        ruta          = os.path.join(settings.MEDIA_ROOT, rel)
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+
+        with open(ruta, 'wb+') as dest:
+            for chunk in archivo.chunks():
+                dest.write(chunk)
+
+        return Response({'url': f"{settings.MEDIA_URL}{rel}"})

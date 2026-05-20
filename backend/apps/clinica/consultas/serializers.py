@@ -81,10 +81,25 @@ class ConsultaAgendaSerializer(serializers.Serializer):
 
 
 class ConsultaListSerializer(serializers.ModelSerializer):
-    agenda_detalle         = ConsultaAgendaSerializer(source='agenda', read_only=True)
-    evento_clinico_nombre  = serializers.CharField(
+    agenda_detalle        = ConsultaAgendaSerializer(source='agenda', read_only=True)
+    evento_clinico_nombre = serializers.CharField(
         source='evento_clinico.tipo_evento', read_only=True, default=None
     )
+    medico_nombre       = serializers.SerializerMethodField()
+    especialidad_nombre = serializers.SerializerMethodField()
+
+    def get_medico_nombre(self, obj):
+        try:
+            return obj.agenda.horario_prestador.persona_rrhh.persona.razon_social
+        except Exception:
+            return None
+
+    def get_especialidad_nombre(self, obj):
+        try:
+            esps = obj.agenda.horario_prestador.especialidades.all()
+            return esps[0].descripcion if esps else None
+        except Exception:
+            return None
 
     class Meta:
         model  = Consulta
@@ -92,6 +107,7 @@ class ConsultaListSerializer(serializers.ModelSerializer):
             'id', 'agenda', 'agenda_detalle',
             'hora_desde', 'hora_hasta', 'estado',
             'evento_clinico', 'evento_clinico_nombre',
+            'medico_nombre', 'especialidad_nombre',
             'motivo_consulta', 'diagnostico', 'tratamiento',
             'indicaciones', 'proxima_cita',
             'fecha_creacion', 'fecha_modificacion',

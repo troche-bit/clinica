@@ -1,0 +1,129 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "PersonaRRHHPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "usePersonaRRHH.js" as HOOK
+control "PersonaRRHHViewSet" as VIEW
+entity "PersonaRRHH" as RRHH
+entity "Persona" as PERSONA
+entity "HorarioPrestador" as HORARIO
+entity "Agenda" as AGENDA
+entity "PerfilUsuario" as PERFIL
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado logico sin turnos activos ==
+
+ADMIN -> GUI : click boton eliminar en tabla (solo rol admin)
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : "Eliminar prestador\nSi tiene turnos activos (disponible, ocupado\no realizado) no se podra eliminar."
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/personarrhh/{id}/
+
+VIEW -> RRHH : perform_destroy(instance)
+
+RRHH -> AGENDA : Agenda.objects.filter(\n  horario_prestador__persona_rrhh=instance,\n  is_deleted=False,\n  estado__in=[DISPONIBLE, OCUPADO, REALIZADO]\n).exists()
+AGENDA -> BD : SELECT EXISTS FROM agenda\nJOIN horario_prestador ON ...\nWHERE persona_rrhh_id=id AND is_deleted=False\nAND estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : False
+AGENDA --> RRHH : tiene_activos = False
+
+note right of BD
+  Agenda CANCELADA e INACTIVA no bloquean.
+  Solo DISPONIBLE, OCUPADO y REALIZADO
+  bloquean el borrado del prestador.
+end note
+
+RRHH -> AGENDA : Agenda.objects.filter(\n  horario_prestador__persona_rrhh=instance,\n  is_deleted=False\n).update(is_deleted=True,\nfecha_eliminacion=ahora,\nid_usu_modificator_id=uid)
+AGENDA -> BD : UPDATE agenda SET is_deleted=True\nWHERE persona_rrhh_id=id AND is_deleted=False
+BD --> AGENDA : N filas actualizadas (canceladas/inactivas)
+
+RRHH -> HORARIO : HorarioPrestador.objects.filter(\n  persona_rrhh=instance,\n  is_deleted=False\n).update(is_deleted=True, ...)
+HORARIO -> BD : UPDATE horario_prestador SET is_deleted=True\nWHERE persona_rrhh_id=id AND is_deleted=False
+BD --> HORARIO : M filas actualizadas
+
+RRHH -> ESP : instance.especialidades.clear()
+ESP -> BD : DELETE FROM persona_rrhh_especialidades\nWHERE personarrhh_id=id
+BD --> ESP : OK
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> RRHH : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+RRHH -> BD : UPDATE persona_rrhh\nSET is_deleted=True, fecha_eliminacion=...\nWHERE id=id
+BD --> RRHH : OK
+VIEW -> BD : INSERT auditoria_registro\n(tabla='PersonaRRHH', accion='ELIMINAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['personasrrhh'])
+HOOK -> GUI : showToast("Prestador eliminado correctamente.", "success")
+GUI -> GUI : setConfirmId(null); cerrarModal()
+GUI --> ADMIN : toast exito, fila desaparece de tabla
+
+== Flujo alternativo: borrado bloqueado por turnos activos ==
+
+ADMIN -> GUI : click boton eliminar en tabla
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : confirmacion
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/personarrhh/{id}/
+
+VIEW -> RRHH : perform_destroy(instance)
+RRHH -> AGENDA : Agenda.objects.filter(\n  horario_prestador__persona_rrhh=instance,\n  is_deleted=False,\n  estado__in=[DISPONIBLE, OCUPADO, REALIZADO]\n).exists()
+AGENDA -> BD : SELECT EXISTS ... WHERE estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : True
+AGENDA --> RRHH : tiene_activos = True
+
+RRHH -> VIEW : raise ValidationError\n"No se puede eliminar un prestador con turnos activos.\nPrimero cancela o finaliza todos sus turnos."
+
+note right of VIEW
+  El bloque de cascade (Agenda inactiva,
+  HorarioPrestador, M2M especialidades)
+  NO se ejecuta.
+  AuditoriaMixin.perform_destroy() NO se ejecuta.
+  No se crea RegistroAuditoria.
+  El Prestador NO se modifica.
+  Los Horarios y Turnos permanecen intactos.
+  Deben cancelarse o finalizarse los turnos
+  activos desde la gestion de Agenda
+  antes de poder eliminar el prestador.
+end note
+
+VIEW --> HOOK : HTTP 400\n{ detail: 'No se puede eliminar un prestador con turnos activos...' }
+
+HOOK -> GUI : onError callback
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI -> GUI : setConfirmId(null)
+GUI --> ADMIN : toast con detalle del error
+
+== Nota: Persona y PerfilUsuario siempre indestructibles ==
+
+note over PERSONA, PERFIL
+  PersonaViewSet.perform_destroy() lanza MethodNotAllowed.
+  Nunca se puede eliminar directamente una Persona.
+  El borrado logico del Prestador (is_deleted=True)
+  no afecta a la Persona vinculada.
+  El PerfilUsuario que referencie al prestador
+  conserva la FK persona_rrhh aunque el prestador
+  quede marcado como eliminado.
+  El historial de agenda se preserva en BD
+  con is_deleted=True aunque el prestador sea eliminado.
+  La Persona puede reutilizarse: una nueva alta como
+  Prestador para el mismo nro_documento creara un nuevo
+  PersonaRRHH vinculado a la misma Persona existente
+  (modo agregar).
+end note
+
+@enduml

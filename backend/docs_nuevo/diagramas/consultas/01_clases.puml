@@ -1,0 +1,135 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class EventoClinico {
+  + id : AutoField <<PK>>
+  + tipo_evento : CharField
+  + is_deleted : BooleanField
+}
+
+class Paciente {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey
+  + grupo_sanguineo : CharField [null]
+  + alergias_conocidas : TextField [null]
+  + enfermedades_cronicas : TextField [null]
+  + responsable : ForeignKey [null]
+  + is_deleted : BooleanField
+}
+
+class HorarioPrestador {
+  + id : AutoField <<PK>>
+  + persona_rrhh : ForeignKey
+  + especialidades : M2M Especialidad
+  + dia_semana : ForeignKey
+  + hora_desde : TimeField
+  + hora_hasta : TimeField
+  + intervalo : PositiveIntegerField
+  + is_deleted : BooleanField
+}
+
+class Agenda {
+  + id : AutoField <<PK>>
+  + horario_prestador : ForeignKey <<PROTECT>>
+  + paciente : ForeignKey [null]
+  + fecha : DateField
+  + hora_desde : TimeField
+  + hora_hasta : TimeField
+  + estado : CharField
+  --
+  Estado: DISPONIBLE / OCUPADO /\nREALIZADO / CANCELADO / INACTIVO
+}
+
+class Consulta {
+  + id : AutoField <<PK>>
+  + agenda : ForeignKey <<PROTECT>>
+  + hora_desde : TimeField [null]
+  + hora_hasta : TimeField [null]
+  + estado : CharField(20) = 'en_espera'
+  + evento_clinico : ForeignKey [null] <<SET_NULL>>
+  + motivo_consulta : TextField [null]
+  + diagnostico : TextField [null]
+  + tratamiento : TextField [null]
+  + indicaciones : TextField [null]
+  + proxima_cita : DateField [null]
+  --
+  db_table = 'consulta'
+  ordering = ['-agenda__fecha', 'hora_desde']
+  --
+  Estado: en_espera / en_consulta /\nfinalizada / anulada
+  --
+  hora_desde: se registra en /iniciar/\nhora_hasta: se registra en /finalizar/ o /anular/
+  --
+  paciente y persona_rrhh se acceden\na través de agenda.paciente y\nagenda.horario_prestador.persona_rrhh\n(sin FK directa en Consulta)
+  --
+  + get_estado_display() : str
+}
+
+class DocumentoDigPaciente {
+  + id : AutoField <<PK>>
+  + paciente : ForeignKey
+  + consulta : ForeignKey [null]
+  + tipo_doc_dig : ForeignKey
+  + filename : CharField
+  + is_deleted : BooleanField
+  --
+  perform_destroy de Consulta verifica\nDocumentoDigPaciente activos antes\nde permitir el borrado lógico
+}
+
+note right of Consulta
+  Consulta NO tiene FK directa a Paciente
+  ni a PersonaRRHH — se acceden via:
+  - agenda.paciente
+  - agenda.horario_prestador.persona_rrhh
+  Esto permite acceder a datos clínicos
+  (grupo_sanguineo, alergias) y datos del
+  médico (nombre, iniciales, especialidades)
+  sin duplicar FKs en el modelo.
+
+  Ciclo de estado:
+  en_espera → en_consulta → finalizada
+  en_espera → en_consulta → anulada
+
+  Restricción de edición post-cierre:
+  solo medico/admin, dentro de 24 hs
+  de fecha_modificacion.
+end note
+
+note right of DocumentoDigPaciente
+  Campo consulta es FK opcional:
+  - null = documento de la ficha del paciente
+  - con valor = documento de una consulta
+  perform_destroy de Consulta verifica
+  is_deleted=False para bloquear borrado.
+end note
+
+BaseModel <|-- Consulta : hereda
+BaseModel <|-- Agenda : hereda
+
+Agenda "1" <-- "0..*" Consulta : agenda\n(FK PROTECT)
+EventoClinico "0..1" <-- "0..*" Consulta : evento_clinico\n(FK SET_NULL, null)
+Consulta "0..1" <-- "0..*" DocumentoDigPaciente : consulta\n(FK opcional)
+HorarioPrestador "1" <-- "0..*" Agenda : horario_prestador\n(FK PROTECT)
+Paciente "0..1" <-- "0..*" Agenda : paciente\n(FK null)
+
+@enduml

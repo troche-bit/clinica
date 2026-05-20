@@ -1,0 +1,66 @@
+@startuml secuencia_borrado_logico
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+
+title Consultorio — Borrado lógico con validación de dependencias
+
+actor       "Usuario (admin)" as U
+participant "Frontend"        as FE
+participant "ConsultorioViewSet" as VS
+participant "AuditoriaMixin"  as AM
+database    "BD"              as BD
+
+U -> FE : Click ícono Trash2\n(solo visible con rol='admin')
+FE --> U : ConfirmDialog\ntitle="Eliminar consultorio"\ndescription="Si tiene horarios de prestador\nactivos no se podrá eliminar."
+U -> FE : Confirmar
+
+FE -> VS : DELETE /api/consultorio/{id}/\nAuthorization: Bearer <JWT>
+
+VS -> VS : get_permissions()\naction='destroy'\n→ [IsAuthenticated, IsAdminRole]
+
+alt rol != 'admin'
+  VS --> FE : 403 Forbidden
+  FE --> U : Toast de error de permisos
+end
+
+VS -> VS : perform_destroy(instance)
+VS -> BD : SELECT COUNT(*) FROM horario_prestador\nWHERE consultorio_id = {id}\nAND is_deleted = false
+
+BD --> VS : count
+
+alt count > 0
+  VS --> FE : 400 ValidationError\n{ "non_field_errors":\n  "No se puede eliminar: tiene\n   horarios de prestador activos." }
+  FE -> FE : extraerMensajeError(err)
+  FE --> U : Toast rojo con el mensaje
+
+else count == 0
+  VS -> AM : super().perform_destroy(instance)
+
+  AM -> BD : UPDATE consultorio\nSET is_deleted = true,\n    fecha_eliminacion = now(),\n    id_usu_modificator_id = {user.id}\nWHERE id = {id}
+  BD --> AM : OK
+
+  AM -> BD : INSERT INTO auditoria_registro\n(tabla='Consultorio',\n registro_id={id},\n accion='ELIMINAR',\n datos_antes={snapshot},\n usuario={user},\n ip={ip},\n fecha=now())
+  BD --> AM : OK
+
+  AM --> VS : instance marcada como eliminada
+  VS --> FE : 204 No Content
+
+  FE -> FE : invalidateQueries(['consultorios'])
+  FE --> U : Toast verde "Consultorio eliminado"\ncerrarPanel()
+end
+
+note over BD
+  El registro permanece en la tabla
+  con is_deleted = true.
+  No hay DELETE físico.
+  UniqueConstraint filtra
+  condition=Q(is_deleted=False),
+  por lo que el nro_consultorio
+  puede reutilizarse.
+end note
+
+@enduml

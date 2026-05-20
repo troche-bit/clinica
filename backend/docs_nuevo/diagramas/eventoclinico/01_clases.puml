@@ -1,0 +1,58 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class EventoClinico {
+  + id : AutoField <<PK>>
+  + tipo_evento : CharField(50)
+  --
+  db_table = 'evento_clinico'
+  ordering = ['tipo_evento']
+  unique: Lower(tipo_evento) WHERE is_deleted=False
+  index: idx_evento_clinico_is_deleted
+  --
+  + __str__() : str
+}
+
+class Consulta {
+  + id : AutoField <<PK>>
+  + evento_clinico : ForeignKey
+  + ...
+  --
+  related_name = 'consultas'
+}
+
+note right of EventoClinico
+  Catalogo de eventos clinicos
+  reutilizable en cada consulta medica.
+  Un mismo tipo de evento puede
+  ser usado en multiples consultas.
+  No se puede eliminar mientras
+  tenga consultas activas vinculadas.
+end note
+
+BaseModel <|-- EventoClinico : hereda
+BaseModel <|-- Consulta : hereda
+
+EventoClinico "1" <-- "0..*" Consulta : evento_clinico\n(FK, related_name='consultas')
+
+@enduml

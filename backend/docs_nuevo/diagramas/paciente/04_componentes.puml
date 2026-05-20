@@ -1,0 +1,167 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "PacientePage.jsx" as PAGE
+  component "PacienteForm.jsx" as PFORM
+  component "BuscadorPersona.jsx" as BUSC
+  component "FormPaciente.jsx" as FPAC
+  component "FormPersona.jsx" as FPER
+  component "SeccionDocumentos.jsx" as SDOC
+  component "ResponsableForm.jsx" as RESPFORM
+  component "usePatients.js" as HOOK
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+
+  note right of PAGE
+    Patron Modal
+    modo: ver / editar / crear / null
+    isOpen={modo !== null}
+    Pestanas en modo 'ver':
+      Datos / Consultas / Documentos
+    Paginacion 20 por pagina
+    PDF + Excel export (blob autenticado)
+    Insert abre modo crear
+    puedeEliminar = rol admin
+    fetchDocumentoBlob() via fetch nativo
+    Imagen overlay para previsualizacion
+  end note
+
+  note right of PFORM
+    Orquestador:
+    BuscadorPersona + FormPersona + FormPaciente.
+    SeccionDocumentos solo en modo editar.
+    Guardado secuencial Persona -> Paciente.
+    markDirty() al detectar resultado.
+    markClean() al guardar o desmontar.
+    F10 para guardar.
+  end note
+
+  note right of BUSC
+    Detecta modo segun /api/persona/buscar/:
+    crear_todo (persona: null)
+    agregar_paciente (persona existe, no paciente)
+    editar (es_paciente: true)
+    Badge de color por modo.
+    Endpoint: GET /api/persona/buscar/?nro_documento=X
+    Retorna: {persona, paciente, es_paciente}
+  end note
+
+  note right of FPAC
+    Sub-formulario campos propios:
+    sexo (obligatorio), grupo_sanguineo,
+    responsable (autocomplete con debounce 300ms),
+    parentesco, alergias_conocidas,
+    enfermedades_cronicas, observacion.
+    Boton "Nuevo responsable" abre
+    ResponsableForm en modal anidado
+    (fpa-nested-backdrop, z-index 60,
+    useGuard=false).
+    Notifica padre via onChange(form).
+  end note
+
+  note right of SDOC
+    Solo visible en modo editar.
+    archivosNuevos: array { uid, file,
+    tipoDocDig, preview }.
+    idsAEliminar: Set de IDs.
+    Permite agregar y eliminar documentos
+    de forma staged (no se persisten hasta
+    click Guardar).
+  end note
+
+  note right of RESPFORM
+    Modal anidado dentro de FormPaciente.
+    Se abre para crear nuevo responsable
+    sin salir del formulario de paciente.
+    useGuard=false para no activar
+    NavigationGuard del padre.
+    Tras crear, recarga el responsable
+    y lo auto-selecciona en el autocomplete.
+  end note
+}
+
+package "Backend" {
+  component "PacienteViewSet" as VIEWSET
+  component "PersonaViewSet" as PVIEW
+  component "PacienteListSerializer" as LISTSERIAL
+  component "PacienteSerializer" as SERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of PVIEW
+    perform_destroy lanza MethodNotAllowed.
+    Persona es indestructible.
+    @action buscar: GET /api/persona/buscar/
+    Retorna {persona, paciente, es_paciente}.
+  end note
+
+  note right of VIEWSET
+    @action eliminados: lista borrados.
+    @action reporte_lista: PDF WeasyPrint.
+    @action reporte_lista_excel: Excel openpyxl.
+    @action count: total de pacientes activos.
+    @action dashboard_mensual: stats del mes.
+    perform_destroy: verifica Agenda activa
+    (DISPONIBLE/OCUPADO/REALIZADO).
+  end note
+}
+
+package "Base de Datos" {
+  database "persona" as DBPER
+  database "paciente" as DBPAC
+  database "paciente_responsable" as DBRESP
+  database "agenda" as DBAGENDA
+  database "documento_dig_paciente" as DBDOC
+}
+
+PAGE --> PFORM : "modal crear / editar"
+PAGE --> HOOK : "usePatients (paginado)\nusePacienteMutations(showToast)"
+PAGE --> DIALOG : "confirmacion eliminacion\n(menciona restriccion por citas activas)"
+
+PFORM --> BUSC : "buscar por documento\n(sin prop tipo)"
+PFORM --> FPER : "sub-formulario persona"
+PFORM --> FPAC : "sub-formulario paciente"
+PFORM --> SDOC : "seccion documentos (solo editar)"
+
+FPAC --> RESPFORM : "modal anidado nuevo responsable\n(useGuard=false, z-index 60)"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/paciente/"
+CLIENT --> PVIEW : "POST/PATCH /api/persona/\nGET /api/persona/buscar/"
+
+BUSC --> CLIENT : "GET /api/persona/buscar/?nro_documento=X"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados"
+VIEWSET --> SERIAL : "create / update / destroy"
+
+MIXIN ..> VIEWSET : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey ['patients']\n+ toast desde el hook (eliminar)\n+ toast desde la pagina (guardar)"
+
+SERIAL --> DBPAC : "INSERT / UPDATE paciente"
+LISTSERIAL --> DBPAC : "SELECT JOIN persona, responsable\nWHERE is_deleted=False"
+
+VIEWSET ..> DBAGENDA : "verifica citas activas\nantes de borrado logico"
+VIEWSET ..> DBPER : "buscar nro_documento"
+PVIEW ..> DBPER : "INSERT / UPDATE persona"
+
+CLIENT ..> DBDOC : "GET/POST/DELETE\n/api/documentos/"
+CLIENT ..> DBRESP : "GET /api/pacienteresponsable/\n?search=...&page_size=8"
+
+@enduml

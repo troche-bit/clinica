@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import BuscadorPersona  from '../persona/BuscadorPersona'
 import FormPersona      from '../persona/FormPersona'
 import FormResponsable  from '../responsable/FormResponsable'
@@ -6,6 +6,7 @@ import { useCreatePersona, useUpdatePersona } from '../../hooks/administracion/u
 import { useCreateResponsable, useUpdateResponsable } from '../../hooks/clinica/useResponsable'
 import { extraerMensajeError } from '../../utils/errores'
 import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
+import { useNavigationGuard } from '../../hooks/useNavigationGuard'
 
 const MODO_INFO = {
   crear_todo:       { texto: 'Documento no encontrado — completá los datos para registrar', bg: '#eff6ff', color: '#1a3a5c', border: '#bfdbfe' },
@@ -13,7 +14,7 @@ const MODO_INFO = {
   editar:           { texto: 'Responsable existente — modo edición',                        bg: '#fff7ed', color: '#9a3412', border: '#fed7aa' },
 }
 
-export default function ResponsableForm({ responsableInicial = null, onSuccess }) {
+export default function ResponsableForm({ responsableInicial = null, onSuccess, onCancel, useGuard = true }) {
   const [resultado,       setResultado]       = useState(
     responsableInicial
       ? {
@@ -30,10 +31,15 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
   const [guardando,       setGuardando]       = useState(false)
   const [error,           setError]           = useState('')
 
+  const { markDirty, markClean } = useNavigationGuard()
+
   const { mutateAsync: createPersona }     = useCreatePersona()
   const { mutateAsync: updatePersona }     = useUpdatePersona()
   const { mutateAsync: createResponsable } = useCreateResponsable()
   const { mutateAsync: updateResponsable } = useUpdateResponsable()
+
+  useEffect(() => { if (resultado && useGuard) markDirty() }, [resultado, useGuard])
+  useEffect(() => () => { if (useGuard) markClean() }, [markClean, useGuard])
 
   useAtajosTeclado({
     'F10': { fn: () => { if (resultado && !guardando) handleGuardar() }, soloFueraDeInputs: false },
@@ -50,24 +56,26 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
         ruc_dv: data.ruc_dv ? parseInt(data.ruc_dv) : null,
       })
 
+      let nuevoResp = null
+
       if (resultado.modo === 'crear_todo') {
         const nuevaPersona = await createPersona(prepararPersona(formPersona))
         personaId = nuevaPersona.data.id
-        await createResponsable({ ...formResponsable, persona: personaId })
+        const r = await createResponsable({ ...formResponsable, persona: personaId })
+        nuevoResp = r.data
 
       } else if (resultado.modo === 'agregar_paciente') {
         await updatePersona({ id: personaId, ...prepararPersona(formPersona) })
-        await createResponsable({ ...formResponsable, persona: personaId })
+        const r = await createResponsable({ ...formResponsable, persona: personaId })
+        nuevoResp = r.data
 
       } else if (resultado.modo === 'editar') {
         await updatePersona({ id: personaId, ...prepararPersona(formPersona) })
-        await updateResponsable({
-          id: responsableInicial.id,
-          ...formResponsable,
-        })
+        await updateResponsable({ id: responsableInicial.id, ...formResponsable })
       }
 
-      onSuccess()
+      if (useGuard) markClean()
+      onSuccess(nuevoResp)
     } catch (err) {
       setError(extraerMensajeError(err))
     } finally {
@@ -131,6 +139,8 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
           border-top-color: #fff; border-radius: 50%;
           animation: spin 0.7s linear infinite; flex-shrink: 0;
         }
+        .rf-btn-save-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .rf-btn-save-hint { font-size: 10.5px; color: #9ca3af; }
       `}</style>
 
       <div className="rf-root">
@@ -173,10 +183,13 @@ export default function ResponsableForm({ responsableInicial = null, onSuccess }
             )}
 
             <div className="rf-actions">
-              <button className="rf-btn-cancel" onClick={onSuccess}>Cancelar</button>
-              <button className="rf-btn-save" onClick={handleGuardar} disabled={guardando}>
-                {guardando ? <><div className="rf-spin" /> Guardando...</> : 'Guardar'}
-              </button>
+              <button className="rf-btn-cancel" onClick={onCancel ?? onSuccess}>Cancelar</button>
+              <div className="rf-btn-save-wrap">
+                <button className="rf-btn-save" onClick={handleGuardar} disabled={guardando}>
+                  {guardando ? <><div className="rf-spin" /> Guardando...</> : 'Guardar'}
+                </button>
+                <span className="rf-btn-save-hint">F10 para guardar</span>
+              </div>
             </div>
           </>
         )}

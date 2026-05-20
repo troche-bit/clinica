@@ -1,0 +1,101 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "UbicacionesPage.jsx" as PAGE
+  component "TablaUbicacion" as TABLA
+  component "FilaEditable" as FILA
+  component "useUbicacion.js" as HOOK
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+}
+
+package "Backend" {
+  component "PaisViewSet" as PVIS
+  component "DepartamentoViewSet" as DVIS
+  component "CiudadViewSet" as CVIS
+  component "PaisSerializer / PaisListSerializer" as PSERIAL
+  component "DepartamentoSerializer / DepartamentoListSerializer" as DSERIAL
+  component "CiudadSerializer / CiudadListSerializer" as CSERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of DSERIAL
+    validate(): verifica unicidad
+    de descripcion dentro del
+    mismo pais (is_deleted=False,
+    excluye instancia actual).
+    pais_descripcion: ReadOnly.
+  end note
+
+  note right of CSERIAL
+    validate(): verifica unicidad
+    de descripcion dentro del
+    mismo departamento.
+    departamento_descripcion: ReadOnly.
+  end note
+}
+
+package "Base de datos" {
+  database "PostgreSQL" as DB
+}
+
+PAGE --> TABLA : "3 columnas (Paises / Departamentos / Ciudades)\npatron jerarquico cascada"
+PAGE --> HOOK : usa
+PAGE --> DIALOG : "confirmacion global\nde eliminacion"
+
+TABLA --> FILA : "edicion en linea\npor fila"
+TABLA ..> PAGE : "anyEdit -> NavigationGuard\nresetKey={parentId} limpia busqueda local"
+
+HOOK --> CLIENT : "peticiones HTTP\n(9 mutaciones)"
+CLIENT --> PVIS : "GET/POST/PATCH/DELETE\n/api/pais/"
+CLIENT --> DVIS : "GET/POST/PATCH/DELETE\n/api/departamento/?pais=id"
+CLIENT --> CVIS : "GET/POST/PATCH/DELETE\n/api/ciudad/?departamento=id"
+
+note right of HOOK
+  usePaises(): staleTime 30min
+  useDepartamentos(paisId):
+    enabled: !!paisId
+    staleTime 30min
+  useCiudades(departamentoId):
+    enabled: !!departamentoId
+    staleTime 30min
+  Toast dentro del hook
+  (mismo patron que useTipoDocDig)
+end note
+
+PVIS --> MIXIN : hereda
+DVIS --> MIXIN : hereda
+CVIS --> MIXIN : hereda
+
+PVIS --> PSERIAL : "list / retrieve\n(page_size=100)"
+DVIS --> DSERIAL : "list / retrieve\n(filtro ?pais=id)"
+CVIS --> CSERIAL : "list / retrieve\n(filtro ?departamento=id)"
+
+MIXIN ..> PVIS : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+MIXIN ..> DVIS : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+MIXIN ..> CVIS : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+
+PVIS ..> DB : "verifica departamentos activos\nY personas activas\nantes de borrado logico"
+DVIS ..> DB : "verifica ciudades activas\nY personas activas\nantes de borrado logico"
+CVIS ..> DB : "verifica personas activas\nantes de borrado logico"
+
+PSERIAL --> DB : "INSERT/UPDATE pais"
+DSERIAL --> DB : "INSERT/UPDATE departamento"
+CSERIAL --> DB : "INSERT/UPDATE ciudad"
+
+@enduml

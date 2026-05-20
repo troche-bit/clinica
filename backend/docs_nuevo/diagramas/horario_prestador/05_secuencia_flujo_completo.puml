@@ -1,0 +1,179 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "HorarioPrestadorPage.jsx" as GUI
+control "useHorarioPrestador.js" as HOOK
+control "usePersonaRRHH.js" as RHOOK
+control "HorarioPrestadorViewSet" as VIEW
+control "AuditoriaMixin" as MIXIN
+entity "HorarioPrestador" as HORARIO
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== 1. Admin carga la pagina y ve los prestadores ==
+
+ADMIN -> GUI : abre HorarioPrestadorPage
+GUI -> RHOOK : usePersonasRRHH({ page:1, search:'' })
+RHOOK -> BD : GET /api/personarrhh/ → prestadores activos
+BD --> RHOOK : lista de prestadores
+
+GUI -> HOOK : useHorariosPrestador() — sin filtro
+HOOK -> VIEW : GET /api/horario-prestador/?page_size=200
+VIEW -> HORARIO : filter(is_deleted=False, persona_rrhh__is_deleted=False)
+HORARIO -> BD : SELECT horario_prestador JOIN persona_rrhh
+BD --> HORARIO : todos los horarios activos
+VIEW --> HOOK : { results: [...] }
+HOOK --> GUI : todosHorarios en cache
+
+GUI --> ADMIN : tabla con prestadores y pills de horarios\n(LUN 09:00-13:00, MAR 08:00-12:00, etc.)
+
+== 2. Admin selecciona prestador y ve sus horarios ==
+
+ADMIN -> GUI : click fila "Dr. Martinez"
+GUI -> GUI : guardAction(() => abrirPanel(drMartinez, 'ver'))
+GUI --> ADMIN : panel lateral modo 'ver'\n- Lunes 09:00-12:00 · 30 min · Cardiologia\npanel de Generar turnos al final
+
+== 3. Admin agrega nuevo horario para el Martes ==
+
+ADMIN -> GUI : click "Editar horarios"
+GUI -> GUI : abrirPanel(drMartinez, 'editar')\nbloques = [{ id:5, dia_semana:1, hora_desde:'09:00', ... }]
+GUI --> ADMIN : panel modo editar\n1 bloque existente (Lunes)
+
+ADMIN -> GUI : click "Agregar horario"
+GUI -> GUI : setBloques([bloque_lunes, HORARIO_VACIO()])\nsetBloqueIdx(1)
+GUI --> ADMIN : nuevo bloque vacio — bloque 2/2
+
+ADMIN -> GUI : selecciona dia Martes (id=2)
+ADMIN -> GUI : ingresa hora_desde='08:00'
+ADMIN -> GUI : ingresa hora_hasta='12:00'
+ADMIN -> GUI : selecciona intervalo 30 min (click boton)
+ADMIN -> GUI : selecciona especialidad Cardiologia (checkbox)
+
+note right of GUI
+  solapamientos useMemo verifica:
+  bloque Martes vs bloque Lunes
+  (dias distintos, no hay solapamiento).
+  No muestra advertencia.
+end note
+
+ADMIN -> GUI : click Guardar (o F10)
+
+GUI -> GUI : validarBloques()
+note right of GUI
+  bloque 0 (Lunes, id=5): tiene id — UPDATE
+  bloque 1 (Martes, sin id): nuevo — INSERT
+  cantEliminar = 0 (no se quitaron bloques)
+  No muestra ConfirmDialog.
+  ejecutarGuardar(bloques)
+end note
+
+GUI -> VIEW : PATCH /api/horario-prestador/5/\n{ dia_semana:1, hora_desde:'09:00', ..., especialidades:[1] }
+VIEW -> VIEW : validate() — hora_hasta > hora_desde OK\n  unicidad OK (mismo registro excluido)
+VIEW -> MIXIN : perform_update(serializer)
+MIXIN -> HORARIO : serializer.save(id_usu_modificator=request.user)
+HORARIO -> BD : UPDATE horario_prestador SET ... WHERE id=5
+BD --> HORARIO : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='HorarioPrestador', accion='EDITAR')
+BD --> MIXIN : OK
+VIEW --> GUI : 200 OK
+
+GUI -> VIEW : POST /api/horario-prestador/\n{ persona_rrhh: drMartinez.id,\ndia_semana: 2, hora_desde:'08:00',\nhora_hasta:'12:00', intervalo: 30,\nespecialidades: [1],\nestado:'activo', excepcion: false }
+VIEW -> VIEW : validate() —\n  hora_hasta='12:00' > hora_desde='08:00' OK\n  dia_semana=2 presente OK\n  unicidad: no existe (persona_rrhh, dia=2, hora='08:00')
+VIEW -> MIXIN : perform_create(serializer)
+MIXIN -> HORARIO : serializer.save(id_usu_creator=request.user)
+HORARIO -> BD : INSERT horario_prestador\n(persona_rrhh_id=drMartinez.id,\ndia_semana_id=2, hora_desde='08:00',\nhora_hasta='12:00', intervalo=30)
+BD --> HORARIO : id=12
+HORARIO -> BD : INSERT horario_prestador_especialidades\n(horario_id=12, especialidad_id=1)
+BD --> HORARIO : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='HorarioPrestador', accion='CREAR')
+BD --> MIXIN : OK
+VIEW --> GUI : 201 { id: 12 }
+
+HOOK -> HOOK : invalidateQueries(['horarios-prestador'])
+GUI -> GUI : showToast("Horarios guardados correctamente.", "success")
+GUI -> GUI : setModo('ver')
+GUI --> ADMIN : panel vuelve a ver — ahora muestra\nLunes 09:00-12:00 y Martes 08:00-12:00
+
+== 4. Admin calcula preview de turnos ==
+
+ADMIN -> GUI : ajusta fechaDesde=2026-05-12,\nfechaHasta=2026-05-31
+GUI -> GUI : previsualizarTurnos() recalcula\n(useMemo reactivo a genDesde/genHasta)
+
+note right of GUI
+  previsualizarTurnos itera 2026-05-12 a 2026-05-31:
+  - Martes del rango: 12, 19, 26 mayo
+  - Cada Martes con horario 08:00-12:00, intervalo 30:
+    slots = floor((12*60 - 8*60) / 30) = 8 turnos/dia
+  - Total estimado: 3 dias × 8 = 24 turnos
+  Nota: el dia hoy (12/05) ajusta al primer
+  slot futuro segun hora actual.
+end note
+
+GUI --> ADMIN : "Se generaran ~24 turno(s)\nentre 2026-05-12 y 2026-05-31"
+
+== 5. Admin confirma la generacion ==
+
+ADMIN -> GUI : click "Confirmar generacion"
+GUI -> GUI : handleGenerar()
+
+note right of GUI
+  Itera todos los horarios activos del prestador:
+  - id=5 (Lunes) — genera Lunes del rango
+  - id=12 (Martes) — genera Martes del rango
+end note
+
+GUI -> HOOK : generarTurnos({ id:5, fecha_desde:'2026-05-12', fecha_hasta:'2026-05-31' })
+HOOK -> VIEW : POST /api/horario-prestador/5/generar/\n{ fecha_desde:'2026-05-12', fecha_hasta:'2026-05-31' }
+VIEW -> VIEW : dia_semana.id=1 (Lunes)
+VIEW -> VIEW : Lunes en rango: 18, 25 mayo
+
+loop Lunes 18/05: hora_actual 09:00..12:00 (6 slots)
+  VIEW -> AGENDA : Agenda.filter(horario_prestador=5,\nfecha=2026-05-18, hora_desde=slot.time,\nis_deleted=False).exists()
+  AGENDA -> BD : SELECT EXISTS ...
+  BD --> AGENDA : False (2 ya existen) / True (resto nuevos)
+  VIEW -> AGENDA : Agenda.objects.create(...) — para los nuevos
+  AGENDA -> BD : INSERT agenda (estado='DISPONIBLE')
+end
+
+VIEW --> HOOK : { creados: 10, omitidos: 2, detalle: [...] }
+HOOK --> GUI : res.data
+
+GUI -> HOOK : generarTurnos({ id:12, fecha_desde:'2026-05-12', fecha_hasta:'2026-05-31' })
+HOOK -> VIEW : POST /api/horario-prestador/12/generar/\n{ fecha_desde:'2026-05-12', fecha_hasta:'2026-05-31' }
+VIEW -> VIEW : dia_semana.id=2 (Martes)
+VIEW -> VIEW : Martes en rango: 12, 19, 26 mayo
+
+loop Por cada Martes, slots 08:00-12:00 cada 30 min
+  VIEW -> AGENDA : Agenda.filter(horario_prestador=12,\nfecha=fecha, hora_desde=slot,\nis_deleted=False).exists()
+  AGENDA -> BD : SELECT EXISTS
+  BD --> AGENDA : False para todos (horario recien creado)
+  VIEW -> AGENDA : Agenda.objects.create(...)
+  AGENDA -> BD : INSERT agenda (estado='DISPONIBLE')
+end
+
+VIEW --> HOOK : { creados: 24, omitidos: 0, detalle: [...] }
+HOOK --> GUI : res.data
+
+GUI -> GUI : totalCreados = 10 + 24 = 34\ndetalleTotal = detalle_lunes + detalle_martes
+GUI -> GUI : setGenResult({ creados: 34, detalle: [...] })
+GUI -> GUI : showToast("Generacion completada: 34 turnos.", "success")
+GUI --> ADMIN : resultado con detalle por fecha y dia\ntoast verde exito
+
+note over AGENDA, BD
+  La Agenda tiene ahora 34 nuevos registros
+  en estado DISPONIBLE listos para ser asignados
+  desde AgendaPage.
+  Los 2 turnos omitidos del Lunes ya existian
+  de una generacion anterior.
+  El historial de auditoría registra la creacion
+  de cada HorarioPrestador pero NO de cada turno
+  de Agenda (los crea directamente con create()).
+end note
+
+@enduml

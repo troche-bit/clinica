@@ -1,0 +1,177 @@
+@startuml 02_secuencia_crud
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "PersonaRRHHPage.jsx" as GUI
+boundary "PersonaRRHHForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSCADOR
+control "usePersonaRRHH.js" as HOOK
+control "PersonaRRHHViewSet" as VIEW
+control "PersonaViewSet" as PVIEW
+entity "Persona" as PERSONA
+entity "PersonaRRHH" as RRHH
+entity "Especialidad" as ESP
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar prestadores ==
+
+ADMIN -> GUI : abre pagina
+GUI -> HOOK : usePersonasRRHH({ page:1, search:'' })
+HOOK -> VIEW : GET /api/personarrhh/?page=1
+VIEW -> RRHH : filter(is_deleted=False)\n.select_related(persona__tipo_documento, ...)\n.prefetch_related(especialidades)
+RRHH -> BD : SELECT con JOIN persona\nWHERE is_deleted=False\nORDER BY persona__nro_documento
+BD --> RRHH : registros paginados (20 por pagina)
+VIEW --> HOOK : JSON { count, results: [{ id, nombre, documento,\ncargo, especialidades_detalle, estado, ... }] }
+HOOK --> GUI : data paginada
+GUI --> ADMIN : tabla con avatar, nombre, documento,\ncargo, especialidades como chips, estado\n+ paginacion + botones PDF/Excel
+
+ADMIN -> GUI : escribe en busqueda (debounce 300ms)
+GUI -> HOOK : usePersonasRRHH({ page:1, search:'garcia' })
+HOOK -> VIEW : GET /api/personarrhh/?page=1&search=garcia
+VIEW -> RRHH : SearchFilter (razon_social ILIKE /\nnro_documento ILIKE / nro_matricula ILIKE)
+BD --> RRHH : registros filtrados
+VIEW --> HOOK : JSON paginado filtrado
+GUI --> ADMIN : tabla actualizada
+
+== Flujo 2: Crear prestador — modo crear_todo ==
+
+ADMIN -> GUI : click "Nuevo prestador" (o Insert)
+GUI -> GUI : guardAction(() => setModo('crear'))
+GUI --> ADMIN : Modal modo crear\n(titulo: Nuevo prestador)
+
+ADMIN -> FORM : nro_documento="2000001"
+FORM -> BUSCADOR : buscar por documento
+BUSCADOR -> VIEW : GET /api/personarrhh/buscar/?nro_documento=2000001
+VIEW -> BD : SELECT FROM persona WHERE nro_documento='2000001' AND is_deleted=False
+BD --> VIEW : (vacio) — persona no existe
+VIEW --> BUSCADOR : { persona: null, personarrhh: null, es_prestador: false }
+
+BUSCADOR --> FORM : resultado.modo = 'crear_todo'
+FORM --> ADMIN : badge azul "Documento no encontrado"\n+ FormPersona (todos los campos editables)\n+ FormRRHH (cargo, tipo_contrato, estado,\nnro_matricula, especialidades, honorario, ...)
+
+ADMIN -> FORM : completa FormPersona + FormRRHH
+ADMIN -> FORM : agrega especialidades\n(SelectorEspecialidades con tags)
+ADMIN -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : POST /api/persona/\n{ tipo_documento, nro_documento:'2000001',\nrazon_social:'Dr. Carlos Vera', ... }
+PVIEW -> PERSONA : serializer.save(id_usu_creator=request.user)
+PERSONA -> BD : INSERT persona
+BD --> PERSONA : { id: 70 }
+PVIEW -> BD : INSERT auditoria_registro (CREAR persona)
+PVIEW --> FORM : 201 { id: 70 }
+
+FORM -> VIEW : POST /api/personarrhh/\n{ persona: 70, cargo:'medico',\ntipo_contrato:'honorarios',\nespecialidades: [3, 7], nro_matricula:'12345', ... }
+VIEW -> RRHH : serializer.save(id_usu_creator=request.user)
+RRHH -> BD : INSERT persona_rrhh (persona_id=70, ...)
+BD --> RRHH : { id: 15 }
+
+note right of RRHH
+  El campo especialidades[] en el body
+  del POST asigna el M2M directamente.
+  DRF ModelSerializer maneja el
+  INSERT en persona_rrhh_especialidades.
+end note
+
+RRHH -> BD : INSERT persona_rrhh_especialidades\n(personarrhh_id=15, especialidad_id=3)\n(personarrhh_id=15, especialidad_id=7)
+VIEW -> BD : INSERT auditoria_registro (CREAR personarrhh)
+VIEW --> FORM : 201 { id: 15 }
+
+FORM -> HOOK : invalidateQueries(['personasrrhh'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Prestador guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> ADMIN : toast exito — modal cerrado
+
+== Flujo 3: Crear prestador — modo agregar ==
+
+ADMIN -> GUI : click "Nuevo prestador"
+ADMIN -> FORM : nro_documento="9000002"
+FORM -> BUSCADOR : buscar por documento
+BUSCADOR -> VIEW : GET /api/personarrhh/buscar/?nro_documento=9000002
+VIEW -> BD : SELECT persona WHERE nro_documento='9000002'
+BD --> VIEW : persona existe (id=55)
+VIEW -> BD : SELECT personarrhh WHERE persona_id=55 AND is_deleted=False
+BD --> VIEW : (vacio) — no es prestador
+VIEW --> BUSCADOR : { persona: {...}, personarrhh: null, es_prestador: false }
+
+BUSCADOR --> FORM : resultado.modo = 'agregar'
+FORM --> ADMIN : badge verde "Persona encontrada — completa los datos del prestador"\n+ FormPersona (readOnly=true)\n+ FormRRHH (campos editables)
+
+ADMIN -> FORM : completa FormRRHH
+ADMIN -> FORM : click Guardar
+
+FORM -> PVIEW : PATCH /api/persona/55/
+PVIEW -> BD : UPDATE persona WHERE id=55
+PVIEW -> BD : INSERT auditoria_registro (EDITAR persona)
+PVIEW --> FORM : 200 OK
+
+FORM -> VIEW : POST /api/personarrhh/\n{ persona: 55, cargo:'enfermero',\ntipo_contrato:'dependencia',\nespecialidades: [5], ... }
+VIEW -> RRHH : serializer.save(id_usu_creator=request.user)
+RRHH -> BD : INSERT persona_rrhh (persona_id=55)
+BD --> RRHH : { id: 16 }
+VIEW -> BD : INSERT auditoria_registro (CREAR personarrhh)
+VIEW --> FORM : 201 OK
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Prestador guardado correctamente.", "success")
+GUI --> ADMIN : toast exito
+
+== Flujo 4: Editar prestador ==
+
+ADMIN -> GUI : click boton Editar en tabla
+GUI -> GUI : guardAction(() => setModo('editar'), setPrestadorSel(prest))
+GUI --> ADMIN : Modal modo editar\n(PersonaRRHHForm con prestadorInicial cargado)
+
+note right of FORM
+  Con prestadorInicial != null,
+  BuscadorPersona NO se muestra.
+  El formulario arranca en modo 'editar'
+  con los datos cargados.
+  SeccionDocumentos visible (solo en editar).
+  FormRRHH incluye SelectorEspecialidades
+  con los tags ya seleccionados.
+end note
+
+ADMIN -> FORM : modifica campos\n(agrega/quita especialidades,\ncambia cargo, etc.)
+
+note right of FORM
+  Al cambiar nro_matricula,
+  FormRRHH llama onBlur a
+  GET /api/personarrhh/validar-matricula/
+  para verificar unicidad en tiempo real.
+end note
+
+ADMIN -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : PATCH /api/persona/{personaId}/
+PVIEW -> BD : UPDATE persona SET ...
+PVIEW -> BD : INSERT auditoria_registro (EDITAR persona)
+PVIEW --> FORM : 200 OK
+
+FORM -> VIEW : PATCH /api/personarrhh/{rrhhId}/\n{ cargo, tipo_contrato, especialidades:[3,7,9], ... }
+VIEW -> RRHH : serializer.save(id_usu_modificator=request.user)
+RRHH -> BD : UPDATE persona_rrhh SET ... WHERE id=rrhhId
+BD --> RRHH : OK
+
+note right of RRHH
+  El PATCH con especialidades[]
+  reemplaza completamente el M2M:
+  DELETE FROM persona_rrhh_especialidades
+  WHERE personarrhh_id=rrhhId
+  INSERT nuevas relaciones.
+end note
+
+VIEW -> BD : INSERT auditoria_registro (EDITAR personarrhh)
+VIEW --> FORM : 200 OK
+
+FORM -> HOOK : invalidateQueries(['personasrrhh'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Prestador guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> ADMIN : toast exito
+
+@enduml

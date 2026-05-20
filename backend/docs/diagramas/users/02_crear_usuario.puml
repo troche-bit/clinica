@@ -1,0 +1,145 @@
+@startuml 02_crear_usuario
+
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceActorBorderColor #1a3a5c
+skinparam noteBorderColor #e8edf2
+skinparam noteBackgroundColor #fafbfc
+
+title Crear Usuario — Clínica Lichi
+
+actor      "Admin"               as ADM
+participant "UsuariosPage"        as PAGE
+participant "FormularioUsuario"   as FORM
+participant "useCreateUsuario\n(React Query)" as HOOK
+participant "apiClient\n(Axios)"  as API
+participant "PerfilUsuario\nViewSet" as VIEW
+participant "UsuarioCreate\nSerializer" as SER
+database   "PostgreSQL"           as DB
+participant "RegistroAuditoria"   as AUD
+
+== Apertura del modal ==
+
+ADM -> PAGE : Click "Nuevo usuario"
+activate PAGE
+
+PAGE -> PAGE : handleNuevo()\nsetModo('crear'), setUsuSel(null)
+PAGE -> FORM : Renderiza Modal\nmodo='crear', usuario=null
+activate FORM
+
+== Carga de datos del formulario ==
+
+note over FORM
+  Campos: username*, password*, confirmarPass*,
+  first_name, last_name, email, rol*,
+  prestador (TypeaheadPrestador),
+  medicos_asignados (TypeaheadMedicos, solo secretaria_medico)
+end note
+
+ADM -> FORM : Completa campos + selecciona rol
+
+== Validación local y envío ==
+
+ADM -> FORM : Click "Crear usuario"
+FORM -> FORM : handleGuardar() — validaciones locales:\n• username no vacío\n• password ≥ 8 chars\n• passwords coinciden\n• rol seleccionado
+
+FORM -> HOOK : createMutation.mutateAsync({ username, password,\nfirst_name, last_name, email, rol,\npersona_rrhh, medicos_asignados })
+activate HOOK
+
+HOOK -> API : POST /api/usuarios/\nAuthorization: Bearer {access_token}
+activate API
+
+== Procesamiento en el backend ==
+
+API -> VIEW : request.data
+activate VIEW
+
+note right of VIEW
+  get_permissions():
+  action == 'create' → IsAdminRole
+  Verifica rol del JWT
+end note
+
+VIEW -> SER : UsuarioCreateSerializer(data=request.data)
+activate SER
+
+SER -> SER : validate_username(value):\n• value.strip()\n• User.objects.filter(username=value).exists()\n  → ValidationError si ya existe
+
+SER -> SER : validate(data):\n• Si rol != 'secretaria_medico'\n  → medicos_asignados = []
+
+SER -> DB : INSERT INTO auth_user\n(username, password_hash, first_name,\nlast_name, email, ...)
+activate DB
+DB --> SER : User creado
+deactivate DB
+
+note right of SER
+  User.objects.create_user() hashea
+  la contraseña con PBKDF2-SHA256
+end note
+
+SER -> DB : SELECT/INSERT users_perfilusuario\nWHERE user_id = ? (get_or_create)
+activate DB
+DB --> SER : PerfilUsuario (nuevo o existente)
+deactivate DB
+
+note right of SER
+  get_or_create garantiza idempotencia
+  si existe un signal post_save que
+  haya pre-creado el perfil
+end note
+
+SER -> DB : UPDATE users_perfilusuario\nSET rol=?, persona_rrhh_id=?
+activate DB
+DB --> SER : OK
+deactivate DB
+
+alt rol == 'secretaria_medico' y medicos_asignados no vacío
+  SER -> DB : DELETE + INSERT users_perfilusuario_medicos_asignados
+  activate DB
+  DB --> SER : OK
+  deactivate DB
+end
+
+SER --> VIEW : PerfilUsuario
+deactivate SER
+
+== Auditoría ==
+
+VIEW -> AUD : _log(request, perfil.id, 'CREAR',\ndatos_antes=None,\ndatos_despues={usuario, rol, activo})
+activate AUD
+AUD -> DB : INSERT INTO auditoria_registro
+activate DB
+DB --> AUD : OK
+deactivate DB
+deactivate AUD
+
+VIEW --> API : HTTP 201\nPerfilUsuarioSerializer(perfil).data
+deactivate VIEW
+
+== Respuesta al frontend ==
+
+API --> HOOK : 201 Created — datos del perfil
+deactivate API
+
+HOOK -> HOOK : onSuccess():\nqueryClient.invalidateQueries(['usuarios'])
+deactivate HOOK
+
+note right of HOOK
+  React Query re-fetcha GET /api/usuarios/
+  automáticamente al invalidar el caché
+end note
+
+HOOK --> FORM : mutación exitosa
+FORM -> PAGE : onSaved()
+deactivate FORM
+
+PAGE -> PAGE : cerrar() — setModo(null), setUsuSel(null)
+PAGE -> PAGE : showToast('Usuario creado correctamente.', 'success')
+PAGE -> PAGE : Tabla se actualiza con nuevo usuario
+deactivate PAGE
+
+@enduml

@@ -1,0 +1,47 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Consultorio {
+  + id : AutoField <<PK>>
+  + nro_consultorio : CharField(50)
+  + descripcion : CharField(150) [null]
+  --
+  db_table = 'consultorio'
+  ordering = ['nro_consultorio']
+  unique: Lower(nro_consultorio) WHERE is_deleted=False
+  index: idx_consultorio_nro_is_deleted
+  --
+  + __str__() : str
+}
+
+BaseModel <|-- Consultorio : hereda
+
+@enduml

@@ -1,0 +1,104 @@
+@startuml clases
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #1a3a5c
+skinparam classArrowColor #1a3a5c
+skinparam classFontSize 13
+skinparam classAttributeFontSize 12
+skinparam shadowing false
+
+title Consultorio — Modelo de clases y relaciones
+
+abstract class BaseModel {
+  + id_usu_creator : FK(User)
+  + fecha_creacion : DateTimeField
+  + id_usu_modificator : FK(User)
+  + fecha_modificacion : DateTimeField
+  + is_deleted : BooleanField = false
+  + fecha_eliminacion : DateTimeField?
+  --
+  + soft_delete()
+  + restore()
+}
+
+class Consultorio {
+  + id : AutoField (PK)
+  + nro_consultorio : CharField(50)
+  + descripcion : CharField(150)?
+  --
+  db_table = 'consultorio'
+  ordering = ['nro_consultorio']
+  ..índices..
+  idx_consultorio_nro_is_deleted
+  ..restricciones..
+  unique(Lower(nro_consultorio))
+  where is_deleted = false
+  --
+  + __str__() : str
+}
+
+class HorarioPrestador {
+  + id : AutoField (PK)
+  + consultorio : FK → Consultorio?
+  + persona_rrhh : FK → PersonaRRHH
+  + dia_semana : FK → DiaSemana
+  + hora_desde : TimeField
+  + hora_hasta : TimeField
+  + intervalo : IntegerField
+  + estado : CharField (activo/inactivo)
+  + excepcion : BooleanField
+  + fecha_excepcion : DateField?
+  + especialidades : M2M → Especialidad
+}
+
+class ConsultorioSerializer {
+  fields: [id, nro_consultorio, descripcion]
+  --
+  + validate_nro_consultorio(value) : str
+}
+
+class ConsultorioListSerializer {
+  fields: [id, nro_consultorio, descripcion]
+}
+
+class ConsultorioViewSet {
+  queryset: Consultorio[is_deleted=false]
+  filter_backends: SearchFilter, OrderingFilter
+  search_fields: nro_consultorio, descripcion
+  ordering_fields: nro_consultorio
+  --
+  + get_permissions()
+  + get_serializer_class()
+  + perform_destroy(instance)
+  + eliminados() : GET /eliminados/
+}
+
+BaseModel <|-- Consultorio
+Consultorio "1" o-- "0..*" HorarioPrestador : related_name=horarios >
+
+ConsultorioViewSet ..> ConsultorioSerializer : escritura\n(create/update)
+ConsultorioViewSet ..> ConsultorioListSerializer : lectura\n(list/retrieve)
+ConsultorioSerializer ..> Consultorio : modelo
+ConsultorioListSerializer ..> Consultorio : modelo
+
+note top of Consultorio
+  Roles por acción:
+  list/retrieve → IsAuthenticated
+  create/update → IsAdminOrRecepcionista
+  destroy/eliminados → IsAdminRole
+end note
+
+note bottom of HorarioPrestador
+  perform_destroy de ConsultorioViewSet
+  verifica que no existan horarios
+  activos antes de borrar lógicamente.
+  instance.horarios.filter(is_deleted=False).exists()
+end note
+
+@enduml

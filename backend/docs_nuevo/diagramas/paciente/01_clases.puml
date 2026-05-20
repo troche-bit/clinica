@@ -1,0 +1,120 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Persona {
+  + id : AutoField <<PK>>
+  + tipo_documento : ForeignKey
+  + nro_documento : CharField
+  + razon_social : CharField
+  + fecha_nacimiento : DateField [null]
+  + telefono : CharField [null]
+  + correo_electronico : EmailField [null]
+  + ciudad : ForeignKey [null]
+  + ...
+  --
+  db_table = 'persona'
+  No eliminable (MethodNotAllowed)
+}
+
+class PacienteResponsable {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey <<PROTECT>>
+  + grupo_sanguineo : CharField [null]
+  + ocupacion : CharField [null]
+  + es_contacto_emergencia : BooleanField = True
+  + observacion : TextField [null]
+  --
+  db_table = 'paciente_responsable'
+}
+
+class Paciente {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey <<PROTECT>>
+  + responsable : ForeignKey [null] <<PROTECT>>
+  + sexo : CharField(1) [M/F/O]
+  + observacion : TextField [null]
+  + grupo_sanguineo : CharField(11) [null]
+  + alergias_conocidas : TextField [null]
+  + enfermedades_cronicas : TextField [null]
+  + parentesco : CharField(100) [null]
+  --
+  db_table = 'paciente'
+  ordering = ['persona__nro_documento']
+  unique: persona WHERE is_deleted=False
+  index: idx_paciente_persona
+  --
+  + __str__() : str
+}
+
+class Agenda {
+  + id : AutoField <<PK>>
+  + paciente : ForeignKey <<PROTECT>>
+  + estado : CharField [DISPONIBLE/OCUPADO/REALIZADO/CANCELADO/INACTIVO]
+  + is_deleted : BooleanField
+  + ...
+}
+
+class DocumentoDigPaciente {
+  + id : AutoField <<PK>>
+  + paciente : ForeignKey
+  + tipo_doc_dig : ForeignKey
+  + archivo : FileField
+  + consulta : ForeignKey [null]
+  + ...
+}
+
+note right of Persona
+  Persona es la tabla raiz.
+  No puede eliminarse directamente.
+  Los datos clinicos viven en Paciente.
+  Una Persona puede ser Paciente
+  y tener otro rol simultaneamente.
+end note
+
+note right of Paciente
+  La relacion con Persona es FK
+  (no OneToOne), pero la UniqueConstraint
+  WHERE is_deleted=False garantiza que
+  una persona activa solo puede ser
+  paciente una vez.
+  responsable puede ser null
+  (paciente sin responsable asignado).
+end note
+
+note right of Agenda
+  perform_destroy verifica
+  estados DISPONIBLE, OCUPADO, REALIZADO.
+  CANCELADO e INACTIVO no bloquean
+  el borrado logico del Paciente.
+end note
+
+BaseModel <|-- Paciente : hereda
+BaseModel <|-- Agenda : hereda
+BaseModel <|-- DocumentoDigPaciente : hereda
+
+Persona "1" <-- "0..1" Paciente : persona\n(FK PROTECT, related_name='paciente')
+PacienteResponsable "0..1" <-- "0..*" Paciente : responsable\n(FK PROTECT, related_name='pacientes')
+Paciente "1" <-- "0..*" Agenda : paciente\n(FK PROTECT)
+Paciente "1" <-- "0..*" DocumentoDigPaciente : paciente\n(FK)
+
+@enduml

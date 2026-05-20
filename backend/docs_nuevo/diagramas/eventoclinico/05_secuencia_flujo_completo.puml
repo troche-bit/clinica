@@ -1,0 +1,171 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+actor MEDICO
+
+boundary "EventoClinicoPage.jsx" as GUI
+boundary "ConsultasPage.jsx" as CONSUI
+control "useEventosClinicos.js" as HOOK
+control "EventoClinicoViewSet" as EVIEW
+control "ConsultaViewSet" as CVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "EventoClinico" as EMODEL
+entity "Consulta" as CMODEL
+
+database "PostgreSQL" as BD
+
+== 1. Admin crea el evento clinico "Consulta General" ==
+
+ADMIN -> GUI : click "Nuevo evento clinico"
+GUI --> ADMIN : PanelSimple modo crear
+
+ADMIN -> GUI : tipo_evento="Consulta General"
+ADMIN -> GUI : click Guardar
+
+GUI -> HOOK : crear.mutateAsync({ tipo_evento: "Consulta General" })
+HOOK -> EVIEW : POST /api/eventoclinico/
+
+EVIEW -> EMODEL : validate_tipo_evento("Consulta General")
+EMODEL -> BD : SELECT WHERE Lower(tipo_evento)='consulta general' AND is_deleted=False
+BD --> EMODEL : [] (no existe)
+
+EVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> EMODEL : serializer.save(id_usu_creator=request.user)
+EMODEL -> BD : INSERT evento_clinico (tipo_evento='Consulta General')
+BD --> EMODEL : id=1
+
+MIXIN -> BD : INSERT auditoria_registro (accion='CREAR')
+BD --> MIXIN : OK
+
+EVIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['eventosclinicos'])
+GUI -> GUI : showToast("Evento clinico creado correctamente.", "success")
+GUI --> ADMIN : toast exito
+
+== 2. Medico registra una consulta usando el evento ==
+
+MEDICO -> CONSUI : selecciona evento_clinico="Consulta General"
+CONSUI -> HOOK : useEventosClinicos() para dropdown
+HOOK -> EVIEW : GET /api/eventoclinico/
+EVIEW -> BD : SELECT WHERE is_deleted=False ORDER BY tipo_evento
+BD --> EVIEW : [{ id:1, tipo_evento:"Consulta General" }]
+EVIEW --> HOOK : JSON lista
+HOOK --> CONSUI : lista de eventos disponibles
+
+MEDICO -> CONSUI : completa formulario de consulta
+MEDICO -> CONSUI : click Guardar consulta
+
+CONSUI -> CVIEW : POST /api/consultas/
+CVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> CMODEL : serializer.save(id_usu_creator=request.user)
+CMODEL -> BD : INSERT consulta (evento_clinico_id=1, ...)
+BD --> CMODEL : id=10
+
+MIXIN -> BD : INSERT auditoria_registro (accion='CREAR')
+BD --> MIXIN : OK
+CVIEW --> CONSUI : 201 Created
+CONSUI --> MEDICO : consulta registrada
+
+== 3. Admin intenta eliminar el evento — falla por consulta activa ==
+
+ADMIN -> GUI : click eliminar en fila "Consulta General"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(1)
+HOOK -> EVIEW : DELETE /api/eventoclinico/1/
+
+EVIEW -> EMODEL : perform_destroy(instance)
+EMODEL -> CMODEL : instance.consultas.filter(is_deleted=False).exists()
+CMODEL -> BD : SELECT 1 FROM consulta WHERE evento_clinico_id=1 AND is_deleted=False LIMIT 1
+BD --> CMODEL : existe id=10 (estado: en_curso)
+CMODEL --> EMODEL : True
+
+EMODEL -> EVIEW : raise ValidationError "No se puede eliminar:\nel evento clinico tiene consultas activas vinculadas."
+EVIEW --> HOOK : HTTP 400
+HOOK --> GUI : onError callback
+GUI -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> ADMIN : toast error — evento sin cambios
+
+== 4. Medico finaliza la consulta ==
+
+MEDICO -> CONSUI : click Finalizar consulta (id=10)
+CONSUI -> CVIEW : POST /api/consultas/10/finalizar/
+CVIEW -> CMODEL : estado='finalizada', hora_hasta=now()
+CMODEL -> BD : UPDATE consulta SET estado='finalizada' WHERE id=10
+BD --> CMODEL : OK
+CVIEW --> CONSUI : 200 OK
+CONSUI --> MEDICO : consulta finalizada
+
+== 5. Admin vuelve a intentar eliminar — sigue fallando ==
+
+ADMIN -> GUI : click eliminar en fila "Consulta General"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(1)
+HOOK -> EVIEW : DELETE /api/eventoclinico/1/
+
+EVIEW -> EMODEL : perform_destroy(instance)
+EMODEL -> CMODEL : instance.consultas.filter(is_deleted=False).exists()
+CMODEL -> BD : SELECT 1 FROM consulta WHERE evento_clinico_id=1 AND is_deleted=False LIMIT 1
+BD --> CMODEL : existe id=10 (estado: finalizada, is_deleted=False)
+CMODEL --> EMODEL : True
+
+note right of EMODEL
+  La consulta finalizada mantiene
+  is_deleted=False — es parte del
+  historial clinico del paciente.
+  El estado 'finalizada' no implica
+  borrado logico. La dependencia
+  persiste para proteger el historial.
+end note
+
+EMODEL -> EVIEW : raise ValidationError "No se puede eliminar:\nel evento clinico tiene consultas activas vinculadas."
+EVIEW --> HOOK : HTTP 400
+HOOK --> GUI : onError callback
+GUI -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> ADMIN : toast error
+
+== 6. Admin crea evento alternativo y lo usa en adelante ==
+
+ADMIN -> GUI : click "Nuevo evento clinico"
+GUI --> ADMIN : PanelSimple modo crear
+
+ADMIN -> GUI : tipo_evento="Consulta General v2"
+ADMIN -> GUI : click Guardar
+
+GUI -> HOOK : crear.mutateAsync({ tipo_evento: "Consulta General v2" })
+HOOK -> EVIEW : POST /api/eventoclinico/
+
+EVIEW -> EMODEL : validate_tipo_evento("Consulta General v2")
+EMODEL -> BD : SELECT WHERE Lower(tipo_evento)='consulta general v2' AND is_deleted=False
+BD --> EMODEL : [] (no existe)
+
+EVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> EMODEL : serializer.save(id_usu_creator=request.user)
+EMODEL -> BD : INSERT evento_clinico (tipo_evento='Consulta General v2')
+BD --> EMODEL : id=2
+
+MIXIN -> BD : INSERT auditoria_registro (accion='CREAR')
+BD --> MIXIN : OK
+
+EVIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['eventosclinicos'])
+GUI -> GUI : showToast("Evento clinico creado correctamente.", "success")
+GUI --> ADMIN : toast exito
+
+note over BD
+  "Consulta General" (id=1) permanece con is_deleted=False.
+  Historial de consultas medicas preservado intacto.
+  "Consulta General v2" (id=2) disponible para nuevas consultas.
+  Auditoria registra cada operacion CREAR/EDITAR/ELIMINAR.
+end note
+
+@enduml

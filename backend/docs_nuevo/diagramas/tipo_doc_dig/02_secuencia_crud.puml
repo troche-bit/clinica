@@ -1,0 +1,115 @@
+@startuml 02_secuencia_crud
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "TipoDocDigPage.jsx" as GUI
+control "useTipoDocDig.js" as HOOK
+control "TipoDocDigitalViewSet" as VIEW
+entity "TipoDocDigital" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar con búsqueda ==
+
+ADMIN -> GUI : abre página
+GUI -> HOOK : useTipoDocDig(search='')
+HOOK -> VIEW : GET /api/tipo-doc-dig/?page_size=100
+VIEW -> MODEL : filter(is_deleted=False)
+MODEL -> BD : SELECT WHERE is_deleted=False\nORDER BY descripcion
+BD --> MODEL : registros
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON [{ id, descripcion, storage_key }]
+HOOK --> GUI : data
+GUI --> ADMIN : renderiza tabla (descripción + badge storage_key)\n+ panel cerrado
+
+ADMIN -> GUI : escribe en búsqueda (debounce 300ms)
+GUI -> HOOK : useTipoDocDig(search='historia')
+HOOK -> VIEW : GET /api/tipo-doc-dig/?page_size=100&search=historia
+VIEW -> MODEL : filter(is_deleted=False)\n+ SearchFilter (descripcion, storage_key)
+MODEL -> BD : SELECT WHERE descripcion ILIKE '%historia%'\nOR storage_key ILIKE '%historia%'
+BD --> MODEL : registros filtrados
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON filtrado
+HOOK --> GUI : data actualizada
+GUI --> ADMIN : tabla actualizada
+
+== Flujo 2: Crear tipo de documento ==
+
+ADMIN -> GUI : click "Nuevo tipo"
+GUI -> GUI : setModo('crear'), setSeleccionado(null)
+GUI --> ADMIN : PanelSimple modo crear\n(descripcion + storage_key editables)
+
+ADMIN -> GUI : ingresa descripcion="Historia Clínica"\n       storage_key="historia_clinica"
+ADMIN -> GUI : click Guardar
+GUI -> HOOK : crear.mutateAsync(\n  { descripcion: "Historia Clínica",\n    storage_key: "historia_clinica" }\n)
+HOOK -> VIEW : POST /api/tipo-doc-dig/
+
+VIEW -> MODEL : validate_descripcion("Historia Clínica")
+MODEL -> BD : SELECT WHERE Lower(descripcion)='historia clínica'\nAND is_deleted=False
+BD --> MODEL : [] (no existe)
+
+VIEW -> MODEL : validate_storage_key("historia_clinica")
+MODEL -> BD : SELECT WHERE storage_key='historia_clinica'\nAND is_deleted=False
+BD --> MODEL : [] (no existe)
+
+VIEW -> VIEW : AuditoriaMixin.perform_create()
+VIEW -> MODEL : serializer.save(id_usu_creator=request.user)
+MODEL -> BD : INSERT INTO tipo_doc_dig\n(descripcion, storage_key,\nid_usu_creator, ...)
+BD --> MODEL : { id: 3, descripcion: "Historia Clínica",\n  storage_key: "historia_clinica" }
+
+VIEW -> BD : INSERT INTO auditoria_registro\n(tabla='TipoDocDigital', registro_id=3,\naccion='CREAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 201 Created
+
+HOOK -> HOOK : invalidateQueries(['tipo-doc-dig'])
+HOOK -> GUI : showToast('Tipo de documento creado.', 'success')
+GUI -> GUI : cerrarPanel()
+GUI --> ADMIN : toast éxito
+
+== Flujo 3: Editar tipo de documento ==
+
+ADMIN -> GUI : click botón Editar en tabla
+GUI -> GUI : setSeleccionado(t), setModo('editar')
+GUI --> ADMIN : PanelSimple modo editar\n(descripcion editable)\n(storage_key soloLectura=true — bloqueado)
+
+note right of GUI
+  storage_key se muestra
+  pero no es editable.
+  Cambiarlo rompería las rutas
+  de archivos ya almacenados.
+end note
+
+ADMIN -> GUI : modifica descripcion="Historia Clínica del Paciente"
+ADMIN -> GUI : click Guardar
+GUI -> HOOK : actualizar.mutateAsync(\n  { id: 3,\n    descripcion: "Historia Clínica del Paciente",\n    storage_key: "historia_clinica" }\n)
+HOOK -> VIEW : PATCH /api/tipo-doc-dig/3/
+
+VIEW -> MODEL : validate_descripcion("Historia Clínica del Paciente")
+MODEL -> BD : SELECT WHERE Lower(descripcion)=...\nAND is_deleted=False AND id<>3
+BD --> MODEL : [] (no existe)
+
+VIEW -> MODEL : update() — storage_key descartado\nvalidated_data.pop("storage_key", None)
+MODEL -> BD : UPDATE tipo_doc_dig\nSET descripcion="Historia Clínica del Paciente",\nid_usu_modificator=...\nWHERE id=3
+BD --> MODEL : OK
+
+VIEW -> BD : INSERT INTO auditoria_registro\n(tabla='TipoDocDigital', accion='EDITAR',\ndatos_antes={descripcion:"Historia Clínica"},\ndatos_despues={descripcion:"Historia Clínica del Paciente"})
+BD --> VIEW : OK
+VIEW --> HOOK : 200 OK
+
+HOOK -> HOOK : invalidateQueries(['tipo-doc-dig'])
+HOOK -> GUI : showToast('Tipo de documento actualizado.', 'success')
+GUI -> GUI : cerrarPanel()
+GUI --> ADMIN : toast éxito
+
+@enduml

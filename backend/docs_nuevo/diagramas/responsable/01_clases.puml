@@ -1,0 +1,86 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Persona {
+  + id : AutoField <<PK>>
+  + tipo_documento : ForeignKey
+  + nro_documento : CharField
+  + razon_social : CharField
+  + fecha_nacimiento : DateField [null]
+  + telefono : CharField [null]
+  + correo_electronico : EmailField [null]
+  + ciudad : ForeignKey [null]
+  + ...
+  --
+  db_table = 'persona'
+  No eliminable (MethodNotAllowed)
+}
+
+class PacienteResponsable {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey <<PROTECT>>
+  + grupo_sanguineo : CharField(11) [null]
+  + ocupacion : CharField(150) [null]
+  + es_contacto_emergencia : BooleanField = True
+  + observacion : TextField [null]
+  --
+  db_table = 'paciente_responsable'
+  ordering = ['persona__nro_documento']
+  unique: persona WHERE is_deleted=False
+  index: idx_pac_resp_per
+  --
+  + __str__() : str
+}
+
+class Paciente {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey
+  + responsable : ForeignKey [null]
+  + ...
+  --
+  related_name = 'pacientes'
+}
+
+note right of Persona
+  Persona es la tabla raiz.
+  No puede eliminarse directamente.
+  Solo se elimina el Responsable vinculado.
+  La Persona puede reutilizarse
+  para otros roles (Paciente, RRHH).
+end note
+
+note right of PacienteResponsable
+  La relacion con Persona es FK
+  (no OneToOne), pero la UniqueConstraint
+  WHERE is_deleted=False garantiza que
+  una persona activa solo pueda ser
+  responsable una vez.
+end note
+
+BaseModel <|-- PacienteResponsable : hereda
+BaseModel <|-- Paciente : hereda
+
+Persona "1" <-- "0..1" PacienteResponsable : persona\n(FK PROTECT, related_name='paciente_responsable')
+PacienteResponsable "0..1" <-- "0..*" Paciente : responsable\n(FK, related_name='pacientes')
+
+@enduml

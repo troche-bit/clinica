@@ -1,0 +1,161 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "HorarioPrestadorPage.jsx" as PAGE
+  component "BloqueHorario" as BLOQUE
+  component "TimeInput" as TINPUT
+  component "useHorarioPrestador.js" as HOOK
+  component "usePersonaRRHH.js" as RHOOK
+  component "useConsultorios.js" as CHOOK
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+
+  note right of PAGE
+    Layout dos columnas:
+    tabla prestadores (izq) +
+    panel lateral (der).
+    NO es patron Modal.
+    modo: ver / editar / null
+    bloques: array de HorarioPrestador editados
+    bloqueIdx: navegador Anterior/Siguiente
+    Solapamiento detectado cliente-side (useMemo).
+    Preview de turnos calculado cliente-side:
+    previsualizarTurnos(horariosActuales, desde, hasta)
+    Preview muestra turnos estimados antes de generar.
+    Generar secccion inline en panel modo 'ver'.
+    handleGenerar itera todos los horarios activos
+    del prestador y llama al endpoint por cada uno.
+    Confirmacion previa si se eliminan bloques existentes.
+    F10 guarda cuando modo es editar/crear.
+    PDF/Excel export (blob autenticado).
+    Roles: medico ve solo su prestador (sin tabla),
+    secretaria_medico con un asignado igual que medico,
+    secretaria_medico con varios muestra tabla con busqueda,
+    admin/recepcionista ven todo.
+    guardAction + markDirty/markClean por modo.
+  end note
+
+  note right of BLOQUE
+    Componente por cada horario en el editor.
+    Toggle activo/inactivo (pill con estado).
+    Checkbox excepcion — si activo muestra
+    campo fecha_excepcion en lugar de dia_semana.
+    TimeInput para hora_desde y hora_hasta.
+    Select consultorio (opcional).
+    Botones intervalo: 15/20/30/45/60 min.
+    Checkboxes especialidades del prestador.
+    Boton quitar (icono basura rojo).
+  end note
+
+  note right of TINPUT
+    Input de hora con mascara manual.
+    Formato HH:MM — auto-agrega ':' al digito 2.
+    Longitud maxima 5 caracteres.
+    Muestra solo los primeros 5 chars
+    del valor HH:MM:SS si viene del servidor.
+  end note
+
+  note right of HOOK
+    useHorariosPrestador({persona_rrhh, estado}):
+    queryKey=['horarios-prestador', persona_rrhh, estado]
+    page_size=200 — carga todos sin paginar.
+    useCreateHorario: POST + invalidate.
+    useUpdateHorario: PATCH + invalidate.
+    useDeleteHorario: DELETE + invalidate.
+    useGenerarTurnos: POST /generar/ —
+    SIN toast en hook, SIN invalidate en hook.
+    El toast lo maneja la pagina en handleGenerar.
+  end note
+}
+
+package "Backend" {
+  component "HorarioPrestadorViewSet" as VIEWSET
+  component "HorarioPrestadorListSerializer" as LISTSERIAL
+  component "HorarioPrestadorSerializer" as SERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of VIEWSET
+    Permisos de cuatro niveles:
+    list/retrieve/reportes = IsAuthenticated.
+    medico/secretaria: gestion propia via
+    _check_medico_ownership.
+    destroy/eliminados = IsAdminRole.
+    generar = IsAdminOrRecepcionistaOrSecretaria.
+    create/update = IsAdminOrRecepcionista.
+    get_queryset: filtra por rol JWT,
+    y acepta ?persona_rrhh= y ?estado= params.
+    @action generar: itera rango de fechas,
+    crea Agenda por slot, omite duplicados,
+    retorna {creados, omitidos, detalle}.
+    @action eliminados: lista borrados logicos.
+    @action reporte_horarios: PDF WeasyPrint.
+    @action reporte_horarios_excel: Excel openpyxl.
+    perform_create/update: llama _check_medico_ownership.
+    perform_destroy: verifica turnos activos,
+    clear M2M, super().
+  end note
+
+  note right of SERIAL
+    validate() manual (validators=[]):
+    hora_hasta > hora_desde,
+    dia_semana requerido si no es excepcion,
+    fecha_excepcion requerido si excepcion,
+    auto-asigna dia_semana desde fecha_excepcion,
+    unicidad prestador+dia+hora_desde
+    WHERE is_deleted=False AND excepcion=False.
+  end note
+}
+
+package "Base de Datos" {
+  database "horario_prestador" as DBHOR
+  database "horario_prestador_especialidades\n(M2M)" as DBM2M
+  database "diasemana\n(IDs fijos 1-7)" as DBDIA
+  database "agenda\n(generada desde horario)" as DBAG
+  database "consultorio\n(FK opcional)" as DBCON
+}
+
+PAGE --> BLOQUE : "N bloques en panel editar"
+PAGE --> HOOK : "useHorariosPrestador()\nuseCreateHorario()\nuseUpdateHorario()\nuseDeleteHorario()\nuseGenerarTurnos()"
+PAGE --> RHOOK : "usePersonasRRHH()\nusePersonaRRHHById()"
+PAGE --> CHOOK : "useConsultorios()"
+PAGE --> DIALOG : "confirmacion cuando se eliminan\nbloques existentes al guardar"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/horario-prestador/"
+CLIENT --> VIEWSET : "POST /api/horario-prestador/{id}/generar/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados"
+VIEWSET --> SERIAL : "create / update / destroy"
+
+MIXIN ..> VIEWSET : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+
+SERIAL --> DBHOR : "INSERT / UPDATE horario_prestador"
+SERIAL --> DBM2M : "INSERT / DELETE M2M especialidades"
+LISTSERIAL --> DBHOR : "SELECT JOIN persona_rrhh, dia_semana\nWHERE is_deleted=False"
+
+VIEWSET ..> DBAG : "genera Agenda slots en /generar/\nverifica existentes antes de crear\nverifica turnos activos en perform_destroy"
+VIEWSET ..> DBDIA : "FK dia_semana (auto-asignado\nen excepcion via weekday()+1)"
+VIEWSET ..> DBCON : "FK consultorio (opcional)"
+VIEWSET ..> DBM2M : "clear() M2M en perform_destroy"
+
+PAGE ..> PAGE : "previsualizarTurnos()\ncalculo cliente-side de slots estimados"
+PAGE ..> PAGE : "solapamientos useMemo\ndetecta superposicion entre bloques"
+
+@enduml

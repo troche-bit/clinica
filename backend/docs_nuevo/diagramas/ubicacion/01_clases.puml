@@ -1,0 +1,100 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Pais {
+  + id : AutoField <<PK>>
+  + descripcion : CharField(200)
+  --
+  db_table = 'pais'
+  ordering = ['descripcion']
+  unique: Lower(descripcion) WHERE is_deleted=False
+  --
+  + __str__() : str
+}
+
+class Departamento {
+  + id : AutoField <<PK>>
+  + pais : ForeignKey <<PROTECT>>
+  + descripcion : CharField(200)
+  --
+  db_table = 'departamento'
+  ordering = ['descripcion']
+  unique: Lower(descripcion) + pais WHERE is_deleted=False
+  --
+  + __str__() : str
+}
+
+class Ciudad {
+  + id : AutoField <<PK>>
+  + departamento : ForeignKey <<PROTECT>>
+  + descripcion : CharField(200)
+  --
+  db_table = 'ciudad'
+  ordering = ['descripcion']
+  unique: Lower(descripcion) + departamento WHERE is_deleted=False
+  --
+  + __str__() : str
+}
+
+class Persona {
+  + id : AutoField <<PK>>
+  + ciudad : ForeignKey
+  + ...
+}
+
+note right of Pais
+  related_name='departamentos'
+  al borrar: verifica
+  departamentos activos
+  y personas activas.
+end note
+
+note right of Departamento
+  related_name='ciudades'
+  Serializer valida
+  unicidad de descripcion
+  dentro del mismo pais.
+  al borrar: verifica
+  ciudades activas y
+  personas activas.
+end note
+
+note right of Ciudad
+  related_name='ciudades'
+  en Persona.
+  Serializer valida
+  unicidad de descripcion
+  dentro del mismo departamento.
+  al borrar: verifica
+  personas activas.
+end note
+
+BaseModel <|-- Pais : hereda
+BaseModel <|-- Departamento : hereda
+BaseModel <|-- Ciudad : hereda
+
+Pais "1" <-- "0..*" Departamento : pais\n(FK PROTECT, related_name='departamentos')
+Departamento "1" <-- "0..*" Ciudad : departamento\n(FK PROTECT, related_name='ciudades')
+Ciudad "1" <-- "0..*" Persona : ciudad\n(FK, related_name='ciudades')
+
+@enduml

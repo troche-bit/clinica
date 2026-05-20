@@ -1,0 +1,84 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "EventoClinicoPage.jsx" as PAGE
+  component "PanelSimple.jsx" as PANEL
+  component "useEventosClinicos.js" as HOOK
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+  component "ConsultasPage.jsx" as CONS
+
+  note right of CONS
+    Consume EventoClinico
+    como selector en consulta medica.
+    Usa useEventosClinicos()
+    para poblar el dropdown.
+  end note
+}
+
+package "Backend" {
+  component "EventoClinicoViewSet" as VIEWSET
+  component "EventoClinicoSerializer" as SERIAL
+  component "EventoClinicoListSerializer" as LISTSERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of SERIAL
+    validate_tipo_evento():
+    unicidad case-insensitive
+    con Lower() + strip().
+    Excluye instancia actual
+    en update (PATCH).
+  end note
+}
+
+package "Base de Datos" {
+  database "evento_clinico" as DBTAB
+  database "consulta\n(FK a evento_clinico)" as DBCONS
+}
+
+PAGE --> PANEL : "Master-Detail pattern\n(unico campo: tipo_evento)"
+PAGE --> HOOK : usa
+PAGE --> DIALOG : "confirmacion de eliminacion\n(menciona restriccion por consultas)"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/eventoclinico/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados"
+VIEWSET --> SERIAL : "create / update / destroy"
+
+MIXIN ..> VIEWSET : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey\n['eventosclinicos']\n+ toast desde la pagina"
+
+note right of HOOK
+  staleTime: 5 min
+  Toast manejado en la PAGINA
+  (no en el hook — distinto de
+  useTipoDocDig y useUbicacion)
+end note
+
+SERIAL --> DBTAB : "INSERT / UPDATE\neventoClinico"
+LISTSERIAL --> DBTAB : "SELECT WHERE is_deleted=False"
+
+VIEWSET ..> DBCONS : "verifica consultas activas\nantes de borrado logico\n(instance.consultas.filter(is_deleted=False))"
+
+CONS --> HOOK : "useEventosClinicos()\npara selector en formulario"
+
+@enduml

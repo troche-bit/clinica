@@ -1,0 +1,162 @@
+@startuml 03_secuencia_dashboard
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+boundary "DashboardPacientesPage.jsx" as DASHPAC
+boundary "DashboardConsultasPage.jsx" as DASHCON
+boundary "DashboardAgendaPage.jsx" as DASHAG
+control "apiClient\n(axios)" as CLIENT
+control "PacienteViewSet" as PVIEW
+control "ConsultaViewSet" as CVIEW
+control "AgendaViewSet" as AVIEW
+database "PostgreSQL" as BD
+
+== 1. Usuario navega al Dashboard Pacientes ==
+
+USUARIO -> DASHPAC : navigate('/informes/dashboard/pacientes')
+
+DASHPAC -> DASHPAC : useEffect([], () => {\n  apiClient.get('/api/paciente/dashboard-mensual/')\n  .then(res => setData(res.data))\n})
+note right : NO usa React Query.\nSolo se ejecuta al montar.\nNo hay refetch automatico.
+
+DASHPAC -> CLIENT : GET /api/paciente/dashboard-mensual/
+CLIENT -> PVIEW : dashboard_mensual(request)
+
+PVIEW -> BD : SELECT COUNT(*) FROM paciente\nWHERE is_deleted=False\nAND EXTRACT(MONTH FROM fecha_creacion) = mes_actual\nAND EXTRACT(YEAR FROM fecha_creacion) = anio_actual
+BD --> PVIEW : total_mes
+
+PVIEW -> BD : SELECT DATE(fecha_creacion), COUNT(*)\nFROM paciente\nWHERE is_deleted=False\nAND mes/anio actuales\nGROUP BY DATE(fecha_creacion)
+BD --> PVIEW : conteos por dia
+
+PVIEW -> PVIEW : por_dia: todos los dias del mes\ncon es_futuro = dia > hoy
+
+PVIEW -> BD : SELECT persona__sexo, COUNT(*)\nFROM paciente WHERE is_deleted=False\nGROUP BY persona__sexo
+BD --> PVIEW : { M: 60, F: 75, O: 7 }
+
+PVIEW -> BD : SELECT fecha_nacimiento,\nDATEDIFF para calcular edad
+BD --> PVIEW : por_grupo_etario:\n{ 0-10: 5, 11-17: 12, 18-29: 28,\n  30-44: 35, 45-59: 22,\n  60-74: 15, 75+: 8 }
+
+PVIEW -> BD : SELECT ciudad__departamento__nombre,\nCOUNT(*) WHERE is_deleted=False\nGROUP BY departamento\nORDER BY count DESC LIMIT 5 + otros
+BD --> PVIEW : por_departamento (top5 + otros)
+
+PVIEW -> BD : SELECT YEAR, MONTH, COUNT(*)\nFROM paciente WHERE is_deleted=False\nGROUP BY anio, mes\nORDER BY ... LIMIT 6
+BD --> PVIEW : tendencia_6meses
+
+PVIEW --> CLIENT : {\n  total_mes: 142,\n  por_dia: [{dia, cantidad, es_futuro}, ...],\n  por_semana: [{semana, inicio, fin,\n    cantidad}, ...],\n  por_sexo: { M: 60, F: 75, O: 7 },\n  por_grupo_etario: {...},\n  por_departamento: [{nombre, total,\n    pais}, ...],\n  tendencia_6meses: [{mes, anio, total},...]\n}
+CLIENT --> DASHPAC : res.data
+
+== 2. Render de graficos en DashboardPacientes ==
+
+DASHPAC -> DASHPAC : [DonutSexo]\nconic-gradient CSS:\n  M: #1a3a5c\n  F: #e77c8e\n  O: #7c8ee7\ncentro muestra total\n(div superpuesto, position absolute)
+
+DASHPAC -> DASHPAC : [CalendarioBars]\nviewMode = useState('dia') [local]\nrenderBars(por_dia) → flexbox bars\ncada barra: height = (cantidad/max)*100%\nes_futuro=true → barra atenuada
+
+DASHPAC -> DASHPAC : [BarraH — por departamento]\ncada fila: div width = (total/maxTotal)*100%\ntransition CSS al montar\nhover: fill oscurece
+
+DASHPAC -> DASHPAC : [TendenciaCurva — SVG]\nviewBox='0 0 800 200'\ncalcula puntos (x,y) para cada mes\npath con comando C (bezier cubico)\narea fill rgba(26,58,92,0.08)\nmax point: circle destacado + label
+
+DASHPAC --> USUARIO : dashboard renderizado:\n- DonutSexo (centro: total)\n- CalendarioBars modo Dia\n- BarraH top5 departamentos\n- TendenciaCurva 6 meses\n- Boton "Volver a Informes"
+
+== 3. Toggle local Dia / Semana / Mes ==
+
+USUARIO -> DASHPAC : click boton "Semana"
+
+DASHPAC -> DASHPAC : setViewMode('semana')\n[NO hay fetch al backend]\nrenderBars(por_semana) — datos\nya cargados en res.data
+
+DASHPAC --> USUARIO : CalendarioBars actualizado\nmuestra grupos de 7 dias\n(mismos datos, otra agrupacion)
+
+USUARIO -> DASHPAC : click boton "Mes"
+DASHPAC -> DASHPAC : setViewMode('mes')\nrenderBars(tendencia_6meses)
+DASHPAC --> USUARIO : vista mensual — 6 barras
+
+== 4. Usuario navega al Dashboard Consultas ==
+
+USUARIO -> DASHCON : navigate('/informes/dashboard/consultas')
+
+DASHCON -> DASHCON : useEffect([], () => {\n  apiClient.get('/api/consultas/dashboard-consultas/')\n  .then(res => setData(res.data))\n})
+
+DASHCON -> CLIENT : GET /api/consultas/dashboard-consultas/
+CLIENT -> CVIEW : dashboard_consultas(request)
+
+CVIEW -> BD : SELECT COUNT(*) FROM consulta\nWHERE is_deleted=False\nAND mes/anio actuales
+BD --> CVIEW : total_mes
+
+CVIEW -> BD : SELECT estado, COUNT(*)\nFROM consulta WHERE is_deleted=False\nGROUP BY estado
+BD --> CVIEW : por_estado
+
+CVIEW -> BD : SELECT persona_rrhh, COUNT(*)\nFROM consulta JOIN agenda JOIN horario_prestador\nWHERE is_deleted=False\nGROUP BY rrhh\nORDER BY count DESC LIMIT 5
+BD --> CVIEW : top_prestadores[:5]
+
+CVIEW -> BD : SELECT especialidad, COUNT(*)\nGROUP BY especialidad\nORDER BY count DESC LIMIT 8
+BD --> CVIEW : por_especialidad[:8]
+
+CVIEW -> BD : SELECT YEAR, MONTH, COUNT(*)\nGROUP BY anio, mes\nORDER BY ... LIMIT 6
+BD --> CVIEW : comparativa_6_meses
+
+CVIEW --> CLIENT : {\n  total_mes, por_estado,\n  top_prestadores: [...5],\n  por_especialidad: [...8],\n  comparativa_6_meses: [...6]\n}
+CLIENT --> DASHCON : res.data
+
+DASHCON -> DASHCON : renderiza graficos\n- BarraH top prestadores\n- BarraH por especialidad\n- TendenciaCurva comparativa 6 meses\n  con realizados/cancelados superpuestos
+DASHCON --> USUARIO : dashboard consultas\n(curva tendencia destacada)
+
+== 5. Dashboard Agenda ==
+
+USUARIO -> DASHAG : navigate('/informes/dashboard/agenda')
+
+DASHAG -> DASHAG : useEffect([]) →\napiClient.get('/api/agenda/dashboard-agenda/')
+
+DASHAG -> CLIENT : GET /api/agenda/dashboard-agenda/
+CLIENT -> AVIEW : dashboard_agenda(request)
+
+AVIEW -> BD : [queries analogas a consultas:\ntotal_mes, por_estado, top_prestadores[:5],\ncomparativa_6_meses con\nrealizados/cancelados/total]
+BD --> AVIEW : datos del mes
+
+AVIEW --> CLIENT : {\n  total_mes, por_estado,\n  top_prestadores[:5],\n  comparativa_6_meses\n}
+CLIENT --> DASHAG : res.data
+
+DASHAG -> DASHAG : renderiza graficos:\n- DonutEstado\n- BarraH top prestadores\n- TendenciaCurva con dos lineas\n  (realizados vs cancelados)
+DASHAG --> USUARIO : dashboard agenda
+
+== 6. Dashboard Prestadores ==
+
+USUARIO -> DASHAG : navigate('/informes/dashboard/prestadores')
+
+DASHAG -> CLIENT : GET /api/agenda/dashboard-prestadores/
+CLIENT -> AVIEW : dashboard_prestadores(request)
+
+AVIEW -> BD : SELECT persona_rrhh, COUNT(*),\npct_ocupacion FROM agenda WHERE ...\nORDER BY total DESC LIMIT 10
+BD --> AVIEW : turnos_por_medico[:10]\ncon pct_ocupacion
+
+AVIEW -> BD : SELECT especialidad, COUNT(*)\nGROUP BY especialidad LIMIT 8
+BD --> AVIEW : comparativa_especialidades[:8]
+
+AVIEW -> BD : ExtractWeekDay: ISO Mon=1...Sun=7\nGROUP BY dia_iso → COUNT(*)
+BD --> AVIEW : dias_mas_demandados (Mon-Sun)
+
+AVIEW -> BD : ExtractHour(hora_desde)\nGROUP BY hora → COUNT(*) LIMIT 8
+BD --> AVIEW : horarios_mas_demandados[:8]
+
+AVIEW --> CLIENT : {\n  turnos_por_medico: [...10 con pct],\n  comparativa_especialidades: [...8],\n  dias_mas_demandados: {...},\n  horarios_mas_demandados: [...8],\n  ocupacion_promedio,\n  total_mes\n}
+CLIENT --> DASHAG : res.data
+DASHAG --> USUARIO : dashboard prestadores\n(ocupacion + horarios demandados)
+
+== 7. Dashboard Ocupacion (mapa de calor) ==
+
+USUARIO -> DASHAG : navigate('/informes/dashboard/ocupacion')
+
+DASHAG -> CLIENT : GET /api/agenda/dashboard-ocupacion/
+CLIENT -> AVIEW : dashboard_ocupacion(request)
+
+AVIEW -> BD : SELECT ExtractWeekDay(fecha) AS dia_dj,\nExtractHour(hora_desde) AS hora,\nCOUNT(*) AS total\nFROM agenda WHERE is_deleted=False\nGROUP BY dia_dj, hora\nORDER BY dia_dj, hora
+BD --> AVIEW : mapa_calor (dia x hora x total)
+
+AVIEW --> CLIENT : { mapa_calor: [...] }
+CLIENT --> DASHAG : res.data
+
+DASHAG -> DASHAG : renderiza mapa de calor:\nfilas = dias semana (Lun-Dom)\ncolumnas = franjas horarias\ncada celda: opacidad segun total
+DASHAG --> USUARIO : mapa de calor\n(pico visual por dia y hora)
+
+@enduml

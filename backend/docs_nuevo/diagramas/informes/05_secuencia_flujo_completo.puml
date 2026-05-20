@@ -1,0 +1,214 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+boundary "InformesPacientePage.jsx" as INFPAGE
+boundary "DashboardPacientesPage.jsx" as DASHPAC
+boundary "DashboardConsultasPage.jsx" as DASHCON
+boundary "DashboardAgendaPage.jsx" as DASHAG
+control "useStatsConsultasHoy()" as HOOKCON
+control "useStatsHoy()" as HOOKAG
+control "apiClient\n(axios)" as CLIENT
+control "PacienteViewSet" as PVIEW
+control "ConsultaViewSet" as CVIEW
+control "AgendaViewSet" as AVIEW
+control "WeasyPrint" as WEASY
+control "openpyxl" as OPENPYXL
+database "PostgreSQL" as BD
+
+== 1. Admin abre la pagina de Informes ==
+
+ADMIN -> INFPAGE : navega a /informes
+
+INFPAGE -> HOOKCON : useStatsConsultasHoy()\nqueryKey: ['consultas','stats-hoy']
+HOOKCON -> CLIENT : GET /api/consultas/stats-hoy/
+CLIENT -> CVIEW : stats_hoy(request)
+CVIEW -> BD : SELECT COUNT(*) FROM consulta\nWHERE is_deleted=False\nAND fecha = hoy\nGROUP BY estado
+BD --> CVIEW : { total:18, en_espera:4,\nen_consulta:2, finalizadas:12 }
+CVIEW --> HOOKCON : statsConsultas
+
+INFPAGE -> HOOKAG : useStatsHoy()\nqueryKey: ['agenda-stats-hoy']
+HOOKAG -> CLIENT : GET /api/agenda/stats-hoy/
+CLIENT -> AVIEW : stats_hoy(request)
+AVIEW -> BD : SELECT COUNT(*) FROM agenda\nWHERE is_deleted=False\nAND fecha = hoy\nGROUP BY estado
+BD --> AVIEW : { total:20, confirmadas:14,\npendientes:4, realizadas:10,\ninactivos:2, cancelados:0 }
+AVIEW --> HOOKAG : statsHoy
+
+CLIENT -> PVIEW : GET /api/paciente/count/
+PVIEW -> BD : SELECT COUNT(*) FROM paciente\nWHERE is_deleted=False
+BD --> PVIEW : { total: 587 }
+PVIEW --> CLIENT : { total: 587 }
+
+INFPAGE --> ADMIN : 3 stats cards:\n- Pacientes totales: 587\n- Consultas hoy: 18\n- Pendientes hoy: 4\n5 cards Listados + 5 cards Estadisticas
+
+== 2. Admin genera PDF de Pacientes con filtros ==
+
+ADMIN -> INFPAGE : click card "Pacientes"
+INFPAGE --> ADMIN : ModalFiltrosPacientes:\n- Pais, Departamento, Ciudad\n- Sexo, Grupo sanguineo\n- Fecha desde / hasta
+
+ADMIN -> INFPAGE : selecciona:\nPais = Paraguay\nSexo = F\nFecha desde = 2026-01-01
+
+INFPAGE -> INFPAGE : buildQS(filtros):\n'?pais=1&sexo=F&fecha_desde=2026-01-01'
+
+ADMIN -> INFPAGE : click "Ver PDF"
+
+INFPAGE -> CLIENT : GET /api/paciente/reporte-lista/\n?pais=1&sexo=F&fecha_desde=2026-01-01\n{ responseType: 'blob' }
+
+CLIENT -> PVIEW : reporte_lista(request)
+PVIEW -> BD : SELECT paciente JOIN persona JOIN ciudad\nWHERE is_deleted=False\nAND pais_id=1 AND sexo='F'\nAND fecha_creacion >= 2026-01-01\nORDER BY razon_social
+BD --> PVIEW : 76 pacientes filtradas
+
+PVIEW -> WEASY : render_to_string(\n'informes/paciente_lista.html',\n{ pacientes, filtros_aplicados, fecha_gen })\nHTML.write_pdf()
+WEASY --> PVIEW : bytes PDF
+
+PVIEW --> CLIENT : HttpResponse(pdf,\ncontent_type='application/pdf',\nContent-Disposition: inline)
+CLIENT --> INFPAGE : blob
+INFPAGE -> INFPAGE : url=URL.createObjectURL(blob)\nwindow.open(url, '_blank')
+INFPAGE --> ADMIN : PDF en nueva pestana\n(76 pacientes, columnas: N°/Nombre/\nDocumento/Edad/Sexo/Telefono/Responsable)
+
+== 3. Admin descarga Excel con los mismos filtros ==
+
+ADMIN -> INFPAGE : click "Descargar Excel"
+
+INFPAGE -> CLIENT : GET /api/paciente/reporte-lista-excel/\n?pais=1&sexo=F&fecha_desde=2026-01-01\n{ responseType: 'blob' }
+
+CLIENT -> PVIEW : reporte_lista_excel(request)
+PVIEW -> BD : [mismos filtros]
+BD --> PVIEW : 76 pacientes
+
+PVIEW -> OPENPYXL : Workbook()\nheader: fill #1A3A5C, font blanco\neven rows: fill #F8FAFC\nseccion filtros_aplicados al final
+OPENPYXL --> PVIEW : workbook guardado en response
+
+PVIEW --> CLIENT : HttpResponse(.xlsx,\nContent-Disposition: attachment;\nfilename=pacientes.xlsx)
+CLIENT --> INFPAGE : blob .xlsx
+INFPAGE -> INFPAGE : link=createElement('a')\nlink.download='pacientes.xlsx'\nlink.click()
+INFPAGE --> ADMIN : descarga iniciada — pacientes.xlsx
+
+== 4. Admin genera Historia Clinica de un paciente ==
+
+ADMIN -> INFPAGE : click card "Historia clinica"
+INFPAGE --> ADMIN : buscador de paciente\n(debounce 300ms, ↑↓ Enter/Escape)
+
+ADMIN -> INFPAGE : escribe "Rodriguez"\nselecciona Maria Rodriguez (id=25)
+
+INFPAGE -> CLIENT : GET /api/consultas/historia-clinica/\n?paciente=25\n{ responseType: 'blob' }
+
+CLIENT -> CVIEW : historia_clinica(request)
+CVIEW -> BD : SELECT consulta JOIN agenda JOIN paciente\nWHERE agenda__paciente_id=25\nAND is_deleted=False\nORDER BY agenda__fecha DESC
+BD --> CVIEW : 14 consultas de Maria
+
+CVIEW -> BD : SELECT documentodigpaciente\nWHERE consulta_id IN [14 ids]\nAND is_deleted=False
+BD --> CVIEW : docs_map por consulta_id
+
+CVIEW -> WEASY : render_to_string(\n'informes/historia_clinica.html',\n{ paciente, consultas, docs_map })
+WEASY --> CVIEW : bytes PDF
+
+CVIEW --> CLIENT : HttpResponse(pdf,\nfilename='historia_Maria_Rodriguez.pdf')
+CLIENT --> INFPAGE : blob
+INFPAGE -> INFPAGE : window.open(url, '_blank')
+INFPAGE --> ADMIN : PDF historia clinica\n(14 consultas con documentos adjuntos)
+
+== 5. Admin navega al Dashboard de Pacientes ==
+
+ADMIN -> INFPAGE : click card estadistica "Pacientes"
+INFPAGE -> DASHPAC : navigate('/informes/dashboard/pacientes')
+
+DASHPAC -> DASHPAC : useEffect([], () => {\n  apiClient.get('/api/paciente/dashboard-mensual/')\n  .then(res => setData(res.data))\n})
+
+DASHPAC -> CLIENT : GET /api/paciente/dashboard-mensual/
+CLIENT -> PVIEW : dashboard_mensual(request)
+
+PVIEW -> BD : [queries para:\ntotal_mes, por_dia (31 dias),\npor_semana (grupos de 7),\npor_sexo, por_grupo_etario (7 rangos),\npor_departamento (top5+otros),\ntendencia_6meses]
+BD --> PVIEW : datos completos del mes
+
+PVIEW --> CLIENT : {\n  total_mes: 48,\n  por_dia: [{dia, cantidad, es_futuro},...31],\n  por_semana: [{semana, cantidad},...],\n  por_sexo: { M:20, F:26, O:2 },\n  por_grupo_etario: { '18-29':14, ... },\n  por_departamento: [\n    {nombre:'Central', total:30, pais:'PY'},\n    {nombre:'Alto Parana', total:10, ...},\n    ... ],\n  tendencia_6meses: [{mes,anio,total},...6]\n}
+CLIENT --> DASHPAC : res.data → setData(data)
+
+DASHPAC -> DASHPAC : [DonutSexo]\nconic-gradient CSS\nM=#1a3a5c / F=#e77c8e / O=#7c8ee7\ntotal=48 en el centro
+
+DASHPAC -> DASHPAC : [CalendarioBars modo 'dia']\npor_dia: barras proporcionales\nes_futuro=true → atenuada
+
+DASHPAC -> DASHPAC : [BarraH top5 departamentos]\nCentral 30 → barra mas larga
+
+DASHPAC -> DASHPAC : [TendenciaCurva SVG 800x200]\nbezier cubico C command\narea fill rgba(26,58,92,0.08)\npunto max destacado
+
+DASHPAC --> ADMIN : dashboard renderizado:\n- Donut sexo (M:20/F:26/O:2)\n- Barras dia (modo Dia, 20 mayo activo)\n- Barra H departamentos\n- Curva tendencia 6 meses
+
+== 6. Admin cambia toggle Dia → Semana (sin fetch) ==
+
+ADMIN -> DASHPAC : click boton "Semana"
+DASHPAC -> DASHPAC : setViewMode('semana')\n[NO fetch — datos ya en res.data]\nrenderBars(por_semana)
+DASHPAC --> ADMIN : CalendarioBars con grupos de 7 dias\n(4-5 barras, mismos datos reagrupados)
+
+ADMIN -> DASHPAC : click boton "Mes"
+DASHPAC -> DASHPAC : setViewMode('mes')\nrenderBars(tendencia_6meses)
+DASHPAC --> ADMIN : CalendarioBars — 6 barras mensuales
+
+== 7. Admin navega al Dashboard de Consultas ==
+
+ADMIN -> DASHPAC : click "Volver a Informes"
+DASHPAC -> INFPAGE : navigate('/informes')
+
+ADMIN -> INFPAGE : click card estadistica "Consultas"
+INFPAGE -> DASHCON : navigate('/informes/dashboard/consultas')
+
+DASHCON -> DASHCON : useEffect([]) →\napiClient.get('/api/consultas/dashboard-consultas/')
+DASHCON -> CLIENT : GET /api/consultas/dashboard-consultas/
+CLIENT -> CVIEW : dashboard_consultas(request)
+CVIEW -> BD : [queries: total_mes, por_estado,\ntop_prestadores[:5], por_especialidad[:8],\ncomparativa_6_meses]
+BD --> CVIEW : datos
+CVIEW --> CLIENT : JSON
+CLIENT --> DASHCON : setData(data)
+
+DASHCON -> DASHCON : renderiza:\n- BarraH top_prestadores[:5]\n- BarraH por_especialidad[:8]\n- TendenciaCurva comparativa_6_meses
+DASHCON --> ADMIN : dashboard consultas\n(curva 6 meses con bezier cubico)
+
+== 8. Admin navega al Dashboard de Agenda ==
+
+ADMIN -> DASHCON : navigate('/informes')
+ADMIN -> INFPAGE : click card estadistica "Agenda"
+INFPAGE -> DASHAG : navigate('/informes/dashboard/agenda')
+
+DASHAG -> DASHAG : useEffect([]) →\napiClient.get('/api/agenda/dashboard-agenda/')
+DASHAG -> CLIENT : GET /api/agenda/dashboard-agenda/
+CLIENT -> AVIEW : dashboard_agenda(request)
+AVIEW -> BD : [queries: total_mes, por_estado,\ntop_prestadores[:5],\ncomparativa_6_meses con\nrealizados/cancelados/total]
+BD --> AVIEW : datos
+AVIEW --> CLIENT : JSON
+CLIENT --> DASHAG : setData(data)
+DASHAG --> ADMIN : dashboard agenda\n(dos lineas en curva:\nrealizados vs cancelados)
+
+== 9. Admin explora Dashboard de Prestadores ==
+
+ADMIN -> INFPAGE : click card "Prestadores"
+INFPAGE -> DASHAG : navigate('/informes/dashboard/prestadores')
+
+DASHAG -> CLIENT : GET /api/agenda/dashboard-prestadores/
+CLIENT -> AVIEW : dashboard_prestadores(request)
+AVIEW -> BD : turnos_por_medico[:10] con pct_ocupacion\ncomparativa_especialidades[:8]\nExtractWeekDay → dias_mas_demandados\nExtractHour → horarios_mas_demandados[:8]
+BD --> AVIEW : datos
+AVIEW --> CLIENT : JSON
+CLIENT --> DASHAG : setData(data)
+DASHAG --> ADMIN : dashboard prestadores:\n- BarraH ocupacion por medico\n- dias demandados (Lun-Dom)\n- horarios pico (8 franjas)
+
+== 10. Admin ve el Mapa de Calor ==
+
+ADMIN -> INFPAGE : click card "Ocupacion"
+INFPAGE -> DASHAG : navigate('/informes/dashboard/ocupacion')
+
+DASHAG -> CLIENT : GET /api/agenda/dashboard-ocupacion/
+CLIENT -> AVIEW : dashboard_ocupacion(request)
+AVIEW -> BD : SELECT ExtractWeekDay(fecha) AS dia_dj,\nExtractHour(hora_desde) AS hora,\nCOUNT(*) AS total\nFROM agenda WHERE is_deleted=False\nGROUP BY dia_dj, hora\nORDER BY dia_dj, hora
+BD --> AVIEW : mapa_calor [{dia_dj:1,hora:8,total:12}...]
+AVIEW --> CLIENT : { mapa_calor: [...] }
+CLIENT --> DASHAG : setData(data)
+
+DASHAG -> DASHAG : renderiza grilla:\nfilas: Lun-Dom\ncolumnas: 07:00-18:00\ncada celda: opacity=(total/maxTotal)\n(sin libreria — divs con opacity CSS)
+
+DASHAG --> ADMIN : mapa de calor dia x hora\n(pico visual: Martes 09:00)
+
+@enduml

@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Navbar from './Navbar'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { useNavigationGuard } from '../../hooks/useNavigationGuard'
 
 export default function Layout({ children }) {
   const [collapsed, setCollapsed]     = useState(false)
   const [mobileOpen, setMobileOpen]   = useState(false)
+  const { pendingAction, confirmPending, cancelPending } = useNavigationGuard()
 
   return (
     <>
@@ -245,6 +248,16 @@ export default function Layout({ children }) {
           {children}
         </div>
       </main>
+
+      <ConfirmDialog
+        isOpen={pendingAction !== null}
+        title="¿Salir sin guardar?"
+        description="Tenés cambios sin guardar en el formulario. Si continuás, los cambios se perderán."
+        confirmText="Continuar sin guardar"
+        cancelText="Seguir editando"
+        onConfirm={confirmPending}
+        onCancel={cancelPending}
+      />
     </>
   )
 }

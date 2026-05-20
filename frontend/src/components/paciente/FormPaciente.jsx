@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
 import apiClient from '../../api/client'
+import ResponsableForm from '../responsable/ResponsableForm'
 
-export default function FormPaciente({ paciente, readOnly = false, onChange }) {
+export default function FormPaciente({ paciente, readOnly = false, onChange, errores = {} }) {
   const [form, setForm] = useState({
     sexo:                  '',
     grupo_sanguineo:       '',
@@ -16,9 +18,12 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
   const [sugerencias,        setSugerencias]        = useState([])
   const [buscandoResp,       setBuscandoResp]       = useState(false)
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
+  const [selectedIndex,      setSelectedIndex]      = useState(-1)
+  const [mostrarNuevoResp,   setMostrarNuevoResp]   = useState(false)
 
   const debounceRef = useRef(null)
   const wrapRef     = useRef(null)
+  const listRef     = useRef(null)
 
   const handleQueryChange = (e) => {
     const q = e.target.value
@@ -49,6 +54,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
     setQueryResponsable('')
     setSugerencias([])
     setMostrarSugerencias(false)
+    setSelectedIndex(-1)
   }
 
   const limpiarResponsable = () => {
@@ -56,8 +62,36 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
     setQueryResponsable('')
     setSugerencias([])
     setMostrarSugerencias(false)
-    setForm(prev => ({ ...prev, responsable: '' }))
+    setSelectedIndex(-1)
+    setForm(prev => ({ ...prev, responsable: '', parentesco: '' }))
   }
+
+  const handleKeyDown = (e) => {
+    if (!mostrarSugerencias || sugerencias.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex(prev => {
+        const next = Math.min(prev + 1, sugerencias.length - 1)
+        listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' })
+        return next
+      })
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex(prev => {
+        const next = Math.max(prev - 1, -1)
+        if (next >= 0) listRef.current?.children[next]?.scrollIntoView({ block: 'nearest' })
+        return next
+      })
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault()
+      seleccionarResponsable(sugerencias[selectedIndex])
+    } else if (e.key === 'Escape') {
+      setMostrarSugerencias(false)
+      setSelectedIndex(-1)
+    }
+  }
+
+  useEffect(() => setSelectedIndex(-1), [sugerencias])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -68,6 +102,19 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Bloquea Escape del modal exterior cuando el modal anidado está abierto
+  useEffect(() => {
+    if (!mostrarNuevoResp) return
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        setMostrarNuevoResp(false)
+      }
+    }
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [mostrarNuevoResp])
 
   useEffect(() => {
     if (paciente) {
@@ -219,6 +266,9 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
           .fpa-divider, .fpa-subsection { grid-column: span 1; }
         }
 
+        .fpa-input-error { border-color: #dc2626 !important; }
+        .fpa-field-error { font-size: 11.5px; color: #dc2626; margin-top: 1px; }
+
         .fpa-alert-field {
           background: #fff8f0;
           border: 1.5px solid #fed7aa;
@@ -238,6 +288,24 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
         }
 
         .fpa-autocomplete-wrap { position: relative; }
+        .fpa-resp-row { display: flex; gap: 6px; align-items: flex-start; }
+        .fpa-resp-row .fpa-autocomplete-wrap { flex: 1; }
+        .fpa-btn-nuevo-resp {
+          flex-shrink: 0;
+          display: inline-flex; align-items: center; justify-content: center;
+          gap: 4px;
+          height: 39px;
+          padding: 0 12px;
+          border: 1.5px solid #e5e7eb; border-radius: 9px;
+          background: #fff; color: #1a3a5c;
+          font-size: 12.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .fpa-btn-nuevo-resp:hover { background: #f0f5fb; border-color: #1a3a5c; }
+
         .fpa-suggestions {
           position: absolute;
           top: calc(100% + 4px);
@@ -258,7 +326,8 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
           border-bottom: 1px solid #f3f4f6;
         }
         .fpa-suggestion-item:last-child { border-bottom: none; }
-        .fpa-suggestion-item:hover { background: #f0f4f8; }
+        .fpa-suggestion-item:hover,
+        .fpa-suggestion-item.fpa-selected { background: #f0f4f8; }
         .fpa-suggestion-nombre {
           font-size: 13.5px;
           font-weight: 500;
@@ -275,6 +344,58 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
           color: #9ca3af;
           text-align: center;
         }
+
+        /* Modal anidado responsable */
+        .fpa-nested-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 60;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          background: rgba(10, 25, 45, 0.5);
+        }
+        .fpa-nested-box {
+          background: #fff;
+          border-radius: 14px;
+          width: 100%;
+          max-width: 620px;
+          max-height: 90vh;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 60px rgba(10,25,45,0.22);
+          border: 1px solid #e8edf2;
+          overflow: hidden;
+        }
+        .fpa-nested-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 18px 22px;
+          border-bottom: 1px solid #f0f4f8;
+          flex-shrink: 0;
+        }
+        .fpa-nested-titulo {
+          font-size: 15px;
+          font-weight: 600;
+          color: #1a3a5c;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .fpa-nested-close {
+          width: 30px; height: 30px;
+          border: 1px solid #e8edf2; border-radius: 8px;
+          background: none; cursor: pointer;
+          color: #9ca3af; font-size: 14px;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.15s, color 0.15s;
+        }
+        .fpa-nested-close:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+        .fpa-nested-body {
+          overflow-y: auto;
+          flex: 1;
+          padding: 20px 22px;
+        }
       `}</style>
 
       <div className="fpa-root">
@@ -285,7 +406,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
 
         <div className="fpa-grid">
 
-          <div className="fpa-field">
+          <div className="fpa-field" id="fpa-campo-sexo">
             <label className="fpa-label fpa-label-required">Sexo</label>
             <div className="fpa-select-wrap">
               <select
@@ -293,7 +414,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
                 value={form.sexo}
                 onChange={handleChange}
                 disabled={readOnly}
-                className="fpa-select"
+                className={`fpa-select${errores.sexo ? ' fpa-input-error' : ''}`}
               >
                 <option value="">Seleccioná...</option>
                 <option value="M">Masculino</option>
@@ -301,6 +422,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
                 <option value="O">Otro</option>
               </select>
             </div>
+            {errores.sexo && <span className="fpa-field-error">Campo requerido</span>}
           </div>
 
           <div className="fpa-field">
@@ -331,34 +453,47 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
             <label className="fpa-label">Responsable</label>
 
             {!responsableBuscado ? (
-              <div ref={wrapRef} className="fpa-autocomplete-wrap">
-                <input
-                  type="text"
-                  value={queryResponsable}
-                  onChange={handleQueryChange}
-                  onFocus={() => { if (sugerencias.length > 0) setMostrarSugerencias(true) }}
-                  placeholder={buscandoResp ? 'Buscando...' : 'Nombre o documento del responsable...'}
-                  className="fpa-input"
-                  disabled={readOnly}
-                  autoComplete="off"
-                />
-                {mostrarSugerencias && (
-                  <div className="fpa-suggestions">
-                    {sugerencias.length === 0 ? (
-                      <div className="fpa-suggestion-empty">Sin resultados</div>
-                    ) : (
-                      sugerencias.map(resp => (
-                        <div
-                          key={resp.id}
-                          className="fpa-suggestion-item"
-                          onMouseDown={() => seleccionarResponsable(resp)}
-                        >
-                          <div className="fpa-suggestion-nombre">{resp.nombre}</div>
-                          <div className="fpa-suggestion-doc">{resp.documento}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+              <div className="fpa-resp-row">
+                <div ref={wrapRef} className="fpa-autocomplete-wrap">
+                  <input
+                    type="text"
+                    value={queryResponsable}
+                    onChange={handleQueryChange}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => { if (sugerencias.length > 0) setMostrarSugerencias(true) }}
+                    placeholder={buscandoResp ? 'Buscando...' : 'Nombre o documento del responsable...'}
+                    className="fpa-input"
+                    disabled={readOnly}
+                    autoComplete="off"
+                  />
+                  {mostrarSugerencias && (
+                    <div className="fpa-suggestions" ref={listRef}>
+                      {sugerencias.length === 0 ? (
+                        <div className="fpa-suggestion-empty">Sin resultados</div>
+                      ) : (
+                        sugerencias.map((resp, idx) => (
+                          <div
+                            key={resp.id}
+                            className={`fpa-suggestion-item${idx === selectedIndex ? ' fpa-selected' : ''}`}
+                            onMouseDown={() => seleccionarResponsable(resp)}
+                          >
+                            <div className="fpa-suggestion-nombre">{resp.nombre}</div>
+                            <div className="fpa-suggestion-doc">{resp.documento}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="fpa-btn-nuevo-resp"
+                    onClick={() => setMostrarNuevoResp(true)}
+                    title="Agregar nuevo responsable"
+                  >
+                    <Plus size={13} /> Nuevo
+                  </button>
                 )}
               </div>
             ) : (
@@ -384,7 +519,7 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
               </div>
             )}
 
-            <span className="fpa-hint">Opcional — registralo primero en el módulo de Responsables</span>
+            <span className="fpa-hint">Opcional — buscá por nombre o documento, o creá uno nuevo</span>
           </div>
 
           {responsableBuscado && (
@@ -451,6 +586,37 @@ export default function FormPaciente({ paciente, readOnly = false, onChange }) {
 
         </div>
       </div>
+
+      {mostrarNuevoResp && (
+        <div
+          className="fpa-nested-backdrop"
+          onClick={e => { if (e.target === e.currentTarget) setMostrarNuevoResp(false) }}
+        >
+          <div className="fpa-nested-box">
+            <div className="fpa-nested-header">
+              <span className="fpa-nested-titulo">Nuevo responsable</span>
+              <button className="fpa-nested-close" onClick={() => setMostrarNuevoResp(false)}>✕</button>
+            </div>
+            <div className="fpa-nested-body">
+              <ResponsableForm
+                useGuard={false}
+                onSuccess={async (nuevoResp) => {
+                  setMostrarNuevoResp(false)
+                  if (nuevoResp?.id) {
+                    try {
+                      const res = await apiClient.get(`/pacienteresponsable/${nuevoResp.id}/`)
+                      seleccionarResponsable(res.data)
+                    } catch {
+                      seleccionarResponsable(nuevoResp)
+                    }
+                  }
+                }}
+                onCancel={() => setMostrarNuevoResp(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

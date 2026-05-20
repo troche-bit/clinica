@@ -1,11 +1,16 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { NavigationGuardProvider } from './hooks/useNavigationGuard'
 import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
 import Layout from './components/layout/Layout'
 import PacientePage from './pages/clinica/PacientePage'
 import InformesPacientePage from './pages/clinica/InformesPacientePage'
 import DashboardPacientesPage from './pages/clinica/DashboardPacientesPage'
+import DashboardConsultasPage from './pages/clinica/DashboardConsultasPage'
+import DashboardAgendaPage from './pages/clinica/DashboardAgendaPage'
+import DashboardPrestadoresPage from './pages/clinica/DashboardPrestadoresPage'
+import DashboardOcupacionPage from './pages/clinica/DashboardOcupacionPage'
 import PacienteResponsablePage from './pages/clinica/PacienteResponsablePage'
 import UbicacionesPage from './pages/mantenimiento/UbicacionesPage'
 import ConsultorioPage from './pages/clinica/configuracion/ConsultorioPage'
@@ -18,6 +23,7 @@ import AgendaPage from './pages/clinica/AgendaPage'
 import ConsultasPage from './pages/clinica/ConsultasPage'
 import DocumentosPage from './pages/mantenimiento/DocumentosPage'
 import RecordatoriosPage from './pages/clinica/RecordatoriosPage'
+import RecordatoriosConfigPage from './pages/clinica/RecordatoriosConfigPage'
 import TimbradoPage from './pages/facturacion/TimbradoPage'
 import GruposPage from './pages/stock/GruposPage'
 import CuentasMcbPage from './pages/finanzas/CuentasMcbPage'
@@ -25,9 +31,11 @@ import FacturacionPage from './pages/facturacion/FacturacionPage'
 import CobranzasPage from './pages/finanzas/CobranzasPage'
 import PagoPrestadorPage from './pages/finanzas/PagoPrestadorPage'
 import UsuariosPage from './pages/administracion/UsuariosPage'
+import AuditoriaPage from './pages/administracion/AuditoriaPage'
 
 export default function App() {
   return (
+    <NavigationGuardProvider>
     <AuthProvider>
       <Routes>
 
@@ -173,13 +181,23 @@ export default function App() {
           }
         />
 
-        {/* Ruta para recordatorios */}
+        {/* Rutas de recordatorios */}
         <Route
           path="/agenda/recordatorios"
           element={
             <PrivateRoute>
               <Layout>
                 <RecordatoriosPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/agenda/recordatorios/configuracion"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <RecordatoriosConfigPage />
               </Layout>
             </PrivateRoute>
           }
@@ -202,6 +220,50 @@ export default function App() {
             <PrivateRoute>
               <Layout>
                 <DashboardPacientesPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/consultas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardConsultasPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/agenda"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardAgendaPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/prestadores"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardPrestadoresPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/ocupacion"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardOcupacionPage />
               </Layout>
             </PrivateRoute>
           }
@@ -303,9 +365,21 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/administracion/auditoria"
+          element={
+            <PrivateRoute roles={['admin']}>
+              <Layout>
+                <AuditoriaPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
         <Route path="/" element={<Navigate to="/paciente" replace/>} />
         <Route path="*" element={<div>Página no encontrada</div>} />
       </Routes>
     </AuthProvider>
+    </NavigationGuardProvider>
   )
 }

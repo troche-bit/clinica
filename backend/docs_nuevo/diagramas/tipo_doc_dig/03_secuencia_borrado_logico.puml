@@ -1,0 +1,100 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "TipoDocDigPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useTipoDocDig.js" as HOOK
+control "TipoDocDigitalViewSet" as VIEW
+entity "TipoDocDigital" as MODEL
+entity "DocumentoDigPaciente" as DOC
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado lógico sin dependencias ==
+
+ADMIN -> GUI : click botón eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : "¿Eliminar este tipo de documento?\nSi tiene documentos vinculados\nno se podrá eliminar."
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/tipo-doc-dig/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> DOC : instance.documentos.filter(is_deleted=False).exists()
+DOC -> BD : SELECT 1 FROM documento_dig_paciente\nWHERE tipo_doc_dig_id=id\nAND is_deleted=False LIMIT 1
+BD --> DOC : (vacío)
+DOC --> MODEL : False
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> MODEL : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+MODEL -> BD : UPDATE tipo_doc_dig\nSET is_deleted=True, fecha_eliminacion=...\nWHERE id=id
+BD --> MODEL : OK
+
+note right of BD
+  Los archivos físicos en disco
+  (/app/media/documentos/{storage_key}/...)
+  NO se eliminan al borrar el tipo.
+  El registro permanece en PostgreSQL
+  con is_deleted=True.
+end note
+
+VIEW -> BD : INSERT INTO auditoria_registro\n(tabla='TipoDocDigital', accion='ELIMINAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['tipo-doc-dig'])
+HOOK -> GUI : showToast('Tipo de documento eliminado.', 'success')
+GUI -> GUI : cerrarPanel()
+GUI --> ADMIN : fila desaparece de la tabla
+
+== Flujo alternativo: borrado bloqueado por documentos activos ==
+
+ADMIN -> GUI : click botón eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : confirmación
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/tipo-doc-dig/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> DOC : instance.documentos.filter(is_deleted=False).exists()
+DOC -> BD : SELECT 1 FROM documento_dig_paciente\nWHERE tipo_doc_dig_id=id\nAND is_deleted=False LIMIT 1
+BD --> DOC : (un registro)
+DOC --> MODEL : True
+
+MODEL -> VIEW : raise ValidationError\n'No se puede eliminar:\ntiene documentos activos vinculados.'
+
+note right of VIEW
+  AuditoriaMixin.perform_destroy()
+  NO se ejecuta.
+  No se crea RegistroAuditoria.
+  El tipo de documento NO se modifica.
+  Los archivos físicos permanecen
+  intactos en disco.
+end note
+
+VIEW --> HOOK : HTTP 400\n{ detail: 'No se puede eliminar:\ntiene documentos activos vinculados.' }
+
+HOOK -> GUI : onError → showToast(extraerMensajeError(err), 'error')
+GUI --> ADMIN : toast con mensaje de error
+
+@enduml

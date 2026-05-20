@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigationGuard } from '../../hooks/useNavigationGuard'
 import {
   Users, Calendar, FileText, DollarSign, BarChart2,
   Settings, ChevronLeft, ChevronRight, LogOut,
   ChevronDown, ChevronUp, UserCheck, Stethoscope,
-  Building2, MapPin, UserCog, Wallet, Lock, Eye, EyeOff, X,
+  Building2, MapPin, UserCog, Wallet, Lock, Eye, EyeOff, X, Shield,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import Toast from '../ui/Toast'
@@ -13,7 +14,7 @@ import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
 
 const PERMISOS = {
-  admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'usuarios', 'mantenimiento'],
+  admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'usuarios', 'mantenimiento', 'auditoria'],
   recepcionista:     ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'mantenimiento', 'informes'],
   medico:            ['pacientes', 'agenda', 'consultas', 'informes'],
   secretaria_medico: ['pacientes', 'agenda', 'consultas', 'informes'],
@@ -21,7 +22,7 @@ const PERMISOS = {
 
 const MENU = [
   {
-    section: 'Principal',
+    section: 'Clínica',
     items: [
       {
         id: 'pacientes',
@@ -30,7 +31,6 @@ const MENU = [
         sub: [
           { to: '/paciente',             label: 'Datos del paciente' },
           { to: '/pacienteresponsable',  label: 'Responsables' },
-          { to: '/pacientes/documentos', label: 'Documentos digitalizados' },
         ],
       },
       {
@@ -61,7 +61,7 @@ const MENU = [
     ],
   },
   {
-    section: 'Administración',
+    section: 'Gestión',
     items: [
       {
         id: 'facturacion',
@@ -94,7 +94,7 @@ const MENU = [
     ],
   },
   {
-    section: 'Sistema',
+    section: 'Configuración',
     items: [
       {
         id: 'usuarios',
@@ -103,6 +103,12 @@ const MENU = [
         sub: [
           { to: '/sistema/usuarios', label: 'Gestión de usuarios' },
         ],
+      },
+      {
+        id: 'auditoria',
+        label: 'Auditoría',
+        icon: Shield,
+        to: '/administracion/auditoria',
       },
       {
         id: 'mantenimiento',
@@ -234,6 +240,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const [showPwd, setShowPwd] = useState(false)
   const { toast, showToast } = useToast()
   const profileRef = useRef(null)
+  const navigate = useNavigate()
+  const { isDirty, guardAction } = useNavigationGuard()
 
   const rol = user?.rol || 'admin'
   const permisosRol = PERMISOS[rol] || PERMISOS.admin
@@ -624,11 +632,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                       <NavLink
                         key={id}
                         to={to}
-                        onClick={onMobileClose}
                         data-tip={label}
                         className={({ isActive }) =>
                           `sb-link-item sb-tooltip ${isActive ? 'active' : ''}`
                         }
+                        onClick={(e) => {
+                          if (isDirty) {
+                            e.preventDefault()
+                            guardAction(() => { navigate(to); onMobileClose() })
+                          } else {
+                            onMobileClose()
+                          }
+                        }}
                       >
                         <Icon size={17} className="sb-item-icon" />
                         <span className="sb-item-label">{label}</span>
@@ -655,10 +670,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                           <NavLink
                             key={subTo}
                             to={subTo}
-                            onClick={onMobileClose}
+                            end
                             className={({ isActive }) =>
                               `sb-sublink ${isActive ? 'active' : ''}`
                             }
+                            onClick={(e) => {
+                              if (isDirty) {
+                                e.preventDefault()
+                                guardAction(() => { navigate(subTo); onMobileClose() })
+                              } else {
+                                onMobileClose()
+                              }
+                            }}
                           >
                             <div className="sb-sublink-dot" />
                             {subLabel}

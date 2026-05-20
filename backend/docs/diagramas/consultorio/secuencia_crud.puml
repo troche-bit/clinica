@@ -1,0 +1,79 @@
+@startuml secuencia_crud
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+
+title Consultorio — Flujo CRUD completo
+
+actor       "Usuario"    as U
+participant "Frontend"   as FE
+participant "API"        as API
+database    "BD"         as BD
+
+== Listar ==
+
+U -> FE : Ingresa a ConsultorioPage
+FE -> API : GET /api/consultorio/\n[?search=...]
+API -> BD : SELECT * FROM consultorio\nWHERE is_deleted = false
+BD --> API : Registros activos
+API --> FE : 200 OK { results: [...] }
+FE --> U : Tabla de consultorios
+
+note right of FE
+  useConsultorios(search)
+  debounce 300 ms
+  TanStack Query
+end note
+
+== Crear ==
+
+U -> FE : Click "Nuevo consultorio"\no presiona Insert
+FE --> U : PanelSimple modo='crear'
+U -> FE : Completa nro_consultorio\n(descripcion opcional)
+U -> FE : Click Guardar (o F10)
+FE -> API : POST /api/consultorio/\n{ nro_consultorio, descripcion }
+API -> API : Validar unicidad\ncaso-insensitiva (Lower)
+API -> BD : INSERT INTO consultorio
+BD --> API : Registro creado
+API --> FE : 201 Created { id, nro_consultorio, descripcion }
+FE -> FE : invalidateQueries(['consultorios'])
+FE --> U : Toast "Consultorio creado correctamente"\nPanel se cierra
+
+== Editar ==
+
+U -> FE : Click botón Editar (ícono lápiz)
+FE --> U : PanelSimple modo='editar'\ncon datos precargados
+U -> FE : Modifica campos
+U -> FE : Click Guardar (o F10)
+FE -> API : PATCH /api/consultorio/{id}/\n{ nro_consultorio?, descripcion? }
+API -> API : Validar unicidad\nexcluyendo registro actual
+API -> BD : UPDATE consultorio SET ...\nWHERE id = {id}
+BD --> API : Registro actualizado
+API --> FE : 200 OK { id, nro_consultorio, descripcion }
+FE -> FE : invalidateQueries(['consultorios'])
+FE --> U : Toast "Consultorio actualizado correctamente"\nPanel se cierra
+
+== Eliminar ==
+
+U -> FE : Click botón Eliminar (ícono basura)\n(solo rol admin)
+FE --> U : ConfirmDialog\n"¿Estás seguro?"
+U -> FE : Click Confirmar
+FE -> API : DELETE /api/consultorio/{id}/
+API -> BD : SELECT horarios activos\nWHERE consultorio_id = {id}\nAND is_deleted = false
+alt tiene horarios activos
+  BD --> API : registros encontrados
+  API --> FE : 400 ValidationError\n"No se puede eliminar: tiene horarios\nde prestador activos."
+  FE --> U : Toast de error
+else sin dependencias
+  BD --> API : vacío
+  API -> BD : UPDATE consultorio\nSET is_deleted=true,\nfecha_eliminacion=now()
+  BD --> API : OK
+  API --> FE : 204 No Content
+  FE -> FE : invalidateQueries(['consultorios'])
+  FE --> U : Toast "Consultorio eliminado"\nPanel se cierra
+end
+
+@enduml

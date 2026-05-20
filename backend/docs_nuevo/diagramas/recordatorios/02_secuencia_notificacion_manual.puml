@@ -1,0 +1,182 @@
+@startuml 02_secuencia_notificacion_manual
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor RECEPCIONISTA
+
+boundary "RecordatoriosPage.jsx" as GUI
+control "useRecordatorios.js" as HOOK
+control "RecordatorioViewSet" as VIEW
+control "enviar_notificacion()" as SERVICE
+entity "Notificacion" as NOTIF
+entity "PlantillaNotificacion" as PLANTILLA
+entity "ConfiguracionNotificacion" as CONFIG
+entity "RegistroAuditoria" as AUDITORIA
+database "PostgreSQL" as BD
+boundary "Resend API" as RESEND
+
+== 1. Recepcionista carga la pagina ==
+
+RECEPCIONISTA -> GUI : abre RecordatoriosPage
+
+GUI -> HOOK : useStatsRecordatorios()
+HOOK -> VIEW : GET /api/recordatorios/stats/
+VIEW -> BD : SELECT COUNT consultas WHERE proxima_cita\n< hoy / <= hoy+7 / <= hoy+30\nannotate(tiene_agenda)
+BD --> VIEW : { vencidas: 3, proximos_7_dias: 5,\nproximos_30_dias: 12, agendadas: 8 }
+VIEW --> HOOK : statsData
+
+GUI -> HOOK : useProximasCitas({ dias: 30 })
+HOOK -> VIEW : GET /api/recordatorios/proximas-citas/?dias=30
+VIEW -> BD : SELECT consulta JOIN agenda JOIN paciente\nWHERE proxima_cita IS NOT NULL\nAND proxima_cita <= hoy+30\nORDER BY proxima_cita
+BD --> VIEW : consultas con proxima_cita
+VIEW -> VIEW : _serializar_consulta(c) por cada resultado:\n  dias_restantes = proxima_cita - hoy\n  urgencia: vencida / urgente / normal\n  ultima_notificacion: notificaciones_prefetch[0]\n  estado: agendado si tiene_agenda else pendiente
+VIEW --> HOOK : [ { consulta_id, paciente, proxima_cita,\n   dias_restantes, urgencia, medico_sugerido,\n   diagnostico, indicaciones, estado,\n   ultima_notificacion }, ... ]
+
+GUI --> RECEPCIONISTA : 4 stats cards +\ntabla con pacientes ordenados por proxima_cita\nbadge: vencida(rojo) / urgente(ambar) / normal(verde)
+
+== 2. Recepcionista filtra y selecciona paciente ==
+
+RECEPCIONISTA -> GUI : click tab "7 dias"
+GUI -> HOOK : useProximasCitas({ dias: 7 })
+HOOK -> VIEW : GET /api/recordatorios/proximas-citas/?dias=7
+VIEW --> HOOK : lista reducida
+HOOK --> GUI : itemsFiltrados actualizados
+
+RECEPCIONISTA -> GUI : escribe "Lopez" en busqueda
+GUI -> GUI : itemsFiltrados = items.filter(\n  paciente.nombre.includes('lopez'))\n[filtro cliente-side, sin HTTP]
+
+RECEPCIONISTA -> GUI : click fila de Carlos Lopez
+
+GUI -> GUI : setSeleccionado(item)
+GUI --> RECEPCIONISTA : PanelDetalle (360px lateral)\n- datos del paciente + contacto\n- proxima_cita + urgencia + agendado/pendiente\n- medico sugerido\n- diagnostico + indicaciones de ultima consulta\n- ultimas 3 consultas finalizadas\n- botones: Recordatorio / Confirmacion / Indicaciones
+
+== 3A. Notificacion con email registrado ==
+
+note right of GUI
+  tieneEmail = !!item.paciente?.email
+  Si tiene email: flujo directo con
+  confirmacion inline (confirmDirecto).
+  Sin modal de canal/destinatario.
+end note
+
+RECEPCIONISTA -> GUI : click "Recordatorio de cita"
+GUI -> GUI : tieneEmail = true\nsetConfirmDirecto('recordatorio_cita')
+GUI --> RECEPCIONISTA : barra de confirmacion inline:\n"¿Enviar a carlos@email.com? [Enviar][Cancelar]"
+
+RECEPCIONISTA -> GUI : click "Enviar"
+
+GUI -> HOOK : notificar.mutateAsync({\n  consulta_id: item.consulta_id,\n  tipo: 'recordatorio_cita',\n  canal: 'email',\n  mensaje_personalizado: '' })
+
+HOOK -> VIEW : POST /api/recordatorios/notificar/\n{ consulta_id, tipo, canal: 'email' }
+
+VIEW -> VIEW : consulta = Consulta.objects.get(consulta_id)
+VIEW -> NOTIF : Notificacion.objects.create(\n  paciente, consulta, tipo, canal='email',\n  estado='pendiente', mensaje='',\n  destinatario=persona.correo_electronico,\n  id_usu_creator=request.user )
+NOTIF -> BD : INSERT notificacion\n(estado='pendiente')
+BD --> NOTIF : id=42
+
+VIEW -> SERVICE : enviar_notificacion(42)
+
+SERVICE -> BD : SELECT notificacion WHERE id=42\nSELECT related consulta, agenda, paciente
+BD --> SERVICE : notif con relaciones cargadas
+
+SERVICE -> CONFIG : ConfiguracionNotificacion.get_solo()
+CONFIG -> BD : SELECT notificacion_configuracion WHERE pk=1
+BD --> CONFIG : { habilitado=True, email_remitente=...,\nnombre_remitente='Clinica Lichi' }
+
+SERVICE -> SERVICE : TIPO_MAP['recordatorio_cita'] → 'recordatorio'
+SERVICE -> PLANTILLA : PlantillaNotificacion.objects.get(\ntipo='recordatorio', activa=True, is_deleted=False)
+PLANTILLA -> BD : SELECT notificacion_plantilla
+BD --> PLANTILLA : { asunto: 'Recordatorio...', cuerpo: 'Hola {nombre}...' }
+
+SERVICE -> SERVICE : _build_contexto(notif):\n  nombre = paciente.persona.razon_social\n  fecha = consulta.proxima_cita.strftime('%d/%m/%Y')\n  hora = agenda.hora_desde.strftime('%H:%M')\n  medico = rrhh.persona.razon_social\n  especialidad = rrhh.especialidades[0]
+
+SERVICE -> SERVICE : _renderizar(plantilla, contexto):\n  asunto = 'Recordatorio...' con {nombre} reemplazado\n  html_body = 'Hola Carlos...' con todas las variables
+
+SERVICE -> SERVICE : _procesar_imagenes_cid(html_body):\n  busca src="/media/..." en HTML\n  convierte a CID con base64\n  si hay imagenes → adjuntos[]
+
+SERVICE -> RESEND : resend.Emails.send({\n  from: 'Clinica Lichi <noreply@clinicalichi.com>',\n  to: ['carlos@email.com'],\n  subject: asunto,\n  html: html_body,\n  attachments: adjuntos })
+
+RESEND --> SERVICE : 200 OK
+
+SERVICE -> BD : UPDATE notificacion\nSET estado='enviado',\nfecha_envio=timezone.now(),\nmensaje=html_body\nWHERE id=42
+
+SERVICE -> AUDITORIA : RegistroAuditoria.objects.create(\n  tabla='notificacion', registro_id=42,\n  accion='ENVIO_EMAIL',\n  datos_despues={ destinatario, asunto, estado,\n    tipo, automatico: False },\n  usuario=notif.id_usu_creator )
+AUDITORIA -> BD : INSERT auditoria_registro (ENVIO_EMAIL)
+
+SERVICE --> VIEW : (retorna)
+VIEW -> BD : notif.refresh_from_db()
+BD --> VIEW : estado='enviado'
+VIEW --> HOOK : 200 { ok: True, id: 42, estado: 'enviado' }
+
+HOOK -> HOOK : invalidateQueries(['recordatorios'])\ninvalidateQueries(['historial-notificaciones'])
+
+GUI -> GUI : res.estado === 'enviado'\nshowToast('Email enviado correctamente.', 'success')
+GUI -> GUI : setConfirmDirecto(null)
+GUI --> RECEPCIONISTA : toast exito + fila actualizada\nultima_notificacion = { tipo, estado: 'enviado', ... }
+
+== 3B. Paciente sin email — modal de canal ==
+
+note right of GUI
+  Si tieneEmail = false:
+  click en boton de notificacion abre
+  ModalNotificacion para ingresar
+  canal y destinatario manualmente.
+end note
+
+RECEPCIONISTA -> GUI : click "Recordatorio de cita"\n(paciente sin email)
+GUI -> GUI : tieneEmail = false\nsetModalTipo('recordatorio_cita')
+GUI --> RECEPCIONISTA : ModalNotificacion:\n- Canal: WhatsApp (default) / Email\n- Destinatario: telefono del paciente\n- Mensaje: buildMensajePlantilla pre-cargado\n- Boton "Registrar envio"
+
+RECEPCIONISTA -> GUI : cambia canal a "email"\ningresa email manual
+
+RECEPCIONISTA -> GUI : click "Registrar envio"
+
+GUI -> HOOK : notificar.mutateAsync({\n  consulta_id, tipo,\n  canal: 'email',\n  mensaje_personalizado: mensaje })
+
+note right of HOOK
+  Si canal = 'email': backend
+  llama a enviar_notificacion().
+  Si canal = 'whatsapp' o 'manual':
+  solo crea Notificacion en BD,
+  no llama Resend. Queda en
+  estado pendiente para envio
+  externo.
+end note
+
+HOOK -> VIEW : POST /api/recordatorios/notificar/\n{ canal: 'email', mensaje_personalizado }
+
+VIEW -> NOTIF : Notificacion.objects.create(\n  ..., mensaje=mensaje_personalizado,\n  destinatario='email_ingresado_manual' )
+NOTIF -> BD : INSERT notificacion
+VIEW -> SERVICE : enviar_notificacion(notif.id)
+SERVICE --> VIEW : (enviado o fallido)
+
+VIEW --> HOOK : { ok: True, id, estado }
+HOOK -> HOOK : invalidateQueries
+
+GUI -> GUI : si estado=='enviado':\n  showToast('Email enviado.', 'success')\nsi no:\n  showToast('No se pudo enviar...', 'error')
+GUI --> RECEPCIONISTA : toast + modal se cierra (setTimeout 800ms)
+
+== 4. Resend falla ==
+
+note over SERVICE, RESEND
+  Si resend.Emails.send() lanza excepcion:
+  notif.estado = 'fallido'
+  notif.save(update_fields=['estado'])
+  logger.error(...)
+  No se registra en RegistroAuditoria.
+
+  Frontend recibe estado='fallido':
+  showToast('No se pudo enviar el email. La notificacion queda pendiente.', 'error')
+
+  Boton "Reenviar" disponible en HistorialExpandido
+  (rec-btn-reenviar) solo si canal='email' y estado='fallido'.
+  useReenviarNotificacion:
+    PATCH estado='pendiente' → POST /notificaciones/{id}/reenviar/
+    → enviar_notificacion() nuevamente
+    Solo para IsAdminOrRecepcionista.
+end note
+
+@enduml

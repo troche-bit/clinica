@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Bell, Calendar, AlertTriangle, CheckCircle,
-  Phone, Mail, X, Send, ExternalLink,
+  Bell, Calendar, AlertTriangle, CheckCircle, XCircle,
+  Phone, Mail, X, Send, ExternalLink, Settings,
+  ChevronRight, ChevronDown, RefreshCw,
 } from 'lucide-react'
 import {
   useProximasCitas,
@@ -10,8 +11,10 @@ import {
   useNotificar,
   useHistorialNotificaciones,
   useMedicosLista,
+  useReenviarNotificacion,
 } from '../../hooks/mantenimiento/useRecordatorios'
 import { useConsultasPaciente } from '../../hooks/clinica/useConsultas'
+import { useAuth } from '../../context/AuthContext'
 import Toast from '../../components/ui/Toast'
 import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
@@ -84,13 +87,21 @@ function ModalNotificacion({ item, tipo, onClose, onEnviado }) {
 
   const handleEnviar = async () => {
     try {
-      await notificar.mutateAsync({
+      const res = await notificar.mutateAsync({
         consulta_id: item.consulta_id,
         tipo,
         canal,
         mensaje_personalizado: mensaje,
       })
-      showToast('Notificación registrada correctamente.', 'success')
+      if (canal === 'email') {
+        if (res?.estado === 'enviado') {
+          showToast('Email enviado correctamente.', 'success')
+        } else {
+          showToast('No se pudo enviar el email. La notificación queda pendiente.', 'error')
+        }
+      } else {
+        showToast('Notificación registrada correctamente.', 'success')
+      }
       setTimeout(() => { onEnviado(); onClose() }, 800)
     } catch (err) {
       showToast(extraerMensajeError(err), 'error')
@@ -168,10 +179,94 @@ function ModalNotificacion({ item, tipo, onClose, onEnviado }) {
   )
 }
 
+function HistorialExpandido({ pacienteId }) {
+  const { data: historial = [], isLoading } = useHistorialNotificaciones(pacienteId)
+  const reenviar = useReenviarNotificacion()
+  const { toast, showToast } = useToast()
+
+  const handleReenviar = async (id) => {
+    try {
+      const res = await reenviar.mutateAsync(id)
+      showToast(res?.estado === 'enviado' ? 'Email reenviado.' : 'No se pudo reenviar.', res?.estado === 'enviado' ? 'success' : 'error')
+    } catch (err) {
+      showToast(extraerMensajeError(err), 'error')
+    }
+  }
+
+  if (isLoading) return <div style={{ padding: '8px 0', color: '#9ca3af', fontSize: 12 }}>Cargando…</div>
+  if (historial.length === 0) return <div style={{ padding: '8px 0', color: '#9ca3af', fontSize: 12 }}>Sin notificaciones enviadas.</div>
+
+  return (
+    <div>
+      {historial.slice(0, 5).map(n => (
+        <div key={n.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>{n.tipo_display}</span>
+            <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>{n.canal_display}</span>
+          </div>
+          <span style={{
+            fontSize: 11, fontWeight: 600,
+            color: n.estado === 'enviado' ? '#16a34a' : n.estado === 'fallido' ? '#dc2626' : '#d97706',
+          }}>
+            {n.estado_display}
+          </span>
+          <span style={{ fontSize: 11, color: '#9ca3af' }}>{formatFechaHora(n.fecha_creacion)}</span>
+          {n.canal === 'email' && n.estado === 'fallido' && (
+            <button
+              className="rec-btn-reenviar"
+              onClick={() => handleReenviar(n.id)}
+              disabled={reenviar.isPending}
+              title="Reenviar email"
+            >
+              <RefreshCw size={11} />
+            </button>
+          )}
+        </div>
+      ))}
+      {toast && <Toast message={toast.message} type={toast.type} />}
+    </div>
+  )
+}
+
 function PanelDetalle({ item, onCerrar }) {
   const navigate = useNavigate()
-  const [modalTipo, setModalTipo] = useState(null)
+  const [modalTipo, setModalTipo]         = useState(null)
+  const [confirmDirecto, setConfirmDirecto] = useState(null)
+  const [enviandoDirecto, setEnviandoDirecto] = useState(false)
   const { toast, showToast } = useToast()
+  const notificar  = useNotificar()
+  const tieneEmail = !!item.paciente?.email
+
+  const handleEnviarDirecto = async (tipo) => {
+    setEnviandoDirecto(true)
+    try {
+      const res = await notificar.mutateAsync({
+        consulta_id: item.consulta_id,
+        tipo,
+        canal: 'email',
+        mensaje_personalizado: '',
+      })
+      if (res?.estado === 'enviado') {
+        showToast('Email enviado correctamente.', 'success')
+      } else {
+        showToast('No se pudo enviar el email. Queda registrado como pendiente.', 'error')
+      }
+    } catch (err) {
+      showToast(extraerMensajeError(err), 'error')
+    } finally {
+      setEnviandoDirecto(false)
+      setConfirmDirecto(null)
+    }
+  }
+
+  const handleClickNotif = (tipo, tieneIndicaciones) => {
+    if (!tieneIndicaciones && tipo === 'indicaciones') return
+    if (tieneEmail) {
+      setConfirmDirecto(tipo)
+    } else {
+      setModalTipo(tipo)
+    }
+  }
 
   const { data: historialNotif = [] } = useHistorialNotificaciones(item.paciente?.id)
   const { data: consultasRaw }        = useConsultasPaciente(item.paciente?.id)
@@ -292,36 +387,50 @@ function PanelDetalle({ item, onCerrar }) {
 
         <div className="rec-section">
           <div className="rec-section-title">Notificar paciente</div>
+          {!tieneEmail && (
+            <div className="rec-sin-email-aviso">
+              <Mail size={12} /> Sin email registrado — se usará el modal para ingresar el canal manualmente.
+            </div>
+          )}
           <div className="rec-notif-btns">
-            <button
-              className="rec-btn-notif"
-              onClick={() => setModalTipo('recordatorio_cita')}
-            >
-              <Bell size={13} />
-              Recordatorio de cita
-              <span className="rec-canal-tag">Canal no configurado</span>
-            </button>
-            <button
-              className="rec-btn-notif"
-              onClick={() => setModalTipo('confirmacion_reserva')}
-            >
-              <CheckCircle size={13} />
-              Confirmación de reserva
-              <span className="rec-canal-tag">Canal no configurado</span>
-            </button>
-            <button
-              className="rec-btn-notif"
-              onClick={() => setModalTipo('indicaciones')}
-              disabled={!item.indicaciones}
-              title={!item.indicaciones ? 'Esta consulta no tiene indicaciones registradas' : ''}
-            >
-              <Send size={13} />
-              Enviar indicaciones
-              {item.indicaciones
-                ? <span className="rec-canal-tag">Canal no configurado</span>
-                : <span className="rec-canal-tag rec-canal-tag--sin">Sin indicaciones</span>
-              }
-            </button>
+            {[
+              { tipo: 'recordatorio_cita',    icon: <Bell size={13} />,         label: 'Recordatorio de cita' },
+              { tipo: 'confirmacion_reserva', icon: <CheckCircle size={13} />,  label: 'Confirmación de reserva' },
+              { tipo: 'indicaciones',         icon: <Send size={13} />,         label: 'Enviar indicaciones', sinInd: !item.indicaciones },
+            ].map(({ tipo, icon, label, sinInd }) => (
+              confirmDirecto === tipo ? (
+                <div key={tipo} className="rec-btn-confirm-directo">
+                  <span>¿Enviar a <strong>{item.paciente?.email}</strong>?</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="rec-btn-confirm-si"
+                      onClick={() => handleEnviarDirecto(tipo)}
+                      disabled={enviandoDirecto}
+                    >
+                      {enviandoDirecto ? '…' : 'Enviar'}
+                    </button>
+                    <button className="rec-btn-confirm-no" onClick={() => setConfirmDirecto(null)}>Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  key={tipo}
+                  className="rec-btn-notif"
+                  onClick={() => handleClickNotif(tipo, !sinInd)}
+                  disabled={sinInd}
+                  title={sinInd ? 'Esta consulta no tiene indicaciones registradas' : ''}
+                >
+                  {icon}
+                  {label}
+                  {sinInd
+                    ? <span className="rec-canal-tag rec-canal-tag--sin">Sin indicaciones</span>
+                    : tieneEmail
+                      ? <span className="rec-canal-tag rec-canal-tag--email"><Mail size={10} /> Email</span>
+                      : <span className="rec-canal-tag">Manual</span>
+                  }
+                </button>
+              )
+            ))}
           </div>
         </div>
 
@@ -374,13 +483,16 @@ function PanelDetalle({ item, onCerrar }) {
 
 export default function RecordatoriosPage() {
   const navigate  = useNavigate()
+  const { user }  = useAuth()
+  const esAdmin   = user?.rol === 'admin'
   const { toast, showToast } = useToast()
 
-  const [periodo,   setPeriodo]   = useState('30dias')
-  const [medico,    setMedico]    = useState('')
-  const [estadoF,   setEstadoF]   = useState('')
-  const [busqueda,  setBusqueda]  = useState('')
+  const [periodo,      setPeriodo]      = useState('30dias')
+  const [medico,       setMedico]       = useState('')
+  const [estadoF,      setEstadoF]      = useState('')
+  const [busqueda,     setBusqueda]     = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
+  const [expandedRow,  setExpandedRow]  = useState(null)
 
   const filtros = useMemo(() => {
     if (periodo === 'vencidas') return { periodo: 'vencidas', medico, estado: estadoF }
@@ -698,6 +810,79 @@ export default function RecordatoriosPage() {
           cursor: pointer; transition: background 0.12s;
         }
         .rec-btn-secundario:hover { background: #f9fafb; }
+
+        .rec-btn-config {
+          display: inline-flex; align-items: center; gap: 7px;
+          padding: 7px 14px; border-radius: 8px;
+          border: 1px solid #e5e7eb; background: #fff;
+          color: #374151; font-size: 12px;
+          font-family: 'DM Sans', sans-serif; font-weight: 500;
+          cursor: pointer; transition: background .12s; flex-shrink: 0;
+        }
+        .rec-btn-config:hover { background: #f3f4f6; }
+
+        .rec-th-email { width: 36px; text-align: center; }
+        .rec-td-email { text-align: center; }
+
+        .rec-expand-btn {
+          border: none; background: none; cursor: pointer; padding: 2px;
+          color: #9ca3af; display: flex; align-items: center;
+          border-radius: 4px; flex-shrink: 0; transition: color .12s;
+        }
+        .rec-expand-btn:hover { color: #374151; }
+
+        .rec-tr-expandida { background: #f8fafc; }
+        .rec-td-hist { padding: 10px 16px 14px; border-bottom: 1px solid #e8edf2; }
+        .rec-hist-inline-titulo {
+          font-size: 10px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .06em; color: #6b7280; margin-bottom: 8px;
+        }
+
+        .rec-btn-reenviar {
+          border: 1px solid #e5e7eb; background: #fff; color: #374151;
+          border-radius: 5px; padding: 3px 6px; cursor: pointer;
+          display: flex; align-items: center; transition: background .12s;
+        }
+        .rec-btn-reenviar:hover:not(:disabled) { background: #f3f4f6; }
+        .rec-btn-reenviar:disabled { opacity: 0.5; cursor: default; }
+
+        .rec-sin-email-aviso {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 11.5px; color: #9ca3af;
+          background: #f8fafc; padding: 6px 10px; border-radius: 7px;
+          margin-bottom: 8px;
+        }
+
+        .rec-canal-tag--email {
+          color: #16a34a; background: #f0fdf4;
+          display: inline-flex; align-items: center; gap: 3px;
+        }
+
+        .rec-btn-confirm-directo {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 9px 12px; border-radius: 8px;
+          border: 1px solid #bfdbfe; background: #eff6ff;
+          font-size: 12px; color: #374151;
+        }
+        .rec-btn-confirm-si {
+          padding: 4px 12px; border-radius: 6px; border: none;
+          background: #1a3a5c; color: #fff; font-size: 12px;
+          font-family: 'DM Sans', sans-serif; font-weight: 500;
+          cursor: pointer; transition: background .12s;
+        }
+        .rec-btn-confirm-si:hover:not(:disabled) { background: #15304d; }
+        .rec-btn-confirm-si:disabled { background: #9ca3af; cursor: default; }
+        .rec-btn-confirm-no {
+          padding: 4px 12px; border-radius: 6px;
+          border: 1px solid #e5e7eb; background: #fff;
+          color: #374151; font-size: 12px;
+          font-family: 'DM Sans', sans-serif; cursor: pointer;
+        }
+        .rec-btn-confirm-no:hover { background: #f9fafb; }
+
+        @media (max-width: 768px) {
+          .rec-tabla-wrap { overflow-x: auto; }
+        }
       `}</style>
 
       <div className="rec-page">
@@ -706,10 +891,18 @@ export default function RecordatoriosPage() {
           <div className="rec-header-icon">
             <Bell size={18} color="#1a3a5c" />
           </div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div className="rec-header-title">Recordatorios</div>
             <div className="rec-header-sub">Próximas citas y notificaciones a pacientes</div>
           </div>
+          {esAdmin && (
+            <button
+              className="rec-btn-config"
+              onClick={() => navigate('/agenda/recordatorios/configuracion')}
+            >
+              <Settings size={13} /> Configuración
+            </button>
+          )}
         </div>
 
         <div className="rec-stats">
@@ -785,94 +978,105 @@ export default function RecordatoriosPage() {
                 <thead>
                   <tr>
                     <th className="rec-th">Paciente</th>
+                    <th className="rec-th rec-th-email" title="Email registrado">
+                      <Mail size={12} />
+                    </th>
                     <th className="rec-th">Próxima cita</th>
                     <th className="rec-th">Días</th>
                     <th className="rec-th">Médico sugerido</th>
                     <th className="rec-th">Estado</th>
-                    <th className="rec-th" style={{ width: 100 }}></th>
+                    <th className="rec-th" style={{ width: 90 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsFiltrados.map(item => {
-                    const uc = urgenciaConfig(item.urgencia, item.dias_restantes)
+                    const uc         = urgenciaConfig(item.urgencia, item.dias_restantes)
                     const isVencida  = item.urgencia === 'vencida'
                     const isSelected = seleccionado?.consulta_id === item.consulta_id
+                    const isExpanded = expandedRow === item.consulta_id
+                    const irA = () => {
+                      const params = new URLSearchParams()
+                      if (item.medico_sugerido?.id) params.set('persona_rrhh', item.medico_sugerido.id)
+                      if (item.proxima_cita)        params.set('fecha', item.proxima_cita)
+                      navigate(`/agenda/citas?${params.toString()}`)
+                    }
                     return (
-                      <tr
-                        key={item.consulta_id}
-                        className={`rec-tr ${isVencida ? 'vencida' : ''} ${isSelected ? 'active' : ''}`}
-                        onClick={() => setSeleccionado(isSelected ? null : item)}
-                      >
-                        <td className="rec-td">
-                          <div className="rec-pac-cell">
-                            <div className="rec-avatar md">{iniciales(item.paciente?.nombre)}</div>
-                            <div>
-                              <div className="rec-pac-nombre">{item.paciente?.nombre}</div>
-                              {item.paciente?.telefono && (
-                                <div style={{ fontSize: 11, color: '#9ca3af' }}>{item.paciente.telefono}</div>
-                              )}
+                      <>
+                        <tr
+                          key={item.consulta_id}
+                          className={`rec-tr ${isVencida ? 'vencida' : ''} ${isSelected ? 'active' : ''}`}
+                          onClick={() => setSeleccionado(isSelected ? null : item)}
+                        >
+                          <td className="rec-td">
+                            <div className="rec-pac-cell">
+                              <button
+                                className="rec-expand-btn"
+                                onClick={e => { e.stopPropagation(); setExpandedRow(isExpanded ? null : item.consulta_id) }}
+                                title={isExpanded ? 'Ocultar historial' : 'Ver historial de notificaciones'}
+                              >
+                                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                              </button>
+                              <div className="rec-avatar md">{iniciales(item.paciente?.nombre)}</div>
+                              <div>
+                                <div className="rec-pac-nombre">{item.paciente?.nombre}</div>
+                                {item.paciente?.telefono && (
+                                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{item.paciente.telefono}</div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="rec-td">
-                          <span className="rec-fecha-mono">{formatFecha(item.proxima_cita)}</span>
-                        </td>
-                        <td className="rec-td">
-                          <span
-                            className="rec-badge-dias"
-                            style={{ color: uc.color, background: uc.bg }}
-                          >
-                            {uc.label}
-                          </span>
-                        </td>
-                        <td className="rec-td">
-                          <div className="rec-medico-cell">
-                            <div className="rec-avatar sm">{iniciales(item.medico_sugerido?.nombre)}</div>
-                            <div>
-                              <div className="rec-medico-nombre">{item.medico_sugerido?.nombre}</div>
-                              <div className="rec-medico-esp">{item.medico_sugerido?.especialidad}</div>
+                          </td>
+                          <td className="rec-td rec-td-email" onClick={e => e.stopPropagation()}>
+                            {item.paciente?.email
+                              ? <CheckCircle size={14} color="#16a34a" title={item.paciente.email} />
+                              : <XCircle    size={14} color="#d1d5db" title="Sin email" />
+                            }
+                          </td>
+                          <td className="rec-td">
+                            <span className="rec-fecha-mono">{formatFecha(item.proxima_cita)}</span>
+                          </td>
+                          <td className="rec-td">
+                            <span className="rec-badge-dias" style={{ color: uc.color, background: uc.bg }}>
+                              {uc.label}
+                            </span>
+                          </td>
+                          <td className="rec-td">
+                            <div className="rec-medico-cell">
+                              <div className="rec-avatar sm">{iniciales(item.medico_sugerido?.nombre)}</div>
+                              <div>
+                                <div className="rec-medico-nombre">{item.medico_sugerido?.nombre}</div>
+                                <div className="rec-medico-esp">{item.medico_sugerido?.especialidad}</div>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="rec-td">
-                          <span
-                            className="rec-estado-pill"
-                            style={{
-                              color:      item.estado === 'agendado' ? '#16a34a' : '#d97706',
-                              background: item.estado === 'agendado' ? '#f0fdf4' : '#fffbeb',
-                            }}
-                          >
-                            {item.estado === 'agendado' ? 'Agendado' : 'Pendiente'}
-                          </span>
-                        </td>
-                        <td className="rec-td" onClick={e => e.stopPropagation()}>
-                          {item.estado === 'pendiente' ? (
-                            <button
-                              className="rec-btn-agendar"
-                              onClick={() => {
-                                const params = new URLSearchParams()
-                                if (item.medico_sugerido?.id) params.set('persona_rrhh', item.medico_sugerido.id)
-                                if (item.proxima_cita)        params.set('fecha', item.proxima_cita)
-                                navigate(`/agenda/citas?${params.toString()}`)
+                          </td>
+                          <td className="rec-td">
+                            <span
+                              className="rec-estado-pill"
+                              style={{
+                                color:      item.estado === 'agendado' ? '#16a34a' : '#d97706',
+                                background: item.estado === 'agendado' ? '#f0fdf4' : '#fffbeb',
                               }}
                             >
-                              <Calendar size={12} /> Agendar
+                              {item.estado === 'agendado' ? 'Agendado' : 'Pendiente'}
+                            </span>
+                          </td>
+                          <td className="rec-td" onClick={e => e.stopPropagation()}>
+                            <button className="rec-btn-agendar" onClick={irA}>
+                              {item.estado === 'pendiente'
+                                ? <><Calendar size={12} /> Agendar</>
+                                : <><ExternalLink size={12} /> Ver</>
+                              }
                             </button>
-                          ) : (
-                            <button
-                              className="rec-btn-agendar"
-                              onClick={() => {
-                                const params = new URLSearchParams()
-                                if (item.medico_sugerido?.id) params.set('persona_rrhh', item.medico_sugerido.id)
-                                if (item.proxima_cita)        params.set('fecha', item.proxima_cita)
-                                navigate(`/agenda/citas?${params.toString()}`)
-                              }}
-                            >
-                              <ExternalLink size={12} /> Ver
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${item.consulta_id}-hist`} className="rec-tr-expandida">
+                            <td colSpan={7} className="rec-td-hist">
+                              <div className="rec-hist-inline-titulo">Historial de notificaciones</div>
+                              <HistorialExpandido pacienteId={item.paciente?.id} />
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )
                   })}
                 </tbody>

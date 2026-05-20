@@ -1,0 +1,130 @@
+@startuml 02_secuencia_crud
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "UbicacionesPage.jsx" as GUI
+control "useUbicacion.js" as HOOK
+control "PaisViewSet" as PAIS
+control "DepartamentoViewSet" as DEPTO
+control "CiudadViewSet" as CIUDAD
+entity "Pais" as MPAIS
+entity "Departamento" as MDEPTO
+entity "Ciudad" as MCIUDAD
+database "PostgreSQL" as BD
+
+== Flujo 1: Carga en cascada al abrir la pagina ==
+
+ADMIN -> GUI : abre pagina
+GUI -> HOOK : usePaises()
+HOOK -> PAIS : GET /api/pais/?page_size=100
+PAIS -> MPAIS : filter(is_deleted=False)
+MPAIS -> BD : SELECT WHERE is_deleted=False ORDER BY descripcion
+BD --> MPAIS : registros
+MPAIS --> PAIS : queryset
+PAIS --> HOOK : JSON [{ id, descripcion }]
+HOOK --> GUI : lista de paises
+GUI --> ADMIN : columna Paises activa\ncolumna Departamentos deshabilitada\ncolumna Ciudades deshabilitada
+
+ADMIN -> GUI : click en un pais
+GUI -> GUI : setPaisSeleccionado(pais)\nsetDeptoSeleccionado(null)
+GUI -> HOOK : useDepartamentos(paisId)
+note right of HOOK
+  enabled: !!paisId
+  Solo fetcha cuando
+  paisId es truthy.
+end note
+HOOK -> DEPTO : GET /api/departamento/?pais=paisId
+DEPTO -> MDEPTO : filter(pais=paisId, is_deleted=False)
+MDEPTO -> BD : SELECT WHERE pais_id=paisId AND is_deleted=False
+BD --> MDEPTO : registros
+MDEPTO --> DEPTO : queryset
+DEPTO --> HOOK : JSON [{ id, descripcion, pais_descripcion }]
+HOOK --> GUI : lista de departamentos
+GUI --> ADMIN : columna Departamentos activa\ncolumna Ciudades deshabilitada
+
+ADMIN -> GUI : click en un departamento
+GUI -> GUI : setDeptoSeleccionado(depto)
+GUI -> HOOK : useCiudades(departamentoId)
+HOOK -> CIUDAD : GET /api/ciudad/?departamento=departamentoId
+CIUDAD -> MCIUDAD : filter(departamento=deptoId, is_deleted=False)
+MCIUDAD -> BD : SELECT WHERE departamento_id=deptoId AND is_deleted=False
+BD --> MCIUDAD : registros
+MCIUDAD --> CIUDAD : queryset
+CIUDAD --> HOOK : JSON [{ id, descripcion, departamento_descripcion }]
+HOOK --> GUI : lista de ciudades
+GUI --> ADMIN : columna Ciudades activa
+
+== Flujo 2: Crear en cada nivel ==
+
+ADMIN -> GUI : click Agregar en columna Paises
+GUI -> GUI : FilaEditable nueva fila (modo crear)
+ADMIN -> GUI : descripcion="Paraguay"
+ADMIN -> GUI : click icono guardar
+GUI -> HOOK : crearPais.mutateAsync({ descripcion: "Paraguay" })
+HOOK -> PAIS : POST /api/pais/
+PAIS -> MPAIS : validate_descripcion()
+MPAIS -> BD : SELECT WHERE Lower(descripcion)='paraguay' AND is_deleted=False
+BD --> MPAIS : [] (no existe)
+PAIS -> BD : INSERT pais + INSERT auditoria_registro
+BD --> PAIS : { id: 1, descripcion: "Paraguay" }
+PAIS --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['paises'])
+HOOK -> GUI : showToast("Pais creado.", "success")
+GUI --> ADMIN : nueva fila en tabla
+
+ADMIN -> GUI : click Agregar en columna Departamentos\n(pais seleccionado)
+GUI -> GUI : FilaEditable nueva fila (modo crear)
+ADMIN -> GUI : descripcion="Central"
+ADMIN -> GUI : click icono guardar
+GUI -> HOOK : crearDepto.mutateAsync({ descripcion: "Central", pais: paisId })
+HOOK -> DEPTO : POST /api/departamento/
+DEPTO -> MDEPTO : validate() — unicidad en mismo pais
+MDEPTO -> BD : SELECT WHERE Lower(descripcion)='central' AND pais_id=paisId AND is_deleted=False
+BD --> MDEPTO : [] (no existe)
+DEPTO -> BD : INSERT departamento + INSERT auditoria_registro
+BD --> DEPTO : { id: 1, descripcion: "Central", pais_descripcion: "Paraguay" }
+DEPTO --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['departamentos', paisId])
+HOOK -> GUI : showToast("Departamento creado.", "success")
+GUI --> ADMIN : nueva fila en tabla
+
+ADMIN -> GUI : click Agregar en columna Ciudades\n(departamento seleccionado)
+GUI -> GUI : FilaEditable nueva fila (modo crear)
+ADMIN -> GUI : descripcion="Luque"
+ADMIN -> GUI : click icono guardar
+GUI -> HOOK : crearCiudad.mutateAsync({ descripcion: "Luque", departamento: deptoId })
+HOOK -> CIUDAD : POST /api/ciudad/
+CIUDAD -> MCIUDAD : validate() — unicidad en mismo departamento
+MCIUDAD -> BD : SELECT WHERE Lower(descripcion)='luque' AND departamento_id=deptoId AND is_deleted=False
+BD --> MCIUDAD : [] (no existe)
+CIUDAD -> BD : INSERT ciudad + INSERT auditoria_registro
+BD --> CIUDAD : { id: 1, descripcion: "Luque", departamento_descripcion: "Central" }
+CIUDAD --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['ciudades', deptoId])
+HOOK -> GUI : showToast("Ciudad creada.", "success")
+GUI --> ADMIN : nueva fila en tabla
+
+== Flujo 3: Editar en linea ==
+
+ADMIN -> GUI : click icono editar en fila Departamento
+GUI -> GUI : FilaEditable en modo edicion
+ADMIN -> GUI : modifica descripcion="Asuncion Capital"
+ADMIN -> GUI : click icono confirmar
+GUI -> HOOK : actualizarDepto.mutateAsync({ id, descripcion: "Asuncion Capital" })
+HOOK -> DEPTO : PATCH /api/departamento/{id}/
+DEPTO -> MDEPTO : validate() — unicidad excluyendo instancia actual
+MDEPTO -> BD : SELECT WHERE Lower(descripcion)=... AND pais_id=paisId AND is_deleted=False AND id<>id
+BD --> MDEPTO : [] (no existe)
+DEPTO -> BD : UPDATE departamento SET descripcion=... + INSERT auditoria_registro
+BD --> DEPTO : OK
+DEPTO --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['departamentos', paisId])
+HOOK -> GUI : showToast("Departamento actualizado.", "success")
+GUI --> ADMIN : fila actualizada
+
+@enduml

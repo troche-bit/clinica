@@ -1,0 +1,80 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "ConsultorioPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useConsultorios.js" as HOOK
+control "ConsultorioViewSet" as VIEW
+entity "Consultorio" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado lógico sin dependencias ==
+
+USUARIO -> GUI : click botón eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : "¿Estás seguro de que querés eliminar\neste consultorio? Si tiene horarios\nde prestador activos no se podrá eliminar."
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/consultorio/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> BD : SELECT horarios WHERE consultorio=id AND is_deleted=False
+BD --> MODEL : [] (sin dependencias)
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> MODEL : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+MODEL -> BD : UPDATE consultorio SET is_deleted=True, fecha_eliminacion=... WHERE id=id
+BD --> MODEL : OK
+MODEL --> VIEW : guardado
+
+VIEW -> BD : INSERT INTO auditoria_registro (accion=ELIMINAR)
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['consultorios'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Consultorio eliminado."
+note right of GUI : La fila desaparece de la tabla\n(is_deleted=True filtra el queryset)\nEl registro permanece en PostgreSQL
+
+== Flujo alternativo: borrado bloqueado por dependencias ==
+
+USUARIO -> GUI : click botón eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : confirmación
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : onConfirm()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/consultorio/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> BD : SELECT horarios WHERE consultorio=id AND is_deleted=False
+BD --> MODEL : [horario1, horario2, ...]
+
+MODEL -> VIEW : raise ValidationError\n'No se puede eliminar: tiene\nhorarios de prestador activos.'
+VIEW --> HOOK : 400 Bad Request { detail: '...' }
+
+HOOK -> GUI : onError(err)
+GUI -> GUI : extraerMensajeError(err)
+GUI --> USUARIO : toast "No se puede eliminar:\ntiene horarios de prestador activos."
+note right of MODEL : El registro NO se modifica\nNo se crea RegistroAuditoria\nLas filas permanecen en la tabla
+
+@enduml

@@ -1,0 +1,179 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey [null]
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey [null]
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Consulta {
+  + id : AutoField <<PK>>
+  + proxima_cita : DateField [null]
+  + indicaciones : TextField [null]
+  + diagnostico : TextField [null]
+  + estado : CharField
+  --
+  Origen de proxima_cita que
+  alimenta este modulo.
+}
+
+class Paciente {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey
+  + is_deleted : BooleanField
+  --
+  persona.correo_electronico
+  persona.telefono
+  persona.razon_social
+}
+
+class Agenda {
+  + id : AutoField <<PK>>
+  + paciente : ForeignKey [null]
+  + horario_prestador : ForeignKey
+  + fecha : DateField
+  + hora_desde : TimeField
+  + estado : CharField
+  --
+  Estado: DISPONIBLE / OCUPADO /
+  REALIZADO / CANCELADO / INACTIVO
+}
+
+class RegistroAuditoria {
+  + id : AutoField <<PK>>
+  + tabla : CharField
+  + registro_id : IntegerField
+  + accion : CharField
+  --
+  accion = ENVIO_EMAIL
+  registrado en services.py
+  usuario=None → automatico=True
+}
+
+class ConfiguracionNotificacion {
+  + id : AutoField <<PK>> (siempre pk=1)
+  + email_remitente : EmailField
+  + nombre_remitente : CharField
+  + habilitado : BooleanField = False
+  + auto_recordatorio : BooleanField = False
+  + horas_anticipacion : PositiveIntegerField = 24
+  + horas_anticipacion_2 : PositiveIntegerField [null]
+  + auto_confirmacion : BooleanField = True
+  + auto_cancelacion : BooleanField = False
+  --
+  db_table = 'notificacion_configuracion'
+  NO hereda BaseModel — sin is_deleted
+  --
+  + get_solo() : ConfiguracionNotificacion <<classmethod>>
+    get_or_create(pk=1)
+}
+
+class PlantillaNotificacion {
+  + id : AutoField <<PK>>
+  + tipo : CharField(15)
+  + asunto : CharField(200)
+  + cuerpo : TextField
+  + activa : BooleanField = True
+  --
+  db_table = 'notificacion_plantilla'
+  --
+  Tipo: recordatorio / confirmacion /
+        cancelacion / post_consulta
+  --
+  Variables en cuerpo:
+  {nombre} {fecha} {hora}
+  {medico} {especialidad} {indicaciones}
+  --
+  UniqueConstraint: unique tipo
+  WHERE is_deleted=False
+}
+
+class Notificacion {
+  + id : AutoField <<PK>>
+  + paciente : ForeignKey <<PROTECT>>
+  + consulta : ForeignKey [null] <<SET_NULL>>
+  + agenda : ForeignKey [null] <<SET_NULL>>
+  + tipo : CharField(25)
+  + canal : CharField(10)
+  + estado : CharField(10) = 'pendiente'
+  + mensaje : TextField
+  + destinatario : CharField(254)
+  + fecha_envio : DateTimeField [null]
+  --
+  db_table = 'notificacion'
+  ordering = ['-fecha_creacion']
+  --
+  Tipo: recordatorio_cita /
+        confirmacion_reserva /
+        cancelacion / indicaciones / otro
+  --
+  Canal: email / whatsapp / manual
+  --
+  Estado: pendiente → enviado / fallido
+  --
+  automatico = (id_usu_creator is None)
+  Los envios del cron tienen
+  id_usu_creator = None
+}
+
+note right of ConfiguracionNotificacion
+  Singleton: siempre se usa pk=1.
+  get_solo() hace get_or_create(pk=1).
+  ConfiguracionNotificacion es el
+  control maestro del modulo:
+  habilitado=False bloquea TODOS
+  los envios (manual y automatico).
+  horas_anticipacion_2 habilita
+  un segundo envio automatico mas
+  proximo a la cita.
+end note
+
+note right of Notificacion
+  consulta y agenda son FKs
+  opcionales (ambas pueden ser null):
+  - notif de proxima_cita: consulta != null
+  - notif de turno agendado: agenda != null
+  - notif manual: puede tener ambas o ninguna
+
+  automatico se deriva de id_usu_creator:
+  - id_usu_creator != None → manual
+  - id_usu_creator = None → automatico (cron)
+end note
+
+note right of PlantillaNotificacion
+  TIPO_MAP en services.py:
+  recordatorio_cita    → recordatorio
+  confirmacion_reserva → confirmacion
+  cancelacion          → cancelacion
+  indicaciones         → post_consulta
+
+  Si no existe plantilla activa para el tipo,
+  services.py usa notif.mensaje como fallback.
+  Las imagenes en el cuerpo HTML con
+  src="/media/..." se convierten a
+  adjuntos inline CID automaticamente.
+end note
+
+BaseModel <|-- Notificacion : hereda
+BaseModel <|-- PlantillaNotificacion : hereda
+
+Paciente "1" <-- "0..*" Notificacion : paciente\n(FK PROTECT)
+Consulta "0..1" <-- "0..*" Notificacion : consulta\n(FK SET_NULL)
+Agenda "0..1" <-- "0..*" Notificacion : agenda\n(FK SET_NULL)
+
+@enduml

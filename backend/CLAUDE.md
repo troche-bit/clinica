@@ -73,6 +73,7 @@ Al auditar cada app aplicar **todos** estos puntos sin excepción:
 - [ ] `get_serializer_class()` en el ViewSet elige según `self.action`
 - [ ] Validaciones case-insensitive con `Lower()` para campos de texto únicos
 - [ ] Sin docstrings ni comentarios del qué
+- [ ] Si el modelo tiene `UniqueConstraint`: agregar `validators = []` en Meta + validación manual en `validate()` con mensaje amigable (ver convención más abajo)
 
 ### views.py
 - [ ] Hereda de `AuditoriaMixin` **antes** del ViewSet base
@@ -184,6 +185,43 @@ Reglas implementadas en `PerfilUsuarioViewSet`:
 - Usar `Lower('campo')` en las `UniqueConstraint`
 - Crear índices con `Lower('campo')` para rendimiento
 
+### UniqueConstraint — mensajes de error amigables
+DRF genera automáticamente validadores a partir de `UniqueConstraint` del modelo y los mensajes resultantes exponen nombres de campo internos (ej: `"Los campos persona_rrhh, dia_semana, hora_desde deben formar un conjunto único."`). Para evitarlo:
+
+1. Agregar `validators = []` en el `Meta` del serializer de escritura para suprimir el validador automático.
+2. Agregar validación manual en `validate()` con mensaje en lenguaje natural para el usuario.
+3. La validación manual debe:
+   - Filtrar por `is_deleted=False` para respetar el borrado lógico.
+   - Excluir la instancia actual (`self.instance`) para que PATCH no falle al guardar sin cambios.
+   - Aplicar solo cuando corresponda (ej: solo cuando `excepcion=False` si el constraint es condicional).
+
+```python
+# Ejemplo — HorarioPrestador
+class Meta:
+    ...
+    validators = []
+
+def validate(self, data):
+    ...
+    if not excepcion:
+        qs = HorarioPrestador.objects.filter(
+            persona_rrhh=data.get('persona_rrhh'),
+            dia_semana=data.get('dia_semana'),
+            hora_desde=data.get('hora_desde'),
+            is_deleted=False,
+            excepcion=False,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                'Ya existe un horario para este prestador con el mismo día y hora de inicio.'
+            )
+    return data
+```
+
+Aplicado en: `HorarioPrestadorSerializer`, `AgendaSerializer`.
+
 ### Construcción de rutas de archivos
 ```python
 def build_storage_path(tipo_doc_dig, paciente_id, filename):
@@ -191,11 +229,19 @@ def build_storage_path(tipo_doc_dig, paciente_id, filename):
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     year      = datetime.now().year
     return f'documentos/{tipo_doc_dig.storage_key}/{year}/{timestamp}_{tipo_doc_dig.storage_key}.{ext}'
+
+def build_storage_path_prestador(tipo_doc_dig, persona_rrhh_id, filename):
+    ext       = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    year      = datetime.now().year
+    return f'documentos-prestador/{tipo_doc_dig.storage_key}/{year}/{timestamp}_{tipo_doc_dig.storage_key}.{ext}'
 ```
-Ejemplo: `documentos/historia_clinica/2026/20260414143022_historia_clinica.pdf`
+Ejemplos:
+- Paciente:   `documentos/historia_clinica/2026/20260414143022_historia_clinica.pdf`
+- Prestador:  `documentos-prestador/titulo_universitario/2026/20260414143022_titulo_universitario.pdf`
 
 ### Borrado de documentos digitalizados
-`perform_destroy` en `DocumentoDigPacienteViewSet`:
+`perform_destroy` en `DocumentoDigPacienteViewSet` y `DocumentoDigPrestadorViewSet`:
 1. Borrado físico del archivo en disco (`os.remove`). Si directorio vacío, eliminarlo (`os.rmdir`).
 2. Borrado lógico — marca `is_deleted=True` (patrón estándar `BaseModel`).
 
@@ -281,7 +327,7 @@ Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`
 | `PATCH /api/agenda/{id}/asignar/` | Asigna paciente a turno disponible |
 | `PATCH /api/agenda/{id}/estado/` | Cambia estado disponible/inactivo/cancelado/realizado |
 | `PATCH /api/agenda/{id}/reagendar/` | Mueve paciente de turno ocupado a otro disponible del mismo prestador (atómico) — body: `{nuevo_turno_id}` |
-| `POST /api/agenda/cancelar-rango/` | Cancela todos los turnos DISPONIBLES de un prestador en un rango — body: `{persona_rrhh, fecha_desde, fecha_hasta}` — bulk `update()` |
+| `POST /api/agenda/cancelar-rango/` | Cancela todos los turnos DISPONIBLES de un prestador en un rango — body: `{persona_rrhh, fecha_desde, fecha_hasta, hora_desde?, hora_hasta?}` — `hora_*` opcionales filtran por franja horaria — retorna `{cancelados: N, no_cancelados: [{fecha, hora_desde, estado, paciente}]}` con los turnos ocupados/realizados no cancelados |
 | `GET /api/agenda/resumen-mes/` | Conteo por fecha de disponibles/ocupados/inactivos/total |
 | `GET /api/agenda/stats-hoy/` | Estadísticas del día actual (timezone-aware, usa `timezone.localtime().date()`) |
 | `POST /api/consultas/{id}/iniciar/` | Estado en_espera→en_consulta, registra hora_desde |
@@ -289,11 +335,17 @@ Roles disponibles: `admin`, `medico`, `recepcionista`, `secretaria_medico`
 | `GET /api/consultas/stats-hoy/` | `{total, en_espera, en_consulta, finalizadas}` |
 | `GET /api/consultas/?persona_rrhh=id&fecha=YYYY-MM-DD` | Turnos del día de un médico |
 | `GET /api/documentos/?consulta=id` | Documentos de una consulta |
-| `GET /api/documentos/?paciente=id` | Historial completo de documentos |
+| `GET /api/documentos/?paciente=id` | Historial completo de documentos de un paciente |
 | `GET /api/documentos/pacientes/?search=` | Pacientes con al menos un documento |
-| `GET /api/documentos/{id}/descargar/` | FileResponse del archivo |
+| `GET /api/documentos/{id}/descargar/` | FileResponse del archivo (paciente) |
+| `GET /api/documentos-prestador/?persona_rrhh=id` | Documentos de un prestador |
+| `GET /api/documentos-prestador/{id}/descargar/` | FileResponse del archivo (prestador) |
 | `GET /api/paciente/reporte-lista/` | PDF WeasyPrint — listado con nombre, documento, edad, sexo, teléfono, responsable. Filtros: `sexo`, `grupo_sanguineo`, `pais`, `departamento`, `ciudad`, `fecha_desde`, `fecha_hasta` |
 | `GET /api/paciente/reporte-lista-excel/` | Excel openpyxl — mismos campos y filtros. Descarga `.xlsx` |
+| `GET /api/personarrhh/reporte-lista/` | PDF WeasyPrint — listado de prestadores: nombre, documento, cargo, especialidades, matrícula, estado |
+| `GET /api/personarrhh/reporte-lista-excel/` | Excel openpyxl — mismos campos. Descarga `.xlsx` |
+| `GET /api/horario-prestador/reporte-horarios/` | PDF WeasyPrint — listado de horarios: prestador, día/fecha, desde, hasta, intervalo, especialidades, estado |
+| `GET /api/horario-prestador/reporte-horarios-excel/` | Excel openpyxl — mismos campos. Descarga `.xlsx` |
 | `GET /api/paciente/dashboard-mensual/` | Estadísticas del mes en curso sin filtros: `total_mes`, `por_dia` (todos los días con `es_futuro`), `por_semana`, `por_sexo`, `por_grupo_etario` (6 rangos + sin fecha), `por_departamento` (top 5 + otros con total restante, indica país), `tendencia_6meses` |
 
 ### Recordatorios
@@ -334,10 +386,25 @@ Ubicación: `backend/templates/informes/`
 | `base_informe.html` | ✅ |
 | `factura_print.html` | ✅ |
 | `paciente_lista.html` | ✅ |
+| `prestador_lista.html` | ✅ |
+| `responsable_lista.html` | ✅ |
+| `horario_prestador_lista.html` | ✅ |
 | `cobranza_print.html` | ❌ pendiente |
 | `recibo_print.html` | ❌ pendiente |
 | `estado_cuenta_print.html` | ❌ pendiente |
 | `informe_caja.html` | ❌ pendiente |
+
+**Regla crítica para acciones de reporte:** las acciones que generan PDF o Excel hacen queries directas (sin pasar por `get_queryset()`). Deben incluir siempre `is_deleted=False` explícitamente, y además `fk__is_deleted=False` para relaciones FK relevantes:
+
+```python
+# ✅ Correcto
+HorarioPrestador.objects.filter(is_deleted=False, persona_rrhh__is_deleted=False)
+PersonaRRHH.objects.filter(is_deleted=False)
+
+# ❌ Incorrecto — expone registros eliminados
+HorarioPrestador.objects.all()
+HorarioPrestador.objects.filter(is_deleted=False)  # falta el filtro de RRHH eliminados
+```
 
 Templatetags custom: `apps/principal/facturacion/templatetags/factura_tags.py`
 - `|gs` — formatea valor como Guaraníes (entero con separador de miles con punto)

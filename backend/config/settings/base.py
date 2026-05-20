@@ -125,3 +125,6 @@ LANGUAGE_CODE = 'es-py'
 TIME_ZONE = 'America/Asuncion'
 USE_I18N = True
 USE_TZ = True
+
+RESEND_API_KEY = config('RESEND_API_KEY', default='')
+SITE_URL       = config('SITE_URL', default='http://localhost:8000')

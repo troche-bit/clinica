@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { parsePhoneNumber } from 'libphonenumber-js'
 import { useTipoDocumento } from '../../hooks/administracion/usePersona'
 import { usePaises, useDepartamentos, useCiudades } from '../../hooks/mantenimiento/useUbicacion'
 import { calcularDV } from '../../utils/calcularDV'
+import { extraerMensajeError } from '../../utils/errores'
+import apiClient from '../../api/client'
 
-export default function FormPersona({ persona, documento, readOnly = false, onChange }) {
+export default function FormPersona({ persona, documento, readOnly = false, onChange, errores = {} }) {
   const { data: tipoDocumento } = useTipoDocumento()
   const [errorTelefono, setErrorTelefono] = useState('')
+  const qc = useQueryClient()
 
   const [form, setForm] = useState({
     tipo_documento:     '',
@@ -22,11 +26,50 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
     direccion:          '',
   })
 
+  // Inline add ubicación
+  const [inlineAdd,       setInlineAdd]       = useState(null)  // null | 'pais' | 'departamento' | 'ciudad'
+  const [inlineNombre,    setInlineNombre]    = useState('')
+  const [inlineGuardando, setInlineGuardando] = useState(false)
+  const [inlineError,     setInlineError]     = useState('')
+
+  const crearPaisM  = useMutation({ mutationFn: (d) => apiClient.post('/pais/', d) })
+  const crearDeptoM = useMutation({ mutationFn: (d) => apiClient.post('/departamento/', d) })
+  const crearCiudM  = useMutation({ mutationFn: (d) => apiClient.post('/ciudad/', d) })
+
+  const handleInlineGuardar = async () => {
+    if (!inlineNombre.trim()) { setInlineError('El nombre es requerido'); return }
+    setInlineGuardando(true)
+    setInlineError('')
+    try {
+      if (inlineAdd === 'pais') {
+        const r = await crearPaisM.mutateAsync({ descripcion: inlineNombre.trim() })
+        qc.invalidateQueries({ queryKey: ['paises'] })
+        setForm(prev => ({ ...prev, pais: r.data.id, departamento: '', ciudad: '' }))
+      } else if (inlineAdd === 'departamento') {
+        const r = await crearDeptoM.mutateAsync({ descripcion: inlineNombre.trim(), pais: form.pais })
+        qc.invalidateQueries({ queryKey: ['departamentos'] })
+        setForm(prev => ({ ...prev, departamento: r.data.id, ciudad: '' }))
+      } else if (inlineAdd === 'ciudad') {
+        const r = await crearCiudM.mutateAsync({ descripcion: inlineNombre.trim(), departamento: form.departamento })
+        qc.invalidateQueries({ queryKey: ['ciudades'] })
+        setForm(prev => ({ ...prev, ciudad: r.data.id }))
+      }
+      setInlineAdd(null)
+      setInlineNombre('')
+    } catch (err) {
+      setInlineError(extraerMensajeError(err))
+    } finally {
+      setInlineGuardando(false)
+    }
+  }
+
+  const cerrarInline = () => { setInlineAdd(null); setInlineNombre(''); setInlineError('') }
+
   const esRuc = tipoDocumento?.find(
     t => t.id === parseInt(form.tipo_documento)
   )?.descripcion?.toUpperCase().includes('RUC')
 
-  const { data: paises }       = usePaises()
+  const { data: paises }        = usePaises()
   const { data: departamentos } = useDepartamentos(form.pais)
   const { data: ciudades }      = useCiudades(form.departamento)
 
@@ -224,6 +267,64 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
         @media (max-width: 600px) {
           .fp-subsection { grid-column: span 1; }
         }
+
+        /* Inline add ubicación */
+        .fp-ub-row { display: flex; gap: 6px; align-items: flex-start; }
+        .fp-ub-row .fp-select-wrap { flex: 1; }
+        .fp-btn-add-ub {
+          flex-shrink: 0;
+          width: 38px; height: 39px;
+          border: 1.5px solid #e5e7eb; border-radius: 9px;
+          background: #fff; color: #1a3a5c;
+          font-size: 20px; line-height: 1;
+          cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: background 0.15s, border-color 0.15s;
+        }
+        .fp-btn-add-ub:hover:not(:disabled) { background: #f0f5fb; border-color: #1a3a5c; }
+        .fp-btn-add-ub:disabled { opacity: 0.35; cursor: not-allowed; }
+        .fp-inline-form {
+          margin-top: 4px;
+          padding: 10px 12px;
+          background: #f8fafc;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 9px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .fp-inline-input {
+          width: 100%;
+          padding: 8px 10px;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 7px;
+          font-size: 13px;
+          font-family: 'DM Sans', sans-serif;
+          color: #111827;
+          outline: none;
+          background: #fff;
+          box-sizing: border-box;
+        }
+        .fp-inline-input:focus { border-color: #1a3a5c; }
+        .fp-inline-btns { display: flex; gap: 6px; }
+        .fp-inline-save {
+          padding: 6px 14px; font-size: 12.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          background: #1a3a5c; color: #fff;
+          border: none; border-radius: 7px; cursor: pointer;
+          transition: background 0.15s;
+        }
+        .fp-inline-save:hover:not(:disabled) { background: #15304d; }
+        .fp-inline-save:disabled { opacity: 0.6; cursor: not-allowed; }
+        .fp-inline-cancel {
+          padding: 6px 14px; font-size: 12.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif;
+          background: none; color: #6b7280;
+          border: 1px solid #e5e7eb; border-radius: 7px; cursor: pointer;
+          transition: background 0.15s;
+        }
+        .fp-inline-cancel:hover { background: #f9fafb; }
+        .fp-inline-error { font-size: 11.5px; color: #dc2626; }
       `}</style>
 
       <div className="fp-root">
@@ -234,7 +335,7 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
 
         <div className="fp-grid">
 
-          <div className="fp-field">
+          <div className="fp-field" id="fp-campo-tipo_documento">
             <label className="fp-label fp-label-required">Tipo de documento</label>
             <div className="fp-select-wrap">
               <select
@@ -242,7 +343,7 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
                 value={form.tipo_documento}
                 onChange={handleChange}
                 disabled={readOnly}
-                className="fp-select"
+                className={`fp-select${errores.tipo_documento ? ' fp-input-error' : ''}`}
               >
                 <option value="">Seleccioná...</option>
                 {tipoDocumento?.map(t => (
@@ -250,9 +351,10 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
                 ))}
               </select>
             </div>
+            {errores.tipo_documento && <span className="fp-field-error">Campo requerido</span>}
           </div>
 
-          <div className="fp-field">
+          <div className="fp-field" id="fp-campo-nro_documento">
             <label className="fp-label fp-label-required">Nro. de documento</label>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
               <input
@@ -262,7 +364,7 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
                 onChange={handleChange}
                 disabled={readOnly}
                 placeholder="Ej: 4123456"
-                className="fp-input"
+                className={`fp-input${errores.nro_documento ? ' fp-input-error' : ''}`}
                 style={{ flex: 1 }}
               />
               {esRuc && (
@@ -281,9 +383,10 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
                 </div>
               )}
             </div>
+            {errores.nro_documento && <span className="fp-field-error">Campo requerido</span>}
           </div>
 
-          <div className="fp-field fp-col-2">
+          <div className="fp-field fp-col-2" id="fp-campo-razon_social">
             <label className="fp-label fp-label-required">Razón social / Nombre completo</label>
             <input
               type="text"
@@ -292,8 +395,9 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
               onChange={handleChange}
               disabled={readOnly}
               placeholder="Nombre completo o razón social"
-              className="fp-input"
+              className={`fp-input${errores.razon_social ? ' fp-input-error' : ''}`}
             />
+            {errores.razon_social && <span className="fp-field-error">Campo requerido</span>}
           </div>
 
           <div className="fp-field">
@@ -342,62 +446,154 @@ export default function FormPersona({ persona, documento, readOnly = false, onCh
           <div className="fp-divider" />
           <div className="fp-subsection">Ubicación</div>
 
+          {/* País */}
           <div className="fp-field">
             <label className="fp-label">País</label>
-            <div className="fp-select-wrap">
-              <select
-                name="pais"
-                value={form.pais}
-                onChange={handleChange}
-                disabled={readOnly}
-                className="fp-select"
-              >
-                <option value="">Seleccioná...</option>
-                {paises?.map(p => (
-                  <option key={p.id} value={p.id}>{p.descripcion}</option>
-                ))}
-              </select>
+            <div className="fp-ub-row">
+              <div className="fp-select-wrap">
+                <select
+                  name="pais"
+                  value={form.pais}
+                  onChange={handleChange}
+                  disabled={readOnly}
+                  className="fp-select"
+                >
+                  <option value="">Seleccioná...</option>
+                  {paises?.map(p => (
+                    <option key={p.id} value={p.id}>{p.descripcion}</option>
+                  ))}
+                </select>
+              </div>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="fp-btn-add-ub"
+                  onClick={() => { setInlineAdd('pais'); setInlineNombre(''); setInlineError('') }}
+                  title="Agregar país"
+                >+</button>
+              )}
             </div>
+            {inlineAdd === 'pais' && (
+              <div className="fp-inline-form">
+                <input
+                  className="fp-inline-input"
+                  value={inlineNombre}
+                  onChange={e => setInlineNombre(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleInlineGuardar(); if (e.key === 'Escape') cerrarInline() }}
+                  placeholder="Nombre del país..."
+                  autoFocus
+                />
+                {inlineError && <span className="fp-inline-error">{inlineError}</span>}
+                <div className="fp-inline-btns">
+                  <button className="fp-inline-save" onClick={handleInlineGuardar} disabled={inlineGuardando}>
+                    {inlineGuardando ? '…' : 'Guardar'}
+                  </button>
+                  <button className="fp-inline-cancel" onClick={cerrarInline}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Departamento */}
           <div className="fp-field">
             <label className="fp-label">Departamento</label>
-            <div className="fp-select-wrap">
-              <select
-                name="departamento"
-                value={form.departamento}
-                onChange={handleChange}
-                disabled={readOnly || !form.pais}
-                className="fp-select"
-              >
-                <option value="">
-                  {!form.pais ? 'Primero seleccioná un país' : 'Seleccioná...'}
-                </option>
-                {departamentos?.map(d => (
-                  <option key={d.id} value={d.id}>{d.descripcion}</option>
-                ))}
-              </select>
+            <div className="fp-ub-row">
+              <div className="fp-select-wrap">
+                <select
+                  name="departamento"
+                  value={form.departamento}
+                  onChange={handleChange}
+                  disabled={readOnly || !form.pais}
+                  className="fp-select"
+                >
+                  <option value="">
+                    {!form.pais ? 'Primero seleccioná un país' : 'Seleccioná...'}
+                  </option>
+                  {departamentos?.map(d => (
+                    <option key={d.id} value={d.id}>{d.descripcion}</option>
+                  ))}
+                </select>
+              </div>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="fp-btn-add-ub"
+                  onClick={() => { setInlineAdd('departamento'); setInlineNombre(''); setInlineError('') }}
+                  disabled={!form.pais}
+                  title={!form.pais ? 'Seleccioná un país primero' : 'Agregar departamento'}
+                >+</button>
+              )}
             </div>
+            {inlineAdd === 'departamento' && (
+              <div className="fp-inline-form">
+                <input
+                  className="fp-inline-input"
+                  value={inlineNombre}
+                  onChange={e => setInlineNombre(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleInlineGuardar(); if (e.key === 'Escape') cerrarInline() }}
+                  placeholder="Nombre del departamento..."
+                  autoFocus
+                />
+                {inlineError && <span className="fp-inline-error">{inlineError}</span>}
+                <div className="fp-inline-btns">
+                  <button className="fp-inline-save" onClick={handleInlineGuardar} disabled={inlineGuardando}>
+                    {inlineGuardando ? '…' : 'Guardar'}
+                  </button>
+                  <button className="fp-inline-cancel" onClick={cerrarInline}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Ciudad */}
           <div className="fp-field">
             <label className="fp-label">Ciudad</label>
-            <div className="fp-select-wrap">
-              <select
-                name="ciudad"
-                value={form.ciudad}
-                onChange={handleChange}
-                disabled={readOnly || !form.departamento}
-                className="fp-select"
-              >
-                <option value="">
-                  {!form.departamento ? 'Primero seleccioná un departamento' : 'Seleccioná...'}
-                </option>
-                {ciudades?.map(c => (
-                  <option key={c.id} value={c.id}>{c.descripcion}</option>
-                ))}
-              </select>
+            <div className="fp-ub-row">
+              <div className="fp-select-wrap">
+                <select
+                  name="ciudad"
+                  value={form.ciudad}
+                  onChange={handleChange}
+                  disabled={readOnly || !form.departamento}
+                  className="fp-select"
+                >
+                  <option value="">
+                    {!form.departamento ? 'Primero seleccioná un departamento' : 'Seleccioná...'}
+                  </option>
+                  {ciudades?.map(c => (
+                    <option key={c.id} value={c.id}>{c.descripcion}</option>
+                  ))}
+                </select>
+              </div>
+              {!readOnly && (
+                <button
+                  type="button"
+                  className="fp-btn-add-ub"
+                  onClick={() => { setInlineAdd('ciudad'); setInlineNombre(''); setInlineError('') }}
+                  disabled={!form.departamento}
+                  title={!form.departamento ? 'Seleccioná un departamento primero' : 'Agregar ciudad'}
+                >+</button>
+              )}
             </div>
+            {inlineAdd === 'ciudad' && (
+              <div className="fp-inline-form">
+                <input
+                  className="fp-inline-input"
+                  value={inlineNombre}
+                  onChange={e => setInlineNombre(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleInlineGuardar(); if (e.key === 'Escape') cerrarInline() }}
+                  placeholder="Nombre de la ciudad..."
+                  autoFocus
+                />
+                {inlineError && <span className="fp-inline-error">{inlineError}</span>}
+                <div className="fp-inline-btns">
+                  <button className="fp-inline-save" onClick={handleInlineGuardar} disabled={inlineGuardando}>
+                    {inlineGuardando ? '…' : 'Guardar'}
+                  </button>
+                  <button className="fp-inline-cancel" onClick={cerrarInline}>Cancelar</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="fp-field">

@@ -1,0 +1,96 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "EventoClinicoPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useEventosClinicos.js" as HOOK
+control "EventoClinicoViewSet" as VIEW
+entity "EventoClinico" as MODEL
+entity "Consulta" as CONSULTA
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado logico sin dependencias ==
+
+ADMIN -> GUI : click boton eliminar en tabla
+GUI -> GUI : handleEliminar(id) -> setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : "Eliminar evento clinico\nSi tiene consultas vinculadas\nno se podra eliminar."
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/eventoclinico/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> CONSULTA : instance.consultas.filter(is_deleted=False).exists()
+CONSULTA -> BD : SELECT 1 FROM consulta\nWHERE evento_clinico_id=id\nAND is_deleted=False LIMIT 1
+BD --> CONSULTA : (vacio)
+CONSULTA --> MODEL : False
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> MODEL : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+MODEL -> BD : UPDATE evento_clinico\nSET is_deleted=True, fecha_eliminacion=...\nWHERE id=id
+BD --> MODEL : OK
+
+note right of BD
+  EventoClinico es un catalogo de referencia.
+  Su eliminacion afecta consultas historicas.
+  Por eso se validan dependencias.
+  El registro queda en BD con is_deleted=True.
+  La descripcion puede reutilizarse en un
+  nuevo registro por la condicion del constraint.
+end note
+
+VIEW -> BD : INSERT auditoria_registro\n(tabla='EventoClinico', accion='ELIMINAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['eventosclinicos'])
+HOOK --> GUI : onSuccess callback
+GUI -> GUI : showToast('Evento clinico eliminado.', 'success')
+GUI -> GUI : cerrarPanel()
+GUI --> ADMIN : fila desaparece de la tabla
+
+== Flujo alternativo: borrado bloqueado por consultas activas ==
+
+ADMIN -> GUI : click boton eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> ADMIN : confirmacion
+
+ADMIN -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/eventoclinico/{id}/
+
+VIEW -> MODEL : perform_destroy(instance)
+MODEL -> CONSULTA : instance.consultas.filter(is_deleted=False).exists()
+CONSULTA -> BD : SELECT 1 FROM consulta\nWHERE evento_clinico_id=id\nAND is_deleted=False LIMIT 1
+BD --> CONSULTA : (un registro)
+CONSULTA --> MODEL : True
+
+MODEL -> VIEW : raise ValidationError\n'No se puede eliminar: el evento clinico\ntiene consultas activas vinculadas.'
+
+note right of VIEW
+  AuditoriaMixin.perform_destroy()
+  NO se ejecuta.
+  No se crea RegistroAuditoria.
+  El evento clinico NO se modifica.
+  Las consultas vinculadas permanecen
+  intactas con sus datos historicos.
+end note
+
+VIEW --> HOOK : HTTP 400\n{ detail: 'No se puede eliminar: ...' }
+
+HOOK --> GUI : onError callback
+GUI -> GUI : showToast(extraerMensajeError(err), 'error')
+GUI --> ADMIN : toast con mensaje de error
+
+@enduml

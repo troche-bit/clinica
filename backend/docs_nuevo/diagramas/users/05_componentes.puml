@@ -1,0 +1,68 @@
+@startuml 05_componentes
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+skinparam componentBackgroundColor #ffffff
+skinparam componentBorderColor #000000
+skinparam packageBackgroundColor #ffffff
+skinparam packageBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+
+package "Frontend" {
+  component "UsuariosPage.jsx" as PAGE
+  component "useUsuarios.js" as HOOK
+  component "AuthContext.jsx" as CTX
+  component "client.js (Axios)" as AXIOS
+  component "Sidebar.jsx" as SIDEBAR
+}
+
+package "Backend" {
+  component "UsuarioViewSet" as VIEWSET
+  component "TokenObtainPairView" as TOKVIEW
+  component "TokenRefreshView" as REFVIEW
+  component "AuditoriaMixin\n(_log manual)" as AUDIT
+  component "CustomTokenClaims\n(serializer)" as CLAIMS
+}
+
+package "Base de Datos" {
+  database "auth_user" as DBUSR
+  database "users_perfilusuario" as DBPERFIL
+  database "persona_rrhh" as DBRRHH
+  database "outstanding_token\n(JWT blacklist)" as DBJWT
+}
+
+PAGE --> HOOK : usa hooks
+HOOK --> AXIOS : HTTP GET / POST / PATCH
+SIDEBAR --> CTX : lee user.rol\nfiltra menú
+CTX --> AXIOS : adjunta Bearer token
+
+AXIOS --> VIEWSET : GET/POST/PATCH /api/usuarios/
+AXIOS --> TOKVIEW : POST /api/auth/token/
+AXIOS --> REFVIEW : POST /api/token/refresh/
+
+VIEWSET --> AUDIT : _log(CREAR / EDITAR)
+VIEWSET --> DBUSR : INSERT / UPDATE auth_user
+VIEWSET --> DBPERFIL : INSERT / UPDATE perfilusuario
+
+TOKVIEW --> CLAIMS : get_token(user)\nadd custom claims
+TOKVIEW --> DBPERFIL : SELECT rol, activo, etc.
+TOKVIEW --> DBUSR : valida credenciales
+
+REFVIEW --> DBJWT : verifica blacklist
+
+CTX --> CTX : buildUser(access_token)\ndecodeJwt → rol, nombre,\niniciales, persona_rrhh_id,\nmedicos_asignados
+
+DBPERFIL --> DBUSR : FK user_id (OneToOne)
+DBPERFIL --> DBRRHH : FK persona_rrhh_id\nM2M medicos_asignados
+
+@enduml

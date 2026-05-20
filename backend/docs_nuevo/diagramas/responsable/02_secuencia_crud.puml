@@ -1,0 +1,155 @@
+@startuml 02_secuencia_crud
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+
+boundary "PacienteResponsablePage.jsx" as GUI
+boundary "ResponsableForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSCADOR
+control "useResponsable.js" as HOOK
+control "PacienteResponsableViewSet" as VIEW
+control "PersonaViewSet" as PVIEW
+entity "Persona" as PERSONA
+entity "PacienteResponsable" as RESP
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar responsables ==
+
+USUARIO -> GUI : abre pagina
+GUI -> HOOK : useResponsables({ page:1, search:'' })
+HOOK -> VIEW : GET /api/pacienteresponsable/?page=1
+VIEW -> RESP : filter(is_deleted=False)\n.select_related(persona__tipo_documento,\npersona__ciudad, ...)
+RESP -> BD : SELECT con JOIN persona WHERE is_deleted=False\nORDER BY persona__nro_documento
+BD --> RESP : registros paginados (20 por pagina)
+RESP --> VIEW : queryset
+VIEW --> HOOK : JSON { count, results: [{ id, nombre, documento, telefono, ... }] }
+HOOK --> GUI : data paginada
+GUI --> USUARIO : tabla con nombre, documento, telefono, ocupacion\n+ paginacion
+
+USUARIO -> GUI : escribe en busqueda (debounce 300ms)
+GUI -> HOOK : useResponsables({ page:1, search:'garcia' })
+HOOK -> VIEW : GET /api/pacienteresponsable/?page=1&search=garcia
+VIEW -> RESP : filter(is_deleted=False)\n+ SearchFilter (razon_social ILIKE / nro_documento ILIKE)
+RESP -> BD : SELECT WHERE razon_social ILIKE '%garcia%'\nOR nro_documento ILIKE '%garcia%'
+BD --> RESP : registros filtrados
+VIEW --> HOOK : JSON paginado filtrado
+HOOK --> GUI : data actualizada
+GUI --> USUARIO : tabla actualizada
+
+== Flujo 2: Crear responsable — modo crear_todo ==
+
+USUARIO -> GUI : click "Nuevo responsable" (o Insert)
+GUI -> GUI : guardAction(() => setModo('crear'))
+GUI --> USUARIO : Modal modo crear\n(titulo: Nuevo responsable)
+
+USUARIO -> FORM : nro_documento="1234567"
+FORM -> BUSCADOR : buscar por documento
+BUSCADOR -> VIEW : GET /api/pacienteresponsable/buscar/?nro_documento=1234567
+VIEW -> BD : SELECT FROM persona WHERE nro_documento='1234567' AND is_deleted=False
+BD --> VIEW : (vacio) — persona no existe
+VIEW --> BUSCADOR : { persona: null, es_responsable: false }
+
+BUSCADOR --> FORM : resultado.modo = 'crear_todo'
+FORM --> USUARIO : badge azul "Documento no encontrado —\ncompletá los datos para registrar"\n+ FormPersona (todos los campos editables)\n+ FormResponsable (grupo_sanguineo, ocupacion, etc.)
+
+USUARIO -> FORM : completa FormPersona + FormResponsable
+USUARIO -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : POST /api/persona/\n{ tipo_documento, nro_documento, razon_social, ... }
+PVIEW -> PERSONA : serializer.save(id_usu_creator=request.user)
+PERSONA -> BD : INSERT persona
+BD --> PERSONA : { id: 50 }
+PVIEW -> BD : INSERT auditoria_registro (CREAR persona)
+BD --> PVIEW : OK
+PVIEW --> FORM : 201 { id: 50 }
+
+FORM -> VIEW : POST /api/pacienteresponsable/\n{ persona: 50, grupo_sanguineo, ocupacion, ... }
+VIEW -> RESP : serializer.save(id_usu_creator=request.user)
+RESP -> BD : INSERT paciente_responsable (persona_id=50, ...)
+BD --> RESP : { id: 10 }
+VIEW -> BD : INSERT auditoria_registro (CREAR responsable)
+BD --> VIEW : OK
+VIEW --> FORM : 201 { id: 10 }
+
+FORM -> HOOK : invalidateQueries(['responsables'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Responsable guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> USUARIO : toast exito — modal cerrado
+
+== Flujo 3: Crear responsable — modo agregar_paciente ==
+
+USUARIO -> GUI : click "Nuevo responsable"
+USUARIO -> FORM : nro_documento="9999888"
+FORM -> BUSCADOR : buscar por documento
+BUSCADOR -> VIEW : GET /api/pacienteresponsable/buscar/?nro_documento=9999888
+VIEW -> BD : SELECT persona WHERE nro_documento='9999888'
+BD --> VIEW : persona existe (id=30)
+VIEW -> BD : SELECT responsable WHERE persona_id=30 AND is_deleted=False
+BD --> VIEW : (vacio) — no es responsable
+VIEW --> BUSCADOR : { persona: {...}, es_responsable: false }
+
+BUSCADOR --> FORM : resultado.modo = 'agregar_paciente'
+FORM --> USUARIO : badge verde "Persona encontrada — completá los datos del responsable"\n+ FormPersona (readOnly=true — datos de la persona ya cargados)\n+ FormResponsable (campos editables)
+
+USUARIO -> FORM : completa FormResponsable
+USUARIO -> FORM : click Guardar
+
+FORM -> PVIEW : PATCH /api/persona/30/\n(FormPersona en readOnly igualmente envia patch)
+PVIEW -> BD : UPDATE persona WHERE id=30
+BD --> PVIEW : OK
+PVIEW -> BD : INSERT auditoria_registro (EDITAR persona)
+PVIEW --> FORM : 200 OK
+
+FORM -> VIEW : POST /api/pacienteresponsable/\n{ persona: 30, grupo_sanguineo, ... }
+VIEW -> RESP : serializer.save(id_usu_creator=request.user)
+RESP -> BD : INSERT paciente_responsable (persona_id=30)
+BD --> RESP : { id: 11 }
+VIEW -> BD : INSERT auditoria_registro (CREAR responsable)
+VIEW --> FORM : 201 OK
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Responsable guardado correctamente.", "success")
+GUI --> USUARIO : toast exito
+
+== Flujo 4: Editar responsable ==
+
+USUARIO -> GUI : click boton Editar en tabla
+GUI -> GUI : guardAction(() => setModo('editar'), setResponsableSel(resp))
+GUI --> USUARIO : Modal modo editar\n(ResponsableForm con responsableInicial cargado)
+
+note right of FORM
+  Con responsableInicial != null,
+  BuscadorPersona NO se muestra.
+  El formulario arranca directamente
+  en modo 'editar' con los datos cargados.
+end note
+
+FORM --> USUARIO : badge naranja "Responsable existente — modo edicion"\n+ FormPersona (con datos de persona)\n+ FormResponsable (con datos del responsable)
+
+USUARIO -> FORM : modifica campos
+USUARIO -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : PATCH /api/persona/{personaId}/\n{ razon_social, telefono, ... }
+PVIEW -> BD : UPDATE persona SET ... WHERE id=personaId
+BD --> PVIEW : OK
+PVIEW -> BD : INSERT auditoria_registro (EDITAR persona)
+PVIEW --> FORM : 200 OK
+
+FORM -> VIEW : PATCH /api/pacienteresponsable/{respId}/\n{ grupo_sanguineo, ocupacion, ... }
+VIEW -> RESP : serializer.save(id_usu_modificator=request.user)
+RESP -> BD : UPDATE paciente_responsable SET ... WHERE id=respId
+BD --> RESP : OK
+VIEW -> BD : INSERT auditoria_registro (EDITAR responsable)
+VIEW --> FORM : 200 OK
+
+FORM -> HOOK : invalidateQueries(['responsables'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Responsable guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> USUARIO : toast exito
+
+@enduml

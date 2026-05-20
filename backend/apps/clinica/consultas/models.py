@@ -10,6 +10,7 @@ class Consulta(BaseModel):
         EN_ESPERA   = 'en_espera',   'En espera'
         EN_CONSULTA = 'en_consulta', 'En consulta'
         FINALIZADA  = 'finalizada',  'Finalizada'
+        ANULADA     = 'anulada',     'Anulada'
 
     agenda = models.ForeignKey(
         Agenda,

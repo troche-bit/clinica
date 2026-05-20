@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Plus, Search, Building2, Pencil, Trash2 } from 'lucide-react'
 import PanelSimple from '../../../components/ui/PanelSimple'
 import Toast from '../../../components/ui/Toast'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import { useConsultorios, useConsultorioMutations } from '../../../hooks/clinica/useConsultorios'
 import { useToast } from '../../../hooks/useToast'
+import { useAtajosTeclado } from '../../../hooks/useAtajosTeclado'
+import { useAuth } from '../../../context/AuthContext'
 import { extraerMensajeError } from '../../../utils/errores'
+import { useNavigationGuard } from '../../../hooks/useNavigationGuard'
 
 const CAMPOS_CONSULTORIO = [
   { name: 'nro_consultorio', label: 'Nro. consultorio', placeholder: 'Ej: 01, A2...', requerido: true  },
@@ -14,13 +17,16 @@ const CAMPOS_CONSULTORIO = [
 
 const TITULOS_PANEL = { nuevo: 'Nuevo consultorio', editar: 'Editar consultorio', ver: 'Detalle' }
 
-
 export default function ConsultorioPage() {
   const [search,       setSearch]       = useState('')
-  const [searchInput,  setSearchInput]  = useState('')
   const [seleccionado, setSeleccionado] = useState(null)
   const [modo,         setModo]         = useState(null)
   const [confirmId,    setConfirmId]    = useState(null)
+  const debounceRef = useRef(null)
+
+  const { user }                        = useAuth()
+  const puedeEliminar                   = user?.rol === 'admin'
+  const { guardAction }                 = useNavigationGuard()
 
   const { data, isLoading }             = useConsultorios(search)
   const { crear, actualizar, eliminar } = useConsultorioMutations()
@@ -28,15 +34,13 @@ export default function ConsultorioPage() {
 
   const consultorios = data?.results || data || []
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    setSearch(searchInput)
+  const handleSearchChange = (e) => {
+    const val = e.target.value
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(val), 300)
   }
 
-  const cerrarPanel = () => {
-    setSeleccionado(null)
-    setModo(null)
-  }
+  const cerrarPanel = () => { setSeleccionado(null); setModo(null) }
 
   const handleGuardar = async (form) => {
     try {
@@ -65,26 +69,24 @@ export default function ConsultorioPage() {
 
   const guardando = crear.isPending || actualizar.isPending
 
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (modo === null) { setSeleccionado(null); setModo('crear') } } },
+  })
+
   return (
     <>
       <style>{`
         .con-root { font-family: 'DM Sans', sans-serif; }
-        .con-header {
-          display: flex; align-items: flex-start; justify-content: space-between;
-          margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+        .con-toolbar {
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 16px; flex-wrap: wrap;
         }
-        .con-title    { font-size: 22px; font-weight: 600; color: #1a3a5c; margin-bottom: 2px; }
-        .con-subtitle { font-size: 13px; color: #6b7280; }
-        .con-btn-nuevo {
-          display: inline-flex; align-items: center; gap: 7px;
-          padding: 9px 18px; background: #1a3a5c; color: #fff;
-          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
-          font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
-          transition: background 0.15s, box-shadow 0.15s;
+        .con-title-group { flex: 1 1 auto; order: 1; min-width: 0; }
+        .con-title    { font-size: 18px; font-weight: 600; color: #1a3a5c; }
+        .con-subtitle { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+        .con-search-wrap {
+          position: relative; flex: 1 1 200px; max-width: 360px; order: 2;
         }
-        .con-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        .con-search-row  { display: flex; gap: 8px; margin-bottom: 16px; }
-        .con-search-wrap { position: relative; flex: 1; max-width: 380px; }
         .con-search-icon {
           position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
           color: #9ca3af; pointer-events: none;
@@ -93,14 +95,21 @@ export default function ConsultorioPage() {
           width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px;
           font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827;
           background: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+          box-sizing: border-box;
         }
         .con-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
         .con-search-input::placeholder { color: #d1d5db; }
-        .con-btn-search {
-          padding: 9px 16px; background: #f8fafc; border: 1.5px solid #e5e7eb; border-radius: 9px;
-          font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #374151; cursor: pointer;
+        .con-btn-nuevo {
+          display: inline-flex; align-items: center; gap: 7px; order: 3; flex-shrink: 0;
+          padding: 9px 18px; background: #1a3a5c; color: #fff;
+          border: none; border-radius: 9px; font-size: 13.5px; font-weight: 500;
+          font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap;
+          transition: background 0.15s, box-shadow 0.15s;
         }
-        .con-btn-search:hover { background: #f0f4f8; }
+        .con-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
+        @media (max-width: 600px) {
+          .con-search-wrap { flex: 0 0 100%; order: 4; max-width: none; }
+        }
         .con-layout { display: flex; gap: 16px; align-items: flex-start; }
         .con-table-card {
           flex: 1; background: #fff; border: 1px solid #e8edf2;
@@ -150,8 +159,8 @@ export default function ConsultorioPage() {
       />
 
       <div className="con-root">
-        <div className="con-header">
-          <div>
+        <div className="con-toolbar">
+          <div className="con-title-group">
             <div className="con-title">Consultorios</div>
             <div className="con-subtitle">
               {consultorios.length > 0
@@ -159,24 +168,19 @@ export default function ConsultorioPage() {
                 : 'Gestión de consultorios'}
             </div>
           </div>
-          <button className="con-btn-nuevo" onClick={() => { setSeleccionado(null); setModo('crear') }}>
-            <Plus size={15} /> Nuevo consultorio
-          </button>
-        </div>
-
-        <form onSubmit={handleSearch} className="con-search-row">
           <div className="con-search-wrap">
             <Search size={15} className="con-search-icon" />
             <input
               type="text"
               placeholder="Buscar por número o descripción..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={handleSearchChange}
               className="con-search-input"
             />
           </div>
-          <button type="submit" className="con-btn-search">Buscar</button>
-        </form>
+          <button className="con-btn-nuevo" onClick={() => guardAction(() => { setSeleccionado(null); setModo('crear') })}>
+            <Plus size={15} /> Nuevo consultorio
+          </button>
+        </div>
 
         <div className="con-layout">
           <div className="con-table-card">
@@ -204,7 +208,7 @@ export default function ConsultorioPage() {
                   <tr
                     key={c.id}
                     className={seleccionado?.id === c.id ? 'activo' : ''}
-                    onClick={() => { setSeleccionado(c); setModo('ver') }}
+                    onClick={() => guardAction(() => { setSeleccionado(c); setModo('ver') })}
                   >
                     <td><span className="con-nro">{c.nro_consultorio}</span></td>
                     <td>
@@ -217,16 +221,18 @@ export default function ConsultorioPage() {
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           className="con-action-btn edit"
-                          onClick={(e) => { e.stopPropagation(); setSeleccionado(c); setModo('editar') }}
+                          onClick={(e) => { e.stopPropagation(); guardAction(() => { setSeleccionado(c); setModo('editar') }) }}
                         >
                           <Pencil size={13} />
                         </button>
-                        <button
-                          className="con-action-btn trash"
-                          onClick={(e) => { e.stopPropagation(); handleEliminar(c.id) }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {puedeEliminar && (
+                          <button
+                            className="con-action-btn trash"
+                            onClick={(e) => { e.stopPropagation(); handleEliminar(c.id) }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -247,6 +253,7 @@ export default function ConsultorioPage() {
               onEditar={() => setModo('editar')}
               onEliminar={handleEliminar}
               guardando={guardando}
+              ocultarEliminar={!puedeEliminar}
             />
           )}
         </div>

@@ -1,0 +1,175 @@
+@startuml 02_secuencia_crud
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+
+boundary "PacientePage.jsx" as GUI
+boundary "PacienteForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSCADOR
+boundary "FormPaciente.jsx" as FPAC
+control "usePatients.js" as HOOK
+control "PacienteViewSet" as VIEW
+control "PersonaViewSet" as PVIEW
+entity "Persona" as PERSONA
+entity "Paciente" as PAC
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar pacientes ==
+
+USUARIO -> GUI : abre pagina
+GUI -> HOOK : usePatients({ page:1, search:'' })
+HOOK -> VIEW : GET /api/paciente/?page=1
+VIEW -> PAC : filter(is_deleted=False)\n.select_related(persona__tipo_documento,\nresponsable__persona, ...)
+PAC -> BD : SELECT con JOIN persona, responsable\nWHERE is_deleted=False\nORDER BY persona__nro_documento
+BD --> PAC : registros paginados (20 por pagina)
+VIEW --> HOOK : JSON { count, results: [{ id, nombre, documento, sexo, responsable_detalle, ... }] }
+HOOK --> GUI : data paginada
+GUI --> USUARIO : tabla con nombre, documento, sexo, responsable\n+ paginacion + botones exportar PDF/Excel
+
+USUARIO -> GUI : escribe en busqueda (debounce 300ms)
+GUI -> HOOK : usePatients({ page:1, search:'lopez' })
+HOOK -> VIEW : GET /api/paciente/?page=1&search=lopez
+VIEW -> PAC : filter(is_deleted=False)\n+ SearchFilter (razon_social ILIKE / nro_documento ILIKE)
+BD --> PAC : registros filtrados
+VIEW --> HOOK : JSON paginado filtrado
+GUI --> USUARIO : tabla actualizada
+
+== Flujo 2: Ver detalle — 3 pestanas ==
+
+USUARIO -> GUI : click icono "Ver" en fila
+GUI -> GUI : guardAction(() => setModo('ver'), setPacienteSel(pac))
+GUI --> USUARIO : Modal modo ver\n(pestana Datos activa por defecto)
+
+note right of GUI
+  Pestana Datos: datos mostrados
+  desde el objeto ya cargado en tabla.
+  No hace llamada HTTP adicional.
+end note
+
+USUARIO -> GUI : click pestana "Consultas"
+GUI -> VIEW : GET /api/consultas/?paciente={id}
+BD --> GUI : lista de consultas del paciente
+GUI --> USUARIO : historial de consultas
+
+USUARIO -> GUI : click pestana "Documentos"
+GUI -> VIEW : GET /api/documentos/?paciente={id}
+BD --> GUI : documentos sin consulta vinculada\n(filtro: !doc.consulta)
+GUI --> USUARIO : lista de documentos directos
+
+== Flujo 3: Crear paciente — modo crear_todo ==
+
+USUARIO -> GUI : click "Nuevo paciente" (o Insert)
+GUI -> GUI : guardAction(() => setModo('crear'))
+GUI --> USUARIO : Modal modo crear\n(titulo: Nuevo paciente)
+
+USUARIO -> FORM : nro_documento="1234567"
+FORM -> BUSCADOR : buscar por documento
+BUSCADOR -> PVIEW : GET /api/persona/buscar/?nro_documento=1234567
+PVIEW -> BD : SELECT FROM persona WHERE nro_documento='1234567' AND is_deleted=False
+BD --> PVIEW : (vacio) — persona no existe
+PVIEW --> BUSCADOR : { persona: null, paciente: null, es_paciente: false }
+
+BUSCADOR --> FORM : resultado.modo = 'crear_todo'
+FORM --> USUARIO : badge azul "Documento no encontrado"\n+ FormPersona (todos los campos editables)\n+ FormPaciente (sexo, grupo_sanguineo, responsable, ...)
+
+USUARIO -> FORM : completa FormPersona + FormPaciente
+USUARIO -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : POST /api/persona/\n{ tipo_documento, nro_documento:'1234567', razon_social:'Juan Perez', ... }
+PVIEW -> PERSONA : serializer.save(id_usu_creator=request.user)
+PERSONA -> BD : INSERT persona
+BD --> PERSONA : { id: 55 }
+PVIEW -> BD : INSERT auditoria_registro (CREAR persona)
+PVIEW --> FORM : 201 { id: 55 }
+
+FORM -> VIEW : POST /api/paciente/\n{ persona: 55, sexo:'M', grupo_sanguineo:'O+', responsable: null, ... }
+VIEW -> PAC : serializer.save(id_usu_creator=request.user)
+PAC -> BD : INSERT paciente (persona_id=55, ...)
+BD --> PAC : { id: 20 }
+VIEW -> BD : INSERT auditoria_registro (CREAR paciente)
+VIEW --> FORM : 201 { id: 20 }
+
+FORM -> HOOK : invalidateQueries(['patients'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Paciente guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> USUARIO : toast exito — modal cerrado
+
+== Flujo 4: Crear paciente — modo agregar_paciente ==
+
+USUARIO -> GUI : click "Nuevo paciente"
+USUARIO -> FORM : nro_documento="9988776"
+FORM -> BUSCADOR : buscar por documento
+BUSCADOR -> PVIEW : GET /api/persona/buscar/?nro_documento=9988776
+PVIEW -> BD : SELECT persona WHERE nro_documento='9988776'
+BD --> PVIEW : persona existe (id=40)
+PVIEW -> BD : SELECT paciente WHERE persona_id=40 AND is_deleted=False
+BD --> PVIEW : (vacio) — no es paciente
+PVIEW --> BUSCADOR : { persona: {...}, paciente: null, es_paciente: false }
+
+BUSCADOR --> FORM : resultado.modo = 'agregar_paciente'
+FORM --> USUARIO : badge verde "Persona encontrada — completa los datos del paciente"\n+ FormPersona (readOnly=true — datos de la persona ya cargados)\n+ FormPaciente (campos editables)
+
+USUARIO -> FORM : completa FormPaciente (sexo obligatorio)
+USUARIO -> FORM : click Guardar
+
+FORM -> PVIEW : PATCH /api/persona/40/\n(FormPersona readOnly igualmente envia patch)
+PVIEW -> BD : UPDATE persona WHERE id=40
+PVIEW -> BD : INSERT auditoria_registro (EDITAR persona)
+PVIEW --> FORM : 200 OK
+
+FORM -> VIEW : POST /api/paciente/\n{ persona: 40, sexo:'F', grupo_sanguineo, ... }
+VIEW -> PAC : serializer.save(id_usu_creator=request.user)
+PAC -> BD : INSERT paciente (persona_id=40)
+BD --> PAC : { id: 21 }
+VIEW -> BD : INSERT auditoria_registro (CREAR paciente)
+VIEW --> FORM : 201 OK
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Paciente guardado correctamente.", "success")
+GUI --> USUARIO : toast exito
+
+== Flujo 5: Editar paciente ==
+
+USUARIO -> GUI : click boton Editar en tabla
+GUI -> GUI : guardAction(() => setModo('editar'), setPacienteSel(pac))
+GUI --> USUARIO : Modal modo editar\n(PacienteForm con pacienteInicial cargado)
+
+note right of FORM
+  Con pacienteInicial != null,
+  BuscadorPersona NO se muestra.
+  El formulario arranca en modo 'editar'
+  con los datos cargados.
+  SeccionDocumentos visible (solo en editar).
+end note
+
+FORM --> USUARIO : badge naranja "Paciente existente — modo edicion"\n+ FormPersona (con datos de persona)\n+ FormPaciente (con datos del paciente)\n+ SeccionDocumentos (archivosNuevos, idsAEliminar)
+
+USUARIO -> FORM : modifica campos
+USUARIO -> FORM : agrega o elimina documentos (staged)
+USUARIO -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : PATCH /api/persona/{personaId}/\n{ razon_social, telefono, ... }
+PVIEW -> BD : UPDATE persona SET ... WHERE id=personaId
+PVIEW -> BD : INSERT auditoria_registro (EDITAR persona)
+PVIEW --> FORM : 200 OK
+
+FORM -> VIEW : PATCH /api/paciente/{pacId}/\n{ sexo, grupo_sanguineo, responsable, ... }
+VIEW -> PAC : serializer.save(id_usu_modificator=request.user)
+PAC -> BD : UPDATE paciente SET ... WHERE id=pacId
+VIEW -> BD : INSERT auditoria_registro (EDITAR paciente)
+VIEW --> FORM : 200 OK
+
+FORM -> VIEW : DELETE /api/documentos/{id}/ (por cada id en idsAEliminar)
+FORM -> VIEW : POST /api/documentos/ (por cada archivo en archivosNuevos)
+
+FORM -> HOOK : invalidateQueries(['patients'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Paciente guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> USUARIO : toast exito
+
+@enduml

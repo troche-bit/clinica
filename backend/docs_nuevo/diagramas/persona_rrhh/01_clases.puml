@@ -1,0 +1,137 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Persona {
+  + id : AutoField <<PK>>
+  + tipo_documento : ForeignKey
+  + nro_documento : CharField
+  + razon_social : CharField
+  + fecha_nacimiento : DateField [null]
+  + telefono : CharField [null]
+  + correo_electronico : EmailField [null]
+  + ciudad : ForeignKey [null]
+  + ...
+  --
+  db_table = 'persona'
+  No eliminable (MethodNotAllowed)
+}
+
+class Especialidad {
+  + id : AutoField <<PK>>
+  + descripcion : CharField
+  + is_deleted : BooleanField
+  --
+  db_table = 'especialidad'
+}
+
+class PersonaRRHH {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey <<PROTECT>>
+  + fecha_ingreso : DateField [null]
+  + nro_matricula : CharField(50) [null]
+  + especialidades : ManyToManyField
+  + cargo : CharField(20)
+  + tipo_contrato : CharField(20)
+  + estado : CharField(10) = 'activo'
+  + honorario : DecimalField [null]
+  + observacion : TextField [null]
+  --
+  db_table = 'persona_rrhh'
+  ordering = ['persona__nro_documento']
+  unique: persona WHERE is_deleted=False
+  unique: nro_matricula WHERE is_deleted=False\n  AND nro_matricula NOT NULL
+  index: idx_rrhh_persona
+  --
+  Cargo: medico / enfermero /\nadministrativo / tecnico / otro
+  TipoContrato: dependencia /\nhonorarios / eventual
+  Estado: activo / inactivo / licencia
+  --
+  + __str__() : str
+}
+
+class HorarioPrestador {
+  + id : AutoField <<PK>>
+  + persona_rrhh : ForeignKey <<PROTECT>>
+  + is_deleted : BooleanField
+  + ...
+}
+
+class Agenda {
+  + id : AutoField <<PK>>
+  + horario_prestador : ForeignKey <<PROTECT>>
+  + estado : CharField
+  + is_deleted : BooleanField
+  + ...
+  --
+  Estado: DISPONIBLE / OCUPADO /\nREALIZADO / CANCELADO / INACTIVO
+}
+
+class PerfilUsuario {
+  + id : AutoField <<PK>>
+  + persona_rrhh : ForeignKey [null]
+  + rol : CharField
+  + activo : BooleanField
+  + ...
+}
+
+note right of Persona
+  Persona es la tabla raiz.
+  No puede eliminarse directamente.
+  Los datos profesionales viven
+  en PersonaRRHH.
+  Una Persona puede ser prestador
+  y tener otro rol simultaneamente.
+end note
+
+note right of PersonaRRHH
+  La relacion con Persona es FK
+  (no OneToOne), pero la UniqueConstraint
+  WHERE is_deleted=False garantiza que
+  una persona activa solo puede ser
+  prestador una vez.
+  PersonaRRHH extiende Persona
+  con datos profesionales.
+  Un prestador puede ser medico,
+  enfermero, administrativo, etc.
+end note
+
+note right of Agenda
+  perform_destroy de PersonaRRHH
+  verifica estados DISPONIBLE, OCUPADO,
+  REALIZADO. Si existen, bloquea el borrado.
+  Los registros inactivos/cancelados se
+  eliminan en cascada logica antes del
+  borrado del prestador.
+end note
+
+BaseModel <|-- PersonaRRHH : hereda
+BaseModel <|-- HorarioPrestador : hereda
+BaseModel <|-- Agenda : hereda
+
+Persona "1" <-- "0..1" PersonaRRHH : persona\n(FK PROTECT, related_name='persona_rrhh')
+Especialidad "0..*" <---> "0..*" PersonaRRHH : especialidades\n(M2M, related_name='prestadores')
+PersonaRRHH "1" <-- "0..*" HorarioPrestador : persona_rrhh\n(FK PROTECT)
+HorarioPrestador "1" <-- "0..*" Agenda : horario_prestador\n(FK PROTECT)
+PersonaRRHH "0..1" <-- "0..1" PerfilUsuario : persona_rrhh\n(FK null)
+
+@enduml

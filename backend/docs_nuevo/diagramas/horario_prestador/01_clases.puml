@@ -1,0 +1,128 @@
+@startuml 01_clases
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class DiaSemana {
+  + id : SmallIntegerField <<PK>>
+  + nombre : CharField
+  + abreviatura : CharField
+  --
+  IDs fijos: 1=Lun, 2=Mar, 3=Mie,\n4=Jue, 5=Vie, 6=Sab, 7=Dom
+  weekday() + 1 = id
+}
+
+class Especialidad {
+  + id : AutoField <<PK>>
+  + descripcion : CharField
+  + is_deleted : BooleanField
+}
+
+class Consultorio {
+  + id : AutoField <<PK>>
+  + nro_consultorio : CharField
+  + descripcion : CharField [null]
+  + is_deleted : BooleanField
+}
+
+class PersonaRRHH {
+  + id : AutoField <<PK>>
+  + persona : ForeignKey
+  + cargo : CharField
+  + especialidades : M2M Especialidad
+  + is_deleted : BooleanField
+  + ...
+}
+
+class HorarioPrestador {
+  + id : AutoField <<PK>>
+  + persona_rrhh : ForeignKey <<PROTECT>>
+  + consultorio : ForeignKey [null] <<PROTECT>>
+  + dia_semana : ForeignKey <<PROTECT>>
+  + hora_desde : TimeField
+  + hora_hasta : TimeField
+  + intervalo : PositiveIntegerField
+  + especialidades : ManyToManyField
+  + estado : CharField(10) = 'activo'
+  + excepcion : BooleanField = False
+  + fecha_excepcion : DateField [null]
+  --
+  db_table = 'horario_prestador'
+  ordering = ['persona_rrhh', 'dia_semana__id', 'hora_desde']
+  unique: (persona_rrhh, dia_semana, hora_desde)\n  WHERE is_deleted=False AND excepcion=False
+  --
+  intervalo choices: 15 / 20 / 30 / 45 / 60 min
+  estado: activo / inactivo
+  excepcion=True → fecha_excepcion obligatoria;\n  dia_semana se auto-asigna desde fecha_excepcion
+  --
+  + __str__() : str
+}
+
+class Agenda {
+  + id : AutoField <<PK>>
+  + horario_prestador : ForeignKey <<PROTECT>>
+  + fecha : DateField
+  + hora_desde : TimeField
+  + hora_hasta : TimeField
+  + estado : CharField
+  + paciente : ForeignKey [null]
+  + is_deleted : BooleanField
+  --
+  Estado: DISPONIBLE / OCUPADO /\nREALIZADO / CANCELADO / INACTIVO
+}
+
+note right of DiaSemana
+  Sin BaseModel.
+  IDs fijos en base de datos.
+  Dato de referencia — solo lectura.
+  id = fecha.weekday() + 1
+  (Python: 0=Lun, 6=Dom)
+end note
+
+note right of HorarioPrestador
+  HorarioPrestador define la plantilla
+  semanal del prestador.
+  Agenda contiene los turnos reales
+  generados desde esa plantilla.
+  excepcion=True permite definir horarios
+  para una fecha puntual (ej: guardia).
+  El UniqueConstraint solo aplica a
+  horarios NO excepcion.
+end note
+
+note right of Agenda
+  perform_destroy de HorarioPrestador
+  verifica estados DISPONIBLE, OCUPADO,
+  REALIZADO. Si existen, bloquea el borrado.
+  Los turnos se crean via @action generar
+  iterando el rango de fechas.
+end note
+
+BaseModel <|-- HorarioPrestador : hereda
+BaseModel <|-- Agenda : hereda
+
+PersonaRRHH "1" <-- "0..*" HorarioPrestador : persona_rrhh\n(FK PROTECT, related_name='horarios')
+DiaSemana "1" <-- "0..*" HorarioPrestador : dia_semana\n(FK PROTECT, related_name='horarios')
+Consultorio "0..1" <-- "0..*" HorarioPrestador : consultorio\n(FK PROTECT, null, related_name='horarios')
+Especialidad "0..*" <---> "0..*" HorarioPrestador : especialidades\n(M2M, related_name='horarios')
+HorarioPrestador "1" <-- "0..*" Agenda : horario_prestador\n(FK PROTECT)
+
+@enduml

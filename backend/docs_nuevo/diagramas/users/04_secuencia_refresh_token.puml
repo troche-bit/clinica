@@ -1,0 +1,50 @@
+@startuml 04_secuencia_refresh_token
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+boundary "APIClient\n(client.js)" as CLIENT
+control "Interceptor\nAxios" as INTER
+control "TokenRefresh\nView" as REFRESH
+database "Blacklist\nJWT" as BLACK
+
+== Request con access_token válido ==
+
+CLIENT -> INTER : request con Authorization: Bearer <access_token>
+INTER -> INTER : access_token válido\nforward request
+INTER --> CLIENT : 200 response
+
+== Flujo de refresh ==
+
+CLIENT -> INTER : request con access_token expirado
+INTER -> INTER : response 401
+INTER -> REFRESH : POST /api/token/refresh/\n{ refresh: refresh_token }
+REFRESH -> BLACK : consulta outstanding_token
+BLACK --> REFRESH : token no está en blacklist
+REFRESH -> REFRESH : valida firma y expiración\ndel refresh_token
+REFRESH --> INTER : 200 { access: nuevo_access_token }
+INTER -> INTER : localStorage.setItem\n('access_token', nuevo_access_token)
+INTER -> INTER : reintenta request original\ncon nuevo access_token
+INTER --> CLIENT : response del request original
+
+== Logout forzado (token inválido o expirado) ==
+
+CLIENT -> INTER : request con access_token expirado
+INTER -> INTER : response 401
+INTER -> REFRESH : POST /api/token/refresh/\n{ refresh: refresh_token }
+REFRESH -> BLACK : consulta outstanding_token
+BLACK --> REFRESH : token expirado o en blacklist
+REFRESH --> INTER : 401 token inválido
+INTER -> INTER : localStorage.removeItem('access_token')\nlocalStorage.removeItem('refresh_token')
+INTER --> CLIENT : redirige a /login
+
+@enduml

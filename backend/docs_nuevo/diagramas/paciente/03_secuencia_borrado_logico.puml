@@ -1,0 +1,115 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+
+boundary "PacientePage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "usePatients.js" as HOOK
+control "PacienteViewSet" as VIEW
+entity "Paciente" as PAC
+entity "Persona" as PERSONA
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado logico sin citas activas ==
+
+USUARIO -> GUI : click boton eliminar en tabla (solo rol admin)
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : "Eliminar paciente\nSi tiene citas activas no se podra eliminar."
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/paciente/{id}/
+
+VIEW -> PAC : perform_destroy(instance)
+PAC -> AGENDA : Agenda.objects.filter(\n  paciente=instance,\n  is_deleted=False,\n  estado__in=[DISPONIBLE, OCUPADO, REALIZADO]\n).exists()
+AGENDA -> BD : SELECT EXISTS FROM agenda\nWHERE paciente_id=id AND is_deleted=False\nAND estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : False
+AGENDA --> PAC : tiene_activas = False
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> PAC : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+PAC -> BD : UPDATE paciente\nSET is_deleted=True, fecha_eliminacion=...\nWHERE id=id
+BD --> PAC : OK
+
+note right of BD
+  Persona permanece en BD siempre.
+  Solo se marca is_deleted el Paciente.
+  El historial de consultas y documentos
+  queda preservado en la BD.
+  La Persona puede reutilizarse
+  para otro rol o como nuevo paciente.
+end note
+
+VIEW -> BD : INSERT auditoria_registro\n(tabla='Paciente', accion='ELIMINAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['patients'])
+HOOK -> GUI : showToast("Paciente eliminado correctamente.", "success")
+GUI -> GUI : setConfirmId(null)
+GUI --> USUARIO : toast exito, fila desaparece de tabla
+
+== Flujo alternativo: borrado bloqueado por citas activas ==
+
+USUARIO -> GUI : click boton eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : confirmacion
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/paciente/{id}/
+
+VIEW -> PAC : perform_destroy(instance)
+PAC -> AGENDA : Agenda.objects.filter(\n  paciente=instance,\n  is_deleted=False,\n  estado__in=[DISPONIBLE, OCUPADO, REALIZADO]\n).exists()
+AGENDA -> BD : SELECT EXISTS FROM agenda\nWHERE paciente_id=id AND is_deleted=False\nAND estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : True
+AGENDA --> PAC : tiene_activas = True
+
+PAC -> VIEW : raise ValidationError\n"No se puede eliminar: tiene citas activas vinculadas."
+
+note right of VIEW
+  AuditoriaMixin.perform_destroy()
+  NO se ejecuta.
+  No se crea RegistroAuditoria.
+  El Paciente NO se modifica.
+  Las citas en estado CANCELADO
+  e INACTIVO NO bloquean el borrado.
+  Solo bloquean: DISPONIBLE, OCUPADO,
+  REALIZADO.
+  Deben cancelarse o finalizarse
+  las citas activas antes de poder
+  eliminar al paciente.
+end note
+
+VIEW --> HOOK : HTTP 400\n{ detail: 'No se puede eliminar: tiene citas activas vinculadas.' }
+
+HOOK -> GUI : onError callback
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI -> GUI : setConfirmId(null)
+GUI --> USUARIO : toast con detalle del error
+
+== Nota: Persona siempre indestructible ==
+
+note over PERSONA, BD
+  PersonaViewSet.perform_destroy() lanza MethodNotAllowed.
+  Nunca se puede eliminar directamente una Persona.
+  El borrado logico del Paciente (is_deleted=True)
+  no afecta a la Persona vinculada.
+  La Persona permanece disponible para ser
+  reutilizada en un nuevo registro de Paciente
+  gracias al UniqueConstraint condicional
+  (WHERE is_deleted=False).
+end note
+
+@enduml

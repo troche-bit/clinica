@@ -30,6 +30,17 @@ export function useUpdatePersonaRRHH() {
   })
 }
 
+export function usePersonaRRHHById(id) {
+  return useQuery({
+    queryKey: ['personarrhh', id],
+    queryFn:  async () => {
+      const res = await apiClient.get('/personarrhh/' + id + '/')
+      return res.data
+    },
+    enabled: !!id,
+  })
+}
+
 export function useBuscarPersonasRRHH(q) {
   return useQuery({
     queryKey: ['buscar-rrhh', q],

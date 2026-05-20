@@ -1,0 +1,174 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "TipoDocDigPage.jsx" as GUI
+control "useTipoDocDig.js" as HOOK
+control "TipoDocDigitalViewSet" as VIEW
+control "DocumentoDigPacienteViewSet" as DOCVIEW
+control "AuditoriaMixin" as MIXIN
+control "build_storage_path()" as BSP
+
+entity "TipoDocDigital" as MODEL
+entity "DocumentoDigPaciente" as DOC
+
+database "PostgreSQL" as BD
+collections "Media Storage\n/app/media/" as MEDIA
+
+== 1. Admin crea el tipo Historia Clínica ==
+
+ADMIN -> GUI : click Nuevo tipo
+GUI --> ADMIN : PanelSimple modo crear
+
+ADMIN -> GUI : descripcion=Historia Clínica\nstorage_key=historia_clinica
+ADMIN -> GUI : click Guardar
+
+GUI -> HOOK : crear.mutateAsync({...})
+HOOK -> VIEW : POST /api/tipo-doc-dig/
+
+VIEW -> MODEL : validate_descripcion()\nvalidate_storage_key()
+
+MODEL -> BD : SELECT sin duplicados
+BD --> MODEL : OK
+
+VIEW -> MIXIN : perform_create(serializer)
+
+MIXIN -> MODEL : serializer.save(id_usu_creator=request.user)
+
+MODEL -> BD : INSERT tipo_doc_dig
+BD --> MODEL : id=3
+
+MIXIN -> BD : INSERT auditoria_registro
+BD --> MIXIN : OK
+
+VIEW --> HOOK : HTTP 201 Created
+
+HOOK -> HOOK : invalidateQueries(tipo-doc-dig)
+
+HOOK -> GUI : showToast("Tipo creado","success")
+
+GUI --> ADMIN : toast éxito
+
+== 2. Médico sube un documento ==
+
+ADMIN -> DOCVIEW : POST /api/documentos/
+
+DOCVIEW -> BSP : build_storage_path()
+
+BSP --> DOCVIEW : documentos/historia_clinica/2026/file.pdf
+
+DOCVIEW -> MEDIA : guardar archivo físico
+MEDIA --> DOCVIEW : OK
+
+DOCVIEW -> MIXIN : perform_create(serializer)
+
+MIXIN -> DOC : serializer.save(id_usu_creator=request.user)
+
+DOC -> BD : INSERT documento_dig_paciente
+BD --> DOC : id=88
+
+MIXIN -> BD : INSERT auditoria_registro
+BD --> MIXIN : OK
+
+DOCVIEW --> ADMIN : HTTP 201 Created
+
+== 3. Intento de eliminar tipo con documentos activos ==
+
+ADMIN -> GUI : click eliminar
+GUI --> ADMIN : ConfirmDialog
+
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(3)
+
+HOOK -> VIEW : DELETE /api/tipo-doc-dig/3/
+
+VIEW -> MODEL : perform_destroy(instance)
+
+MODEL -> BD : SELECT documento activo
+BD --> MODEL : existe id=88
+
+MODEL -> VIEW : ValidationError
+
+VIEW --> HOOK : HTTP 400
+
+HOOK -> GUI : showToast(error)
+
+GUI --> ADMIN : No se puede eliminar
+
+note right of BD
+tipo_doc_dig sigue activo.
+is_deleted = false.
+Archivo físico intacto.
+end note
+
+== 4. Eliminación del documento ==
+
+ADMIN -> DOCVIEW : DELETE /api/documentos/88/
+
+DOCVIEW -> MEDIA : os.remove(file.pdf)
+
+MEDIA --> DOCVIEW : archivo eliminado
+
+DOCVIEW -> MIXIN : perform_destroy(instance)
+
+MIXIN -> DOC : is_deleted=true
+
+DOC -> BD : UPDATE documento_dig_paciente
+BD --> DOC : OK
+
+MIXIN -> BD : INSERT auditoria_registro
+BD --> MIXIN : OK
+
+DOCVIEW --> ADMIN : HTTP 204 No Content
+
+note right of MEDIA
+Archivo físico eliminado.
+Registro queda con borrado lógico.
+end note
+
+== 5. Eliminación final del tipo ==
+
+ADMIN -> GUI : click eliminar
+GUI --> ADMIN : ConfirmDialog
+
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(3)
+
+HOOK -> VIEW : DELETE /api/tipo-doc-dig/3/
+
+VIEW -> MODEL : perform_destroy(instance)
+
+MODEL -> BD : SELECT documento activo
+BD --> MODEL : vacío
+
+VIEW -> MIXIN : super.perform_destroy()
+
+MIXIN -> MODEL : is_deleted=true
+
+MODEL -> BD : UPDATE tipo_doc_dig
+BD --> MODEL : OK
+
+MIXIN -> BD : INSERT auditoria_registro
+BD --> MIXIN : OK
+
+VIEW --> HOOK : HTTP 204 No Content
+
+HOOK -> HOOK : invalidateQueries(tipo-doc-dig)
+
+HOOK -> GUI : showToast("Tipo eliminado","success")
+
+GUI --> ADMIN : fila desaparece
+
+note over BD, MEDIA
+TipoDocDigital queda con is_deleted=true.
+El directorio físico puede quedar vacío.
+end note
+
+@enduml

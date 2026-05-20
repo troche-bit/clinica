@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Search, Calendar, X, Check, CalendarDays, Settings2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, Calendar, X, Check, CalendarDays, Settings2, Lock } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import apiClient from '../../api/client'
 import {
@@ -37,6 +37,9 @@ const COLORES_MEDICO = [
 ]
 const colorMedico = (id) => COLORES_MEDICO[(id - 1) % COLORES_MEDICO.length]
 
+const COLORES_DOT = ['#6366f1','#0ea5e9','#f59e0b','#10b981','#f43f5e','#8b5cf6']
+const colorDot = (id) => COLORES_DOT[(id - 1) % COLORES_DOT.length]
+
 const DIAS_ID = { 1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado',7:'Domingo' }
 
 function diasDelMes(mes, anio) {
@@ -57,11 +60,11 @@ function fmtHora(t) { return t ? String(t).slice(0, 5) : '' }
 
 function colorEstado(estado) {
   switch (estado) {
-    case 'disponible': return { bg: '#dcfce7', text: '#166534', borde: '#86efac' }
-    case 'ocupado':    return { bg: '#fef3c7', text: '#92400e', borde: '#fcd34d' }
+    case 'disponible': return { bg: '#dcfce7', text: '#16a34a', borde: '#86efac' }
+    case 'ocupado':    return { bg: '#dbeafe', text: '#2563eb', borde: '#93c5fd' }
     case 'inactivo':   return { bg: '#f3f4f6', text: '#6b7280', borde: '#d1d5db' }
-    case 'cancelado':  return { bg: '#fee2e2', text: '#991b1b', borde: '#fca5a5' }
-    case 'realizado':  return { bg: '#ede9fe', text: '#5b21b6', borde: '#c4b5fd' }
+    case 'cancelado':  return { bg: '#fee2e2', text: '#dc2626', borde: '#fca5a5' }
+    case 'realizado':  return { bg: '#ede9fe', text: '#7c3aed', borde: '#c4b5fd' }
     default:           return { bg: '#f3f4f6', text: '#6b7280', borde: '#d1d5db' }
   }
 }
@@ -120,7 +123,7 @@ export default function AgendaPage() {
   const esMedico     = user?.rol === 'medico'
   const esSecretaria = user?.rol === 'secretaria_medico'
   const esRestringido = esMedico || esSecretaria
-  const puedeModificar = !esMedico
+  const puedeModificar = true
 
   const fechaParam = searchParams.get('fecha')
 
@@ -143,7 +146,9 @@ export default function AgendaPage() {
   const [turnoExpandido, setTurnoExpandido] = useState(null)
   const [busqPaciente,   setBusqPaciente]   = useState('')
   const [pacienteSel,    setPacienteSel]    = useState(null)
+  const [pacFocusIdx,    setPacFocusIdx]    = useState(-1)
   const [observacion,    setObservacion]    = useState('')
+  const pacResultsRef = useRef(null)
   const [confirmando,    setConfirmando]    = useState(false)
   const [mostrarGenerar, setMostrarGenerar] = useState(false)
   const [genDesde,       setGenDesde]       = useState(() => new Date().toLocaleDateString('en-CA'))
@@ -163,8 +168,16 @@ export default function AgendaPage() {
   const [gestMedico,       setGestMedico]       = useState(null)
   const [gestDesde,        setGestDesde]        = useState('')
   const [gestHasta,        setGestHasta]        = useState('')
+  const [gestHoraDesde,    setGestHoraDesde]    = useState('')
+  const [gestHoraHasta,    setGestHoraHasta]    = useState('')
   const [cancelandoRango,  setCancelandoRango]  = useState(false)
   const [gestResult,       setGestResult]       = useState(null)
+  const [busqGest,         setBusqGest]         = useState('')
+  const [busqGestAbierta,  setBusqGestAbierta]  = useState(false)
+  const [confirmGestionar,    setConfirmGestionar]    = useState(false)
+  const [confirmDescartarGen, setConfirmDescartarGen] = useState(false)
+  const [confirmDescartarGest,setConfirmDescartarGest]= useState(false)
+  const [tabMovil,            setTabMovil]            = useState(1)
 
   const { toast, showToast } = useToast()
   const qc = useQueryClient()
@@ -206,6 +219,8 @@ export default function AgendaPage() {
 
   useEffect(() => {
     if (!esRestringido) return
+    const multiSecretaria = esSecretaria && (user?.medicos_asignados?.length ?? 0) > 1
+    if (multiSecretaria) return
     const rrhhId = esMedico ? user?.persona_rrhh_id : user?.medico_asignado_id
     if (!rrhhId || !todosLosMedicos.length) return
     const m = todosLosMedicos.find(m => m.id === rrhhId)
@@ -213,13 +228,13 @@ export default function AgendaPage() {
       setMedicoSel(m)
       setGestMedico(m)
     }
-  }, [esRestringido, esMedico, user?.persona_rrhh_id, user?.medico_asignado_id, todosLosMedicos])
+  }, [esRestringido, esMedico, esSecretaria, user?.persona_rrhh_id, user?.medico_asignado_id, user?.medicos_asignados, todosLosMedicos])
 
   const { data: agendaMes }    = useAgendaMes(medicoSel?.id, mesVista.mes, mesVista.anio)
   const turnosMes              = agendaMes ?? []
 
   const { data: turnosDia }    = useAgendaDia(medicoSel?.id, fechaSel)
-  const { data: turnosDiaGlob} = useAgendaDiaGlobal(modo === 'fecha' && !medicoSel ? fechaSel : null)
+  const { data: turnosDiaGlob} = useAgendaDiaGlobal(!medicoSel ? fechaSel : null)
   const turnosPanelDia = medicoSel ? (turnosDia ?? []) : (turnosDiaGlob ?? [])
 
   const { data: turnosMesGlobal } = useAgendaGlobalMes(mesVista.mes, mesVista.anio)
@@ -262,11 +277,29 @@ export default function AgendaPage() {
     return Object.values(map)
   }, [todosHorariosActivos])
 
+  const medicosParaGenerar = useMemo(() => {
+    if (esMedico && user?.persona_rrhh_id) {
+      return medicosConHorarios.filter(m => m.id === user.persona_rrhh_id)
+    }
+    if (esSecretaria && (user?.medicos_asignados ?? []).length > 0) {
+      return medicosConHorarios.filter(m => (user.medicos_asignados ?? []).includes(m.id))
+    }
+    return medicosConHorarios
+  }, [medicosConHorarios, esMedico, esSecretaria, user?.persona_rrhh_id, user?.medicos_asignados])
+
   const medicosConHorariosFiltrados = useMemo(() => {
-    if (!busqGen.trim()) return medicosConHorarios
+    if (!busqGen.trim()) return medicosParaGenerar
     const txt = busqGen.toLowerCase()
-    return medicosConHorarios.filter(m => m.nombre.toLowerCase().includes(txt))
-  }, [medicosConHorarios, busqGen])
+    return medicosParaGenerar.filter(m => m.nombre.toLowerCase().includes(txt))
+  }, [medicosParaGenerar, busqGen])
+
+  const medicosGestFiltrados = useMemo(() => {
+    if (!busqGest.trim()) return todosLosMedicos
+    const txt = busqGest.toLowerCase()
+    return todosLosMedicos.filter(m =>
+      (m?.persona_detalle?.razon_social ?? m?.nombre ?? '').toLowerCase().includes(txt)
+    )
+  }, [todosLosMedicos, busqGest])
 
   const { mutateAsync: generarTurnos } = useGenerarTurnos()
 
@@ -289,7 +322,7 @@ export default function AgendaPage() {
     setGenResult(null)
   }
   const toggleTodosGen = () => {
-    const todosIds = medicosConHorarios.map(m => m.id)
+    const todosIds = medicosParaGenerar.map(m => m.id)
     setMedicosSelGen(
       medicosSelGen.size === todosIds.length ? new Set() : new Set(todosIds)
     )
@@ -298,7 +331,7 @@ export default function AgendaPage() {
   const abrirGenerar = () => {
     const ids = medicoSel
       ? new Set([medicoSel.id])
-      : new Set(medicosConHorarios.map(m => m.id))
+      : new Set(medicosParaGenerar.map(m => m.id))
     setMedicosSelGen(ids)
     setGenResult(null)
     setGenDesde(new Date().toLocaleDateString('en-CA'))
@@ -308,7 +341,7 @@ export default function AgendaPage() {
     setMostrarGenerar(v => !v)
   }
 
-  const { data: resultadosPaciente } = usePacienteSearch(busqPaciente)
+  const { data: resultadosPaciente } = usePacienteSearch(busqPaciente.length >= 3 ? busqPaciente : '')
 
   const turnosPorFecha = useMemo(() => {
     const map = {}
@@ -330,6 +363,17 @@ export default function AgendaPage() {
     return map
   }, [turnosMesGlobal])
 
+  const statsPorDia = useMemo(() => {
+    const map = {}
+    for (const t of turnosMesGlobal ?? []) {
+      if (t.estado === 'cancelado' || t.estado === 'inactivo') continue
+      if (!map[t.fecha]) map[t.fecha] = { ocup: 0, libre: 0 }
+      if (t.estado === 'ocupado') map[t.fecha].ocup++
+      else if (t.estado === 'disponible') map[t.fecha].libre++
+    }
+    return map
+  }, [turnosMesGlobal])
+
   const reagendarMedicoId = useMemo(() => {
     if (!reagendarTurnoId) return null
     const t = turnosPanelDia.find(t => t.id === reagendarTurnoId)
@@ -347,15 +391,22 @@ export default function AgendaPage() {
     gestDesde || null,
     gestHasta || null,
   )
+  const turnosGestionFiltrados = useMemo(() => {
+    let lista = turnosGestion ?? []
+    if (gestHoraDesde) lista = lista.filter(t => (t.hora_desde ?? '').slice(0, 5) >= gestHoraDesde)
+    if (gestHoraHasta) lista = lista.filter(t => (t.hora_hasta ?? '').slice(0, 5) <= gestHoraHasta)
+    return lista
+  }, [turnosGestion, gestHoraDesde, gestHoraHasta])
+
   const gestStats = useMemo(() => {
-    const lista = turnosGestion ?? []
+    const lista = turnosGestionFiltrados
     return {
       disponibles: lista.filter(t => t.estado === 'disponible').length,
       ocupados:    lista.filter(t => t.estado === 'ocupado').length,
       cancelados:  lista.filter(t => t.estado === 'cancelado').length,
       total:       lista.length,
     }
-  }, [turnosGestion])
+  }, [turnosGestionFiltrados])
 
   const irMesAnterior = () => setMesVista(prev => {
     const m = prev.mes === 1 ? 12 : prev.mes - 1
@@ -412,6 +463,8 @@ export default function AgendaPage() {
       qc.invalidateQueries({ queryKey: ['agenda-mes'] })
       qc.invalidateQueries({ queryKey: ['agenda-dia'] })
       qc.invalidateQueries({ queryKey: ['agenda-global-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-resumen-mes'] })
+      qc.invalidateQueries({ queryKey: ['agenda-dia-global'] })
     } catch (err) {
       showToast(extraerMensajeError(err), 'error')
     } finally {
@@ -453,8 +506,14 @@ export default function AgendaPage() {
     if (!gestMedico || !gestDesde || !gestHasta) return
     setCancelandoRango(true)
     try {
-      const res = await cancelarRango({ persona_rrhh: gestMedico.id, fecha_desde: gestDesde, fecha_hasta: gestHasta })
-      setGestResult(res.data.cancelados)
+      const res = await cancelarRango({
+        persona_rrhh: gestMedico.id,
+        fecha_desde:  gestDesde,
+        fecha_hasta:  gestHasta,
+        hora_desde:   gestHoraDesde || undefined,
+        hora_hasta:   gestHoraHasta || undefined,
+      })
+      setGestResult(res.data)
       showToast(`${res.data.cancelados} turno(s) cancelado(s).`, 'success')
     } catch (err) {
       showToast(extraerMensajeError(err), 'error')
@@ -487,10 +546,28 @@ export default function AgendaPage() {
             ? `El turno tiene un paciente asignado. Al ${confirmEstado?.label?.toLowerCase()} se liberará la asignación. ¿Confirmar?`
             : `¿Confirmar acción: ${confirmEstado?.label}?`
         }
-        confirmLabel={confirmEstado?.label}
+        confirmText={confirmEstado?.label}
         onConfirm={ejecutarCambioEstado}
         onCancel={() => setConfirmEstado(null)}
         loading={cambiandoEstado}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDescartarGen}
+        title="Descartar configuración"
+        description="¿Cerrar el generador? Los datos ingresados no se guardarán."
+        confirmText="Descartar"
+        onConfirm={() => { setConfirmDescartarGen(false); setMostrarGenerar(false); setGenResult(null) }}
+        onCancel={() => setConfirmDescartarGen(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDescartarGest}
+        title="Descartar cambios"
+        description="¿Cerrar sin procesar? El rango de fechas ingresado no se aplicará."
+        confirmText="Descartar"
+        onConfirm={() => { setConfirmDescartarGest(false); setMostrarGestionar(false); setGestResult(null); setGestHoraDesde(''); setGestHoraHasta('') }}
+        onCancel={() => setConfirmDescartarGest(false)}
       />
 
       <style>{`
@@ -499,15 +576,30 @@ export default function AgendaPage() {
         .ag-col-cal   { flex: 1; min-width: 0; }
         .ag-col-panel { width: 280px; flex-shrink: 0; }
 
-        .ag-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .ag-stat { background: #fff; border: 1px solid #e8edf2; border-radius: 10px; padding: 10px 12px; }
-        .ag-stat-val  { font-size: 22px; font-weight: 700; color: #1a3a5c; line-height: 1; }
-        .ag-stat-label{ font-size: 11px; color: #9ca3af; margin-top: 3px; }
-        .ag-stat-conf  .ag-stat-val { color: #d97706; }
-        .ag-stat-pend  .ag-stat-val { color: #16a34a; }
-        .ag-stat-real  .ag-stat-val { color: #7c3aed; }
-        .ag-stat-canc  .ag-stat-val { color: #dc2626; }
-        .ag-stat-total { grid-column: 1 / -1; }
+        .ag-page-header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .ag-page-sub    { font-size: 13px; color: #6b7280; }
+        .ag-page-subrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+        .ag-stats-inline { display: flex; background: #fff; border: 1px solid #e8edf2; border-radius: 10px; overflow: hidden; width: 100%; }
+        .ag-stat-pill { flex: 1; padding: 10px 14px; text-align: center; border-right: 1px solid #e8edf2; }
+        .ag-stat-pill:last-child { border-right: none; }
+        .ag-stat-pill-val   { font-size: 18px; font-weight: 700; color: #1a3a5c; line-height: 1; }
+        .ag-stat-pill-label { font-size: 10px; color: #9ca3af; margin-top: 2px; white-space: nowrap; }
+        .ag-stat-conf .ag-stat-pill-val { color: #d97706; }
+        .ag-stat-pend .ag-stat-pill-val { color: #16a34a; }
+        .ag-stat-real .ag-stat-pill-val { color: #7c3aed; }
+        .ag-stat-canc .ag-stat-pill-val { color: #dc2626; }
+
+        .ag-cal-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .ag-cal-action-btn {
+          display: flex; align-items: center; gap: 5px;
+          padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500;
+          cursor: pointer; border: 1.5px solid; font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+        }
+        .ag-cal-action-gen  { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+        .ag-cal-action-gen:hover  { background: #15304d; border-color: #15304d; }
+        .ag-cal-action-gest { background: #fff; color: #374151; border-color: #e5e7eb; }
+        .ag-cal-action-gest:hover { background: #f0f4f8; }
 
         .ag-card { background: #fff; border: 1px solid #e8edf2; border-radius: 12px; overflow: hidden; }
         .ag-card-head { padding: 12px 14px; border-bottom: 1px solid #e8edf2; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; }
@@ -547,8 +639,8 @@ export default function AgendaPage() {
           padding: 9px 14px; cursor: pointer; border-left: 3px solid transparent;
           transition: background 0.12s, border-color 0.12s;
         }
-        .ag-medico-item:hover { background: #f8fafc; }
-        .ag-medico-item-on { background: #eff6ff !important; border-left-color: #1a3a5c; }
+        .ag-medico-item:hover { background: #f0f4f8; }
+        .ag-medico-item-on { background: #f0f5fb !important; }
         .ag-avatar {
           width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
@@ -590,10 +682,10 @@ export default function AgendaPage() {
         }
         .ag-cal-celdas { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
         .ag-cal-celda {
-          min-height: 80px; border-radius: 8px; padding: 5px 6px;
+          min-height: 70px; border-radius: 7px; padding: 4px 5px;
           border: 1.5px solid transparent; cursor: default;
           transition: background 0.12s, border-color 0.12s;
-          display: flex; flex-direction: column; gap: 3px;
+          display: flex; flex-direction: column; gap: 2px;
         }
         .ag-cal-celda-activa { cursor: pointer; }
         .ag-cal-celda-activa:hover { background: #f8fafc; border-color: #e5e7eb; }
@@ -613,9 +705,19 @@ export default function AgendaPage() {
         .ag-cal-mas { font-size: 10px; color: #9ca3af; padding-left: 4px; }
         .ag-cal-empty { text-align: center; padding: 40px 16px; color: #9ca3af; font-size: 13px; }
 
-        .ag-cal-dots { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; align-items: center; }
-        .ag-cal-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .ag-cal-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 3px; align-items: center; }
+        .ag-cal-dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
         .ag-cal-dot-mas { font-size: 9px; color: #9ca3af; line-height: 1; }
+        .ag-cal-conteo { display: flex; gap: 4px; margin-top: 2px; line-height: 1; }
+        .ag-cal-conteo-ocup  { font-size: 9.5px; font-weight: 700; color: #d97706; }
+        .ag-cal-conteo-libre { font-size: 9.5px; font-weight: 700; color: #16a34a; }
+
+        .ag-turno-glob { display: flex; align-items: stretch; border: 1px solid #f0f4f8; border-radius: 7px; margin-bottom: 5px; overflow: hidden; background: #fff; }
+        .ag-turno-glob-bar  { width: 3px; flex-shrink: 0; }
+        .ag-turno-glob-hora { font-size: 11.5px; font-weight: 700; color: #374151; white-space: nowrap; padding: 7px 8px; align-self: flex-start; }
+        .ag-turno-glob-info { flex: 1; min-width: 0; padding: 7px 8px 7px 0; }
+        .ag-turno-glob-pac  { font-size: 12px; font-weight: 500; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ag-turno-glob-med  { font-size: 10.5px; color: #9ca3af; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .ag-panel { background: #fff; border: 1px solid #e8edf2; border-radius: 12px; overflow: hidden; position: sticky; top: 20px; }
         .ag-panel-head { padding: 14px 16px; border-bottom: 1px solid #e8edf2; }
@@ -660,11 +762,17 @@ export default function AgendaPage() {
           max-height: 140px; overflow-y: auto; margin-bottom: 8px;
         }
         .ag-pac-item {
-          padding: 7px 10px; font-size: 12.5px; cursor: pointer;
+          display: flex; align-items: center; gap: 8px;
+          padding: 7px 10px; cursor: pointer;
           border-bottom: 1px solid #f3f4f6; transition: background 0.1s;
         }
         .ag-pac-item:last-child { border-bottom: none; }
         .ag-pac-item:hover { background: #f0f4f8; }
+        .ag-pac-item-focus { background: #eff6ff !important; outline: none; }
+        .ag-pac-item-focus .ag-pac-nombre { color: #1a3a5c; }
+        .ag-pac-avatar { width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #3730a3; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ag-pac-nombre { font-size: 12.5px; font-weight: 500; color: #111827; }
+        .ag-pac-doc    { font-size: 11px; color: #9ca3af; margin-top: 1px; }
         .ag-pac-sel {
           display: flex; align-items: center; justify-content: space-between;
           padding: 6px 10px; background: #eff6ff; border: 1.5px solid #93c5fd;
@@ -724,6 +832,11 @@ export default function AgendaPage() {
         .ag-esp-opt-on { background: #eff6ff; font-weight: 600; color: #1a3a5c; }
 
         .ag-estado-actions { padding: 8px 12px; border-top: 1px solid #e8edf2; display: flex; flex-wrap: wrap; gap: 5px; }
+        .ag-bloqueo-consulta {
+          margin: 8px 12px; padding: 8px 12px;
+          background: #f8fafc; border: 1px solid #e8edf2; border-radius: 7px;
+          font-size: 12px; color: #6b7280; line-height: 1.5;
+        }
         .ag-estado-chip {
           padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
           border: 1.5px solid; cursor: pointer; transition: opacity 0.12s;
@@ -786,7 +899,7 @@ export default function AgendaPage() {
         }
         .ag-btn-gen-sec:hover { background: #f0f4f8; }
 
-        .ag-gen-medicos { max-height: 180px; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 3px; }
+        .ag-gen-medicos { max-height: 200px; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 3px; }
         .ag-gen-medico-row {
           display: flex; align-items: center; gap: 8px; padding: 7px 10px;
           border: 1.5px solid #e8edf2; border-radius: 8px; cursor: pointer;
@@ -816,36 +929,107 @@ export default function AgendaPage() {
         }
         .ag-reagendar-slot:hover { background: #e0f2fe; }
         .ag-reagendar-slot-on   { background: #0369a1 !important; color: #fff !important; border-color: #0369a1 !important; }
+
+        .ag-mobile-tabs { display: none; }
+        .ag-gest-warn { background: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .ag-gest-warn-title { font-size: 13px; font-weight: 600; color: #dc2626; }
+        .ag-gest-warn-sub   { font-size: 11.5px; color: #9ca3af; margin-top: 2px; }
+
+        @media (max-width: 767px) {
+          .ag-stats-inline { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .ag-stat-pill { flex: 0 0 auto; min-width: 72px; }
+          .ag-page-subrow { flex-direction: column; align-items: flex-start; gap: 8px; }
+          .ag-cal-actions { width: 100%; }
+          .ag-cal-action-btn { flex: 1; justify-content: center; }
+
+          .modal-backdrop { padding: 0 !important; align-items: flex-start !important; }
+          .modal-overlay { display: none !important; }
+          .modal-box { border-radius: 0 !important; height: 100dvh !important; max-height: 100dvh !important; max-width: 100% !important; width: 100% !important; animation: none !important; }
+          .modal-body { padding: 16px !important; }
+
+          .ag-mobile-tabs {
+            display: flex; margin-bottom: 12px; border: 1.5px solid #e5e7eb;
+            border-radius: 10px; overflow: hidden;
+          }
+          .ag-mobile-tab {
+            flex: 1; padding: 9px 4px; font-size: 12.5px; font-weight: 500;
+            background: #f8fafc; color: #6b7280; border: none; cursor: pointer;
+            font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+            border-right: 1px solid #e5e7eb;
+          }
+          .ag-mobile-tab:last-child { border-right: none; }
+          .ag-mobile-tab-on { background: #1a3a5c; color: #fff; }
+
+          .ag-layout { flex-direction: column; gap: 0; }
+          .ag-col-izq   { width: 100%; }
+          .ag-col-cal   { width: 100%; }
+          .ag-col-panel { width: 100%; }
+          .ag-mob-hidden { display: none !important; }
+
+          .ag-panel { position: static; }
+          .ag-panel-body { max-height: none; }
+          .ag-cal-celda { min-height: 56px; }
+        }
       `}</style>
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 600, color: '#1a3a5c', marginBottom: 2 }}>Agenda</div>
-        <div style={{ fontSize: 13, color: '#6b7280' }}>Gestión de turnos y citas médicas</div>
+      <div className="ag-page-header">
+        <div className="ag-stats-inline">
+          {[
+            { label: 'Confirmadas', val: statsGlobal.confirmadas, cls: 'ag-stat-conf' },
+            { label: 'Disponibles', val: statsGlobal.disponibles, cls: 'ag-stat-pend' },
+            { label: 'Realizadas',  val: statsGlobal.realizadas,  cls: 'ag-stat-real' },
+            { label: 'Cancelados',  val: statsGlobal.cancelados,  cls: 'ag-stat-canc' },
+            { label: 'Total',       val: statsGlobal.total,       cls: '' },
+          ].map(s => (
+            <div key={s.label} className={`ag-stat-pill ${s.cls}`}>
+              <div className="ag-stat-pill-val">{s.val}</div>
+              <div className="ag-stat-pill-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="ag-page-subrow">
+          <div className="ag-page-sub">
+            Gestión de turnos y citas médicas · {MESES[mesVista.mes - 1]} {mesVista.anio}
+          </div>
+          {puedeModificar && (
+            <div className="ag-cal-actions">
+              <button className="ag-cal-action-btn ag-cal-action-gen" onClick={abrirGenerar}>
+                <CalendarDays size={13} />
+                {medicoSel ? 'Generar turnos' : 'Generar para todos'}
+              </button>
+              <button className="ag-cal-action-btn ag-cal-action-gest" onClick={() => {
+                setGestMedico(medicoSel ?? null)
+                setGestDesde('')
+                setGestHasta('')
+                setGestHoraDesde('')
+                setGestHoraHasta('')
+                setGestResult(null)
+                setBusqGest('')
+                setBusqGestAbierta(false)
+                setMostrarGestionar(true)
+              }}>
+                <Settings2 size={13} />
+                Gestionar
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="ag-mobile-tabs">
+        {[['Médicos', 1], ['Calendario', 2], ['Turnos del día', 3]].map(([lbl, tab]) => (
+          <button key={tab} className={`ag-mobile-tab${tabMovil === tab ? ' ag-mobile-tab-on' : ''}`}
+            onClick={() => setTabMovil(tab)}>
+            {lbl}
+          </button>
+        ))}
       </div>
 
       <div className="ag-layout">
 
-        <div className="ag-col-izq">
+        <div className={`ag-col-izq${tabMovil !== 1 ? ' ag-mob-hidden' : ''}`}>
 
-          <div className="ag-stats-grid">
-            {[
-              { label: 'Confirmadas', val: statsGlobal.confirmadas, cls: 'ag-stat-conf' },
-              { label: 'Disponibles', val: statsGlobal.disponibles, cls: 'ag-stat-pend' },
-              { label: 'Realizadas',  val: statsGlobal.realizadas,  cls: 'ag-stat-real' },
-              { label: 'Cancelados',  val: statsGlobal.cancelados,  cls: 'ag-stat-canc' },
-            ].map(s => (
-              <div key={s.label} className={`ag-stat ${s.cls}`}>
-                <div className="ag-stat-val">{s.val}</div>
-                <div className="ag-stat-label">{s.label}</div>
-              </div>
-            ))}
-            <div className="ag-stat ag-stat-total">
-              <div className="ag-stat-val">{statsGlobal.total}</div>
-              <div className="ag-stat-label">Total {MESES[mesVista.mes - 1]}</div>
-            </div>
-          </div>
-
-          {esRestringido ? (
+          {(esMedico || (esSecretaria && (user?.medicos_asignados?.length ?? 0) <= 1)) ? (
             medicoSel ? (
               <div className="ag-card">
                 <div className="ag-card-head">{esMedico ? 'Mi perfil' : 'Médico asignado'}</div>
@@ -936,6 +1120,7 @@ export default function AgendaPage() {
                 )}
                 {medicosFiltrados.map(m => {
                   const col    = colorMedico(m.id)
+                  const dot    = colorDot(m.id)
                   const activo = medicoSel?.id === m.id
                   const hoy_str = hoyStr
                   const dispHoy = turnosMes.filter(t =>
@@ -947,8 +1132,9 @@ export default function AgendaPage() {
                   return (
                     <div key={m.id}
                       className={`ag-medico-item${activo ? ' ag-medico-item-on' : ''}`}
+                      style={activo ? { borderLeftColor: dot } : {}}
                       onClick={() => { setMedicoSel(activo ? null : m); setFechaSel(null); setTurnoExpandido(null) }}>
-                      <div className="ag-avatar" style={{ background: col.bg, color: col.text }}>
+                      <div className="ag-avatar" style={{ background: col.bg, color: col.text, border: `2px solid ${dot}` }}>
                         {inicialesMedico(m)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -970,7 +1156,7 @@ export default function AgendaPage() {
           )}
         </div>
 
-        <div className="ag-col-cal">
+        <div className={`ag-col-cal${tabMovil !== 2 ? ' ag-mob-hidden' : ''}`}>
           <div className="ag-cal-card">
             <div className="ag-cal-head">
               <div>
@@ -984,38 +1170,10 @@ export default function AgendaPage() {
                   }
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {puedeModificar && (
-                  <button
-                    className="btn btn-primary"
-                    style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
-                    onClick={abrirGenerar}
-                  >
-                    <CalendarDays size={13} />
-                    {medicoSel ? 'Generar turnos' : 'Generar para todos'}
-                  </button>
-                )}
-                {puedeModificar && (
-                  <button
-                    className="btn btn-secondary"
-                    style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
-                    onClick={() => {
-                      setGestMedico(medicoSel ?? null)
-                      setGestDesde('')
-                      setGestHasta('')
-                      setGestResult(null)
-                      setMostrarGestionar(true)
-                    }}
-                  >
-                    <Settings2 size={13} />
-                    Gestionar
-                  </button>
-                )}
-                <div className="ag-cal-nav">
-                  <button className="ag-cal-nav-btn" onClick={irMesAnterior}><ChevronLeft size={14} /></button>
-                  <span className="ag-cal-mes-label">{MESES[mesVista.mes - 1]} {mesVista.anio}</span>
-                  <button className="ag-cal-nav-btn" onClick={irMesSiguiente}><ChevronRight size={14} /></button>
-                </div>
+              <div className="ag-cal-nav">
+                <button className="ag-cal-nav-btn" onClick={irMesAnterior}><ChevronLeft size={14} /></button>
+                <span className="ag-cal-mes-label">{MESES[mesVista.mes - 1]} {mesVista.anio}</span>
+                <button className="ag-cal-nav-btn" onClick={irMesSiguiente}><ChevronRight size={14} /></button>
               </div>
             </div>
 
@@ -1048,16 +1206,27 @@ export default function AgendaPage() {
                       {!medicoSel ? (
                         (() => {
                           const rrhhIds = [...(medicosPorDia[fechaStr] ?? new Set())]
-                          if (rrhhIds.length === 0) return null
+                          const stats   = statsPorDia[fechaStr]
+                          if (rrhhIds.length === 0 && !stats) return null
                           return (
-                            <div className="ag-cal-dots">
-                              {rrhhIds.slice(0, 5).map(id => (
-                                <div key={id} className="ag-cal-dot" style={{ background: colorMedico(id).text }} />
-                              ))}
-                              {rrhhIds.length > 5 && (
-                                <span className="ag-cal-dot-mas">+{rrhhIds.length - 5}</span>
+                            <>
+                              {rrhhIds.length > 0 && (
+                                <div className="ag-cal-dots">
+                                  {rrhhIds.slice(0, 5).map(id => (
+                                    <div key={id} className="ag-cal-dot" style={{ background: colorDot(id) }} />
+                                  ))}
+                                  {rrhhIds.length > 5 && (
+                                    <span className="ag-cal-dot-mas">+{rrhhIds.length - 5}</span>
+                                  )}
+                                </div>
                               )}
-                            </div>
+                              {stats && (
+                                <div className="ag-cal-conteo">
+                                  <span className="ag-cal-conteo-ocup">{stats.ocup}</span>
+                                  <span className="ag-cal-conteo-libre">{stats.libre}</span>
+                                </div>
+                              )}
+                            </>
                           )
                         })()
                       ) : (
@@ -1067,6 +1236,7 @@ export default function AgendaPage() {
                             const label = t.estado === 'ocupado' && t.paciente_detalle
                               ? t.paciente_detalle.nombre.split(' ')[0]
                               : t.estado === 'disponible' ? `${fmtHora(t.hora_desde)} libre`
+                              : t.estado === 'realizado'  ? (t.paciente_detalle?.nombre ? t.paciente_detalle.nombre.split(' ')[0] : 'Realizado')
                               : fmtHora(t.hora_desde)
                             return (
                               <div key={t.id} className="ag-cal-pill"
@@ -1086,19 +1256,16 @@ export default function AgendaPage() {
               </div>
             </div>
 
-            {!medicoSel && (
-              <div className="ag-cal-empty">
-                <Calendar size={28} style={{ margin: '0 auto 8px', color: '#d1d5db', display: 'block' }} />
-                Seleccioná un médico para ver sus turnos
-              </div>
-            )}
           </div>
 
         </div>
 
         <Modal
           isOpen={mostrarGenerar}
-          onClose={() => { setMostrarGenerar(false); setGenResult(null) }}
+          onClose={() => {
+            if (genHasta) { setConfirmDescartarGen(true) }
+            else { setMostrarGenerar(false); setGenResult(null) }
+          }}
           title="Generar turnos"
           subtitle={medicoSel ? `Para ${nombreMedico(medicoSel)}` : 'Todos los médicos con horarios activos'}
           size="sm"
@@ -1106,7 +1273,7 @@ export default function AgendaPage() {
           <div className="ag-gen-body" style={{ padding: '16px 0 0' }}>
 
             <div className="ag-gen-horarios-label">Médicos a incluir</div>
-            {medicosConHorarios.length === 0 ? (
+            {medicosParaGenerar.length === 0 ? (
               <div style={{ fontSize: 12.5, color: '#9ca3af', marginBottom: 12 }}>
                 Ningún médico tiene horarios activos configurados.
               </div>
@@ -1137,10 +1304,10 @@ export default function AgendaPage() {
                       <label className="ag-gen-todos">
                         <input
                           type="checkbox"
-                          checked={medicosSelGen.size === medicosConHorarios.length && medicosConHorarios.length > 0}
+                          checked={medicosSelGen.size === medicosParaGenerar.length && medicosParaGenerar.length > 0}
                           onChange={toggleTodosGen}
                         />
-                        Seleccionar todos ({medicosConHorarios.length})
+                        Seleccionar todos ({medicosParaGenerar.length})
                       </label>
                     )}
                     <div className="ag-gen-medicos">
@@ -1182,12 +1349,12 @@ export default function AgendaPage() {
             <div className="ag-gen-range">
               <div className="ag-gen-field">
                 <div className="ag-gen-label">Desde</div>
-                <input type="date" className="ag-gen-input" value={genDesde}
+                <input type="date" className="ag-gen-input" value={genDesde} max="2099-12-31"
                   onChange={e => { setGenDesde(e.target.value); setGenResult(null) }} />
               </div>
               <div className="ag-gen-field">
                 <div className="ag-gen-label">Hasta</div>
-                <input type="date" className="ag-gen-input" value={genHasta}
+                <input type="date" className="ag-gen-input" value={genHasta} max="2099-12-31"
                   onChange={e => { setGenHasta(e.target.value); setGenResult(null) }} />
               </div>
             </div>
@@ -1254,54 +1421,116 @@ export default function AgendaPage() {
 
         <Modal
           isOpen={mostrarGestionar}
-          onClose={() => { setMostrarGestionar(false); setGestResult(null) }}
+          onClose={() => {
+            if (gestDesde || gestHasta || gestHoraDesde || gestHoraHasta) { setConfirmDescartarGest(true) }
+            else { setMostrarGestionar(false); setGestResult(null); setGestHoraDesde(''); setGestHoraHasta('') }
+          }}
           title="Gestionar turnos"
-          subtitle="Cancelar disponibles en un rango de fechas"
+          subtitle="Cancelar turnos disponibles en un rango de fechas y hora"
           size="sm"
         >
           <div style={{ padding: '16px 0 0' }}>
+
+          <ConfirmDialog
+            isOpen={confirmGestionar}
+            title="Confirmar cancelación masiva"
+            description={`Se cancelarán ${gestStats.disponibles} turno${gestStats.disponibles !== 1 ? 's' : ''} disponibles para ${nombreMedico(gestMedico)}${gestHoraDesde || gestHoraHasta ? ` entre ${gestHoraDesde || '00:00'} y ${gestHoraHasta || '23:59'}` : ''} en el rango seleccionado. Esta acción no se puede deshacer.`}
+            confirmText="Cancelar turnos"
+            onConfirm={async () => { setConfirmGestionar(false); await handleCancelarRango() }}
+            onCancel={() => setConfirmGestionar(false)}
+            loading={cancelandoRango}
+          />
+
+          <div className="ag-gest-warn">
+            <span style={{ fontSize: 20, lineHeight: 1 }}>⚠️</span>
+            <div>
+              <div className="ag-gest-warn-title">Cancelación de turnos disponibles</div>
+              <div className="ag-gest-warn-sub">Esta acción no se puede deshacer</div>
+            </div>
+          </div>
             <div className="ag-gen-horarios-label">Médico</div>
-            {esRestringido ? (
+            {(esMedico || (esSecretaria && (user?.medicos_asignados?.length ?? 0) <= 1)) ? (
               <div style={{ fontSize: 13, color: '#111827', fontWeight: 500, marginBottom: 12 }}>
                 {nombreMedico(medicoSel)}
               </div>
+            ) : gestMedico ? (
+              <div className="ag-pac-sel" style={{ marginBottom: 12 }}>
+                <span>{nombreMedico(gestMedico)}</span>
+                <button className="ag-pac-clear" onClick={() => { setGestMedico(null); setGestResult(null); setBusqGest('') }}>
+                  <X size={13} />
+                </button>
+              </div>
             ) : (
-              <div style={{ marginBottom: 12 }}>
-                <select
-                  className="ag-gen-input"
-                  value={gestMedico?.id ?? ''}
-                  onChange={e => {
-                    const m = todosLosMedicos.find(x => String(x.id) === e.target.value)
-                    setGestMedico(m ?? null)
-                    setGestResult(null)
-                  }}
-                >
-                  <option value="">— Seleccionar médico —</option>
-                  {todosLosMedicos.map(m => (
-                    <option key={m.id} value={m.id}>{nombreMedico(m)}</option>
-                  ))}
-                </select>
+              <div style={{ marginBottom: 12, position: 'relative' }}>
+                <div className="ag-pac-search">
+                  <Search size={12} className="ag-pac-icon" />
+                  <input
+                    className="ag-pac-input"
+                    placeholder="Buscar médico..."
+                    value={busqGest}
+                    onChange={e => { setBusqGest(e.target.value); setBusqGestAbierta(true) }}
+                    onFocus={() => setBusqGestAbierta(true)}
+                    onBlur={() => setTimeout(() => setBusqGestAbierta(false), 150)}
+                    autoComplete="off"
+                  />
+                </div>
+                {busqGestAbierta && (
+                  <div className="ag-pac-results" style={{ maxHeight: 180 }}>
+                    {medicosGestFiltrados.length === 0 ? (
+                      <div style={{ padding: '8px 10px', fontSize: 12, color: '#9ca3af' }}>Sin resultados</div>
+                    ) : (
+                      medicosGestFiltrados.map(m => {
+                        const col = colorMedico(m.id)
+                        return (
+                          <div key={m.id} className="ag-pac-item"
+                            onMouseDown={() => { setGestMedico(m); setGestResult(null); setBusqGest(''); setBusqGestAbierta(false) }}>
+                            <div className="ag-avatar" style={{ background: col.bg, color: col.text, width: 26, height: 26, fontSize: 10, border: `2px solid ${colorDot(m.id)}` }}>
+                              {inicialesMedico(m)}
+                            </div>
+                            <div>
+                              <div className="ag-pac-nombre">{nombreMedico(m)}</div>
+                              <div className="ag-pac-doc">{m.especialidades_detalle?.map(e => e.descripcion).join(', ') || m.cargo || '—'}</div>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             <div className="ag-gen-range">
               <div className="ag-gen-field">
-                <div className="ag-gen-label">Desde</div>
-                <input type="date" className="ag-gen-input" value={gestDesde}
+                <div className="ag-gen-label">Fecha desde</div>
+                <input type="date" className="ag-gen-input" value={gestDesde} max="2099-12-31"
                   onChange={e => { setGestDesde(e.target.value); setGestResult(null) }} />
               </div>
               <div className="ag-gen-field">
-                <div className="ag-gen-label">Hasta</div>
-                <input type="date" className="ag-gen-input" value={gestHasta}
+                <div className="ag-gen-label">Fecha hasta</div>
+                <input type="date" className="ag-gen-input" value={gestHasta} max="2099-12-31"
                   onChange={e => { setGestHasta(e.target.value); setGestResult(null) }} />
+              </div>
+            </div>
+
+            <div className="ag-gen-range" style={{ marginTop: 8 }}>
+              <div className="ag-gen-field">
+                <div className="ag-gen-label">Hora desde <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span></div>
+                <input type="time" className="ag-gen-input" value={gestHoraDesde}
+                  onChange={e => { setGestHoraDesde(e.target.value); setGestResult(null) }} />
+              </div>
+              <div className="ag-gen-field">
+                <div className="ag-gen-label">Hora hasta <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span></div>
+                <input type="time" className="ag-gen-input" value={gestHoraHasta}
+                  onChange={e => { setGestHoraHasta(e.target.value); setGestResult(null) }} />
               </div>
             </div>
 
             {gestMedico && gestDesde && gestHasta && (
               cargandoGestion ? (
-                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 12 }}>Cargando...</div>
+                <div style={{ fontSize: 12, color: '#9ca3af', margin: '12px 0' }}>Cargando...</div>
               ) : (
-                <div className="ag-gen-preview" style={{ marginBottom: 12 }}>
+                <div className="ag-gen-preview" style={{ margin: '12px 0' }}>
                   <div className="ag-gen-preview-hdr">
                     <span className="ag-gen-preview-title">Resumen del rango</span>
                   </div>
@@ -1322,18 +1551,44 @@ export default function AgendaPage() {
             )}
 
             {gestResult !== null && (
-              <div className="ag-gen-result">
+              <div className="ag-gen-result" style={{ marginBottom: 12 }}>
                 <div className="ag-gen-result-ok">
                   <Check size={13} style={{ display: 'inline', marginRight: 5 }} />
-                  {gestResult} turno{gestResult !== 1 ? 's' : ''} cancelado{gestResult !== 1 ? 's' : ''}
+                  {gestResult.cancelados} turno{gestResult.cancelados !== 1 ? 's' : ''} cancelado{gestResult.cancelados !== 1 ? 's' : ''}
                 </div>
+                {gestResult.no_cancelados?.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 6 }}>
+                      No cancelados ({gestResult.no_cancelados.length})
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
+                      {gestResult.no_cancelados.map((t, i) => {
+                        const esOcupado  = t.estado === 'ocupado'
+                        const esReal     = t.estado === 'realizado'
+                        const col        = esOcupado ? { bg: '#dbeafe', text: '#2563eb' } : { bg: '#ede9fe', text: '#7c3aed' }
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, background: '#f8fafc', borderRadius: 6, padding: '5px 8px' }}>
+                            <span style={{ fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{t.hora_desde}</span>
+                            <span style={{ color: '#6b7280', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {t.fecha} {t.paciente ? `· ${t.paciente}` : ''}
+                            </span>
+                            <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: col.bg, color: col.text, flexShrink: 0 }}>
+                              {esOcupado ? 'Con paciente' : 'Realizado'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             <button
               className="ag-btn-gen"
+              style={{ background: '#dc2626' }}
               disabled={!gestMedico || !gestDesde || !gestHasta || cancelandoRango || gestStats.disponibles === 0}
-              onClick={handleCancelarRango}
+              onClick={() => setConfirmGestionar(true)}
             >
               {cancelandoRango
                 ? <><div className="ag-spin" /> Cancelando...</>
@@ -1343,20 +1598,33 @@ export default function AgendaPage() {
           </div>
         </Modal>
 
-        <div className="ag-col-panel">
+        <div className={`ag-col-panel${tabMovil !== 3 ? ' ag-mob-hidden' : ''}`}>
           <div className="ag-panel">
             <div className="ag-panel-head">
               <div className="ag-panel-titulo">
                 {fechaSel
-                  ? new Date(fechaSel + 'T00:00:00').toLocaleDateString('es-PY', { weekday:'long', day:'numeric', month:'long' })
+                  ? (() => {
+                      const d = new Date(fechaSel + 'T00:00:00')
+                      if (!medicoSel) {
+                        const weekday = d.toLocaleDateString('es-PY', { weekday: 'long' }).toUpperCase()
+                        const rest    = d.toLocaleDateString('es-PY', { day: 'numeric', month: 'long' })
+                        return `${weekday} · ${rest}`
+                      }
+                      return d.toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric', month: 'long' })
+                    })()
                   : 'Detalle del día'
                 }
               </div>
               <div className="ag-panel-sub">
                 {fechaSel && medicoSel
                   ? `${turnosPanelDia.length} turno(s) · ${nombreMedico(medicoSel)}`
-                  : fechaSel
-                  ? `${turnosPanelDia.length} turno(s) totales`
+                  : fechaSel && !medicoSel
+                  ? (() => {
+                      const lista = turnosDiaGlob ?? []
+                      const conf  = lista.filter(t => t.estado === 'ocupado').length
+                      const libre = lista.filter(t => t.estado === 'disponible').length
+                      return `${lista.length} turno(s) · ${conf} confirmado(s) · ${libre} libre(s)`
+                    })()
                   : 'Hacé clic en un día del calendario'
                 }
               </div>
@@ -1365,9 +1633,44 @@ export default function AgendaPage() {
             <div className="ag-panel-body">
               {!fechaSel ? (
                 <div className="ag-panel-empty">
-                  <Calendar size={24} style={{ margin: '0 auto 8px', color: '#d1d5db', display: 'block' }} />
-                  Seleccioná un día
+                  <Calendar size={32} style={{ margin: '0 auto 10px', color: '#d1d5db', display: 'block' }} />
+                  <div style={{ fontWeight: 500, color: '#6b7280', marginBottom: 4 }}>Ningún día seleccionado</div>
+                  <div style={{ fontSize: 12, color: '#9ca3af' }}>
+                    Hacé clic en un día del calendario para ver los turnos disponibles
+                  </div>
                 </div>
+              ) : !medicoSel ? (
+                (() => {
+                  const lista = [...(turnosDiaGlob ?? [])].sort((a, b) =>
+                    (a.hora_desde ?? '').localeCompare(b.hora_desde ?? '')
+                  )
+                  if (lista.length === 0) return (
+                    <div className="ag-panel-empty">Sin turnos para este día</div>
+                  )
+                  return lista.map(turno => {
+                    const medicoId = turno.horario_prestador_detalle?.persona_rrhh_id
+                    const medico   = todosLosMedicos.find(m => m.id === medicoId)
+                    const dot      = medicoId ? colorDot(medicoId) : '#9ca3af'
+                    const colE     = colorEstado(turno.estado)
+                    const pacNom   = turno.paciente_detalle?.nombre
+                      ?? (turno.estado === 'disponible' ? 'Slot disponible' : turno.estado)
+                    const medNom   = medico ? nombreMedico(medico) : (turno.horario_prestador_detalle?.nombre ?? '—')
+                    const espNom   = medico?.especialidades_detalle?.[0]?.descripcion ?? ''
+                    return (
+                      <div key={turno.id} className="ag-turno-glob">
+                        <div className="ag-turno-glob-bar" style={{ background: dot }} />
+                        <div className="ag-turno-glob-hora">{fmtHora(turno.hora_desde)}</div>
+                        <div className="ag-turno-glob-info">
+                          <div className="ag-turno-glob-pac">{pacNom}</div>
+                          <div className="ag-turno-glob-med">{medNom}{espNom ? ` · ${espNom}` : ''}</div>
+                        </div>
+                        <span className="ag-turno-badge" style={{ background: colE.bg, color: colE.text, alignSelf: 'center', marginRight: 8 }}>
+                          {turno.estado}
+                        </span>
+                      </div>
+                    )
+                  })
+                })()
               ) : turnosPanelDia.length === 0 ? (
                 <div className="ag-panel-empty">Sin turnos para este día</div>
               ) : (
@@ -1384,26 +1687,35 @@ export default function AgendaPage() {
                     return '—'
                   })()
 
-                  const transiciones = {
+                  const BLOQUEOS_CONSULTA = {
+                    en_consulta: 'Consulta en curso — finalizá o anulá la consulta desde el módulo de consultas antes de modificar el turno.',
+                    finalizada:  'El turno ya fue completado. La consulta está finalizada y no se puede modificar desde la agenda.',
+                    anulada:     'El turno tiene una consulta anulada y no se puede modificar desde la agenda.',
+                  }
+                  const bloqueoConsulta = turno.consulta_estado
+                    ? BLOQUEOS_CONSULTA[turno.consulta_estado] ?? null
+                    : null
+
+                  const transiciones = bloqueoConsulta ? [] : ({
                     disponible: [
-                      { estado: 'inactivo',  label: 'Bloquear',  bg: '#f3f4f6', text: '#6b7280', borde: '#d1d5db', confirmar: true },
-                      { estado: 'cancelado', label: 'Cancelar',  bg: '#fee2e2', text: '#991b1b', borde: '#fca5a5', confirmar: true },
+                      { estado: 'inactivo',  label: 'Bloquear',          bg: '#f3f4f6', text: '#6b7280', borde: '#d1d5db', confirmar: true,  icono: 'lock' },
+                      { estado: 'cancelado', label: 'Cancelar',           bg: '#fee2e2', text: '#dc2626', borde: '#fca5a5', confirmar: true },
                     ],
                     ocupado: [
-                      { estado: 'realizado', label: 'Realizado', bg: '#ede9fe', text: '#5b21b6', borde: '#c4b5fd', confirmar: false },
-                      { estado: 'cancelado', label: 'Cancelar y liberar', bg: '#fee2e2', text: '#991b1b', borde: '#fca5a5', confirmar: true },
+                      { estado: 'realizado', label: 'Realizado',          bg: '#f0fdf4', text: '#15803d', borde: '#bbf7d0', confirmar: false },
+                      { estado: 'cancelado', label: 'Cancelar y liberar', bg: '#fee2e2', text: '#dc2626', borde: '#fca5a5', confirmar: true },
                     ],
                     inactivo: [
-                      { estado: 'disponible', label: 'Activar',  bg: '#dcfce7', text: '#166534', borde: '#86efac', confirmar: false },
-                      { estado: 'cancelado',  label: 'Cancelar', bg: '#fee2e2', text: '#991b1b', borde: '#fca5a5', confirmar: true },
+                      { estado: 'disponible', label: 'Activar',           bg: '#dcfce7', text: '#16a34a', borde: '#86efac', confirmar: false },
+                      { estado: 'cancelado',  label: 'Cancelar',          bg: '#fee2e2', text: '#dc2626', borde: '#fca5a5', confirmar: true },
                     ],
                     cancelado: [
-                      { estado: 'disponible', label: 'Reactivar', bg: '#dcfce7', text: '#166534', borde: '#86efac', confirmar: false },
+                      { estado: 'disponible', label: 'Reactivar',         bg: '#dcfce7', text: '#16a34a', borde: '#86efac', confirmar: false },
                     ],
                     realizado: [
-                      { estado: 'ocupado', label: 'Revertir a ocupado', bg: '#fef3c7', text: '#92400e', borde: '#fcd34d', confirmar: true },
+                      { estado: 'ocupado', label: 'Revertir a ocupado',   bg: '#dbeafe', text: '#2563eb', borde: '#93c5fd', confirmar: true },
                     ],
-                  }[turno.estado] ?? []
+                  }[turno.estado] ?? [])
 
                   return (
                     <div key={turno.id}
@@ -1459,26 +1771,62 @@ export default function AgendaPage() {
                                       className="ag-pac-input"
                                       placeholder="Nombre o nro. de documento..."
                                       value={busqPaciente}
-                                      onChange={e => setBusqPaciente(e.target.value)}
+                                      onChange={e => { setBusqPaciente(e.target.value); setPacFocusIdx(-1) }}
                                       autoComplete="off"
+                                      onKeyDown={e => {
+                                        const resultados = resultadosPaciente ?? []
+                                        if (!resultados.length || busqPaciente.length < 3) return
+                                        if (e.key === 'ArrowDown') {
+                                          e.preventDefault()
+                                          setPacFocusIdx(prev => {
+                                            const next = Math.min(prev + 1, resultados.length - 1)
+                                            const el = pacResultsRef.current?.children[next]
+                                            el?.scrollIntoView({ block: 'nearest' })
+                                            return next
+                                          })
+                                        } else if (e.key === 'ArrowUp') {
+                                          e.preventDefault()
+                                          setPacFocusIdx(prev => {
+                                            const next = Math.max(prev - 1, 0)
+                                            const el = pacResultsRef.current?.children[next]
+                                            el?.scrollIntoView({ block: 'nearest' })
+                                            return next
+                                          })
+                                        } else if (e.key === 'Enter' && pacFocusIdx >= 0) {
+                                          e.preventDefault()
+                                          const p = resultados[pacFocusIdx]
+                                          if (p) { setPacienteSel(p); setBusqPaciente(''); setPacFocusIdx(-1) }
+                                        } else if (e.key === 'Escape') {
+                                          setBusqPaciente(''); setPacFocusIdx(-1)
+                                        }
+                                      }}
                                     />
                                   </div>
-                                  {resultadosPaciente?.length > 0 && (
-                                    <div className="ag-pac-results">
-                                      {resultadosPaciente.map(p => (
-                                        <div key={p.id} className="ag-pac-item"
-                                          onClick={() => { setPacienteSel(p); setBusqPaciente('') }}>
-                                          <strong>{p.nombre ?? p.persona_detalle?.razon_social ?? '—'}</strong>
-                                          {' · '}
-                                          <span style={{ fontSize: 11, color: '#9ca3af' }}>
-                                            {p.documento ?? p.persona_detalle?.nro_documento ?? ''}
-                                          </span>
-                                        </div>
-                                      ))}
+                                  {resultadosPaciente?.length > 0 && busqPaciente.length >= 3 && (
+                                    <div className="ag-pac-results" ref={pacResultsRef}>
+                                      {resultadosPaciente.map((p, idx) => {
+                                        const nombreP = p.nombre ?? p.persona_detalle?.razon_social ?? '—'
+                                        const docP    = p.documento ?? p.persona_detalle?.nro_documento ?? ''
+                                        const inicial = nombreP.charAt(0).toUpperCase()
+                                        return (
+                                          <div key={p.id}
+                                            className={`ag-pac-item${pacFocusIdx === idx ? ' ag-pac-item-focus' : ''}`}
+                                            onClick={() => { setPacienteSel(p); setBusqPaciente(''); setPacFocusIdx(-1) }}>
+                                            <div className="ag-pac-avatar">{inicial}</div>
+                                            <div>
+                                              <div className="ag-pac-nombre">{nombreP}</div>
+                                              {docP && <div className="ag-pac-doc">{docP}</div>}
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
                                     </div>
                                   )}
-                                  {busqPaciente.length >= 2 && !resultadosPaciente?.length && (
+                                  {busqPaciente.length >= 3 && !resultadosPaciente?.length && (
                                     <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>Sin resultados</div>
+                                  )}
+                                  {busqPaciente.length > 0 && busqPaciente.length < 3 && (
+                                    <div style={{ fontSize: 11.5, color: '#9ca3af', marginBottom: 6 }}>Ingresá al menos 3 caracteres</div>
                                   )}
                                 </>
                               ) : (
@@ -1508,13 +1856,17 @@ export default function AgendaPage() {
                             </div>
                           )}
 
-                          {transiciones.length > 0 && (
+                          {bloqueoConsulta ? (
+                            <div className="ag-bloqueo-consulta">
+                              {bloqueoConsulta}
+                            </div>
+                          ) : transiciones.length > 0 && (
                             <div className="ag-estado-actions">
                               {transiciones.map(tr => (
                                 <button
                                   key={tr.estado}
                                   className="ag-estado-chip"
-                                  style={{ background: tr.bg, color: tr.text, borderColor: tr.borde }}
+                                  style={{ background: tr.bg, color: tr.text, borderColor: tr.borde, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   onClick={() => {
                                     if (tr.confirmar) {
                                       setConfirmEstado({
@@ -1533,13 +1885,14 @@ export default function AgendaPage() {
                                     }
                                   }}
                                 >
+                                  {tr.icono === 'lock' && <Lock size={10} />}
                                   {tr.label}
                                 </button>
                               ))}
                             </div>
                           )}
 
-                          {turno.estado === 'ocupado' && (
+                          {!bloqueoConsulta && turno.estado === 'ocupado' && (
                             <div className="ag-estado-actions" style={{ borderTop: 'none', paddingTop: 0 }}>
                               <button
                                 className="ag-estado-chip"

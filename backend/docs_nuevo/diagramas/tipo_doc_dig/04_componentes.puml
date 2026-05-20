@@ -1,0 +1,79 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "TipoDocDigPage.jsx" as PAGE
+  component "PanelSimple.jsx" as PANEL
+  component "useTipoDocDig.js" as HOOK
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+}
+
+package "Backend" {
+  component "TipoDocDigitalViewSet" as VIEWSET
+  component "TipoDocDigSerializer" as SERIAL
+  component "TipoDocDigListSerializer" as LISTSERIAL
+  component "AuditoriaMixin" as MIXIN
+  component "build_storage_path()" as BSP
+  note right of BSP
+    usa storage_key para
+    construir ruta del archivo:
+    documentos/{storage_key}/
+    {year}/{timestamp}_{key}.{ext}
+  end note
+}
+
+package "Sistema de Archivos" {
+  database "PostgreSQL" as DB
+  storage "Media Storage\n/app/media/documentos/{storage_key}/{year}/" as MEDIA
+}
+
+PAGE --> PANEL : "Master-Detail pattern\n(storage_key soloLectura en editar)"
+PAGE --> HOOK : usa
+PAGE --> DIALOG : confirmación eliminación
+
+HOOK --> CLIENT : peticiones HTTP
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/tipo-doc-dig/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados\n(page_size=100)"
+VIEWSET --> SERIAL : "create / update / destroy"
+
+SERIAL ..> SERIAL : "update(): descarta\nstorage_key del payload\npara proteger rutas"
+
+MIXIN ..> VIEWSET : "registra auditoría\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey\n['tipo-doc-dig']\n+ toast desde el hook"
+
+SERIAL --> DB : "INSERT / UPDATE\n(storage_key inmutable)"
+LISTSERIAL --> DB : "SELECT WHERE is_deleted=False"
+
+VIEWSET ..> DB : "verifica documentos activos\nantes de borrado lógico\n(instance.documentos.filter(...))"
+
+BSP --> MEDIA : "storage_key → ruta física\ndocumentos/{storage_key}/{year}/"
+DB ..> MEDIA : "tipo_doc_dig.storage_key\nreferencia a ruta en disco"
+
+@enduml

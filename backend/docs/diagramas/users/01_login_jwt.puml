@@ -1,0 +1,121 @@
+@startuml 01_login_jwt
+
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceActorBorderColor #1a3a5c
+skinparam noteBorderColor #e8edf2
+skinparam noteBackgroundColor #fafbfc
+
+title Login JWT — Clínica Lichi
+
+actor      "Usuario"         as USR
+participant "Login.jsx"       as LOGIN
+participant "AuthContext"      as CTX
+participant "apiClient\n(Axios)" as API
+participant "CustomToken\nObtainPairView" as VIEW
+participant "CustomToken\nObtainPairSerializer" as SER
+database   "PostgreSQL"       as DB
+
+== Ingreso de credenciales ==
+
+USR -> LOGIN : Ingresa username + password\ny presiona "Ingresar"
+activate LOGIN
+
+LOGIN -> CTX : login(username, password)
+activate CTX
+
+CTX -> API : POST /auth/token/\n{ username, password }
+activate API
+
+API -> VIEW : request
+activate VIEW
+
+VIEW -> SER : validate(attrs)
+activate SER
+
+SER -> DB : SELECT * FROM auth_user\nWHERE username = ?
+activate DB
+DB --> SER : User
+deactivate DB
+
+SER -> DB : SELECT * FROM users_perfilusuario\nWHERE user_id = ?
+activate DB
+DB --> SER : PerfilUsuario
+deactivate DB
+
+note right of SER
+  Verifica perfil.activo == True.
+  Si está inactivo → AuthenticationFailed
+end note
+
+SER --> VIEW : attrs validados
+deactivate SER
+
+== Construcción del token con claims custom ==
+
+VIEW -> SER : get_token(user)
+activate SER
+
+note right of SER
+  Agrega claims custom al payload JWT:
+  • rol
+  • nombre (nombre_completo)
+  • iniciales
+  • activo
+  • persona_rrhh_id
+  • medicos_asignados (lista de IDs)
+end note
+
+SER --> VIEW : { access_token, refresh_token }
+deactivate SER
+
+VIEW --> API : HTTP 200\n{ access, refresh }
+deactivate VIEW
+
+== Almacenamiento y decodificación ==
+
+API --> CTX : { access, refresh }
+deactivate API
+
+CTX -> CTX : localStorage.setItem('access_token', access)\nlocalStorage.setItem('refresh_token', refresh)
+CTX -> CTX : queryClient.clear()
+
+note right of CTX
+  buildUser(access):
+  Decodifica el payload base64 del JWT
+  y extrae todos los claims custom.
+end note
+
+CTX -> CTX : setUser(buildUser(access))
+
+CTX --> LOGIN : user actualizado
+deactivate CTX
+
+LOGIN -> LOGIN : navigate('/') — redirige al inicio
+deactivate LOGIN
+
+== Uso del contexto en la app ==
+
+participant "Sidebar"   as SB
+participant "PrivateRoute" as PR
+
+PR -> CTX : useAuth() → user
+note right of PR
+  Si user == null → redirige a /login
+end note
+
+SB -> CTX : useAuth() → user.rol
+note right of SB
+  Filtra grupos del menú
+  según la constante PERMISOS:
+  admin → todos los módulos
+  recepcionista → sin admin/rrhh
+  medico → pacientes, agenda, consultas
+  secretaria_medico → pacientes, agenda, consultas
+end note
+
+@enduml

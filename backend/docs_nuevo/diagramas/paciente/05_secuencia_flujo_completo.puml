@@ -1,0 +1,179 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor RECEP as "Recepcionista"
+
+boundary "PacientePage.jsx" as GUI
+boundary "PacienteForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSC
+boundary "FormPaciente.jsx" as FPAC
+control "usePatients.js" as HOOK
+control "PacienteViewSet" as PACVIEW
+control "PersonaViewSet" as PVIEW
+control "AgendaViewSet" as AGVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "Persona" as PERSONA
+entity "Paciente" as PAC
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== 1. Recepcionista crea paciente — persona no existia ==
+
+RECEP -> GUI : click "Nuevo paciente"
+GUI -> GUI : guardAction(() => setModo('crear'))
+GUI --> RECEP : Modal modo crear
+
+RECEP -> FORM : ingresa nro_documento="3000001"
+FORM -> BUSC : buscar()
+BUSC -> PVIEW : GET /api/persona/buscar/?nro_documento=3000001
+PVIEW -> BD : SELECT FROM persona WHERE nro_documento='3000001' AND is_deleted=False
+BD --> PVIEW : (vacio) — persona no existe
+PVIEW --> BUSC : { persona: null, paciente: null, es_paciente: false }
+
+BUSC --> FORM : resultado.modo = 'crear_todo'
+FORM --> RECEP : badge azul "Documento no encontrado"\nFormPersona (todos los campos editables)\nFormPaciente (sexo obligatorio, grupo_sanguineo, responsable, ...)
+
+== 2. Crea Persona y Paciente en modo crear_todo ==
+
+RECEP -> FORM : completa datos de Persona\n(razon_social:'Maria Garcia', tipo_documento,\ntelefono, ciudad, fecha_nacimiento)
+RECEP -> FPAC : completa datos del Paciente\n(sexo:'F', grupo_sanguineo:'A+',\nalergias_conocidas:'Penicilina')
+RECEP -> FORM : click Guardar (o F10)
+
+FORM -> PVIEW : POST /api/persona/\n{ tipo_documento, nro_documento:'3000001',\nrazon_social:'Maria Garcia', ... }
+PVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> PERSONA : serializer.save(id_usu_creator=request.user)
+PERSONA -> BD : INSERT persona (nro_documento='3000001', ...)
+BD --> PERSONA : id=60
+MIXIN -> BD : INSERT auditoria_registro (tabla='Persona', accion='CREAR')
+BD --> MIXIN : OK
+PVIEW --> FORM : 201 { id: 60 }
+
+FORM -> PACVIEW : POST /api/paciente/\n{ persona: 60, sexo:'F', grupo_sanguineo:'A+',\nalergias_conocidas:'Penicilina' }
+PACVIEW -> MIXIN : perform_create(serializer)
+MIXIN -> PAC : serializer.save(id_usu_creator=request.user)
+PAC -> BD : INSERT paciente (persona_id=60, ...)
+BD --> PAC : id=25
+MIXIN -> BD : INSERT auditoria_registro (tabla='Paciente', accion='CREAR')
+BD --> MIXIN : OK
+PACVIEW --> FORM : 201 { id: 25 }
+
+FORM -> HOOK : invalidateQueries(['patients'])
+FORM --> GUI : onSuccess()
+GUI -> GUI : showToast("Paciente guardado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> RECEP : toast exito — paciente creado
+
+== 3. Paciente recibe una cita en la agenda ==
+
+note over AGENDA, BD
+  La asignacion de cita se realiza desde la gestion de Agenda.
+  Un turno disponible se asigna al Paciente id=25.
+  El turno queda en estado OCUPADO.
+end note
+
+RECEP -> AGVIEW : PATCH /api/agenda/{turno_id}/asignar/\n{ paciente: 25 }
+AGVIEW -> MIXIN : perform_update(serializer)
+MIXIN -> AGENDA : serializer.save(id_usu_modificator=request.user)
+AGENDA -> BD : UPDATE agenda SET paciente_id=25, estado='OCUPADO' WHERE id=turno_id
+BD --> AGENDA : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='Agenda', accion='EDITAR')
+BD --> MIXIN : OK
+AGVIEW --> RECEP : 200 OK
+
+== 4. Recepcionista visualiza historial clinico del paciente ==
+
+RECEP -> GUI : click icono "Ver" en fila "Maria Garcia"
+GUI -> GUI : guardAction(() => setModo('ver'), setPacienteSel(pac))
+GUI --> RECEP : Modal modo ver — pestana Datos
+
+RECEP -> GUI : click pestana "Consultas"
+GUI -> PACVIEW : GET /api/consultas/?paciente=25
+BD --> GUI : historial de consultas
+GUI --> RECEP : lista de consultas del paciente
+
+RECEP -> GUI : click pestana "Documentos"
+GUI -> PACVIEW : GET /api/documentos/?paciente=25
+BD --> GUI : documentos sin consulta vinculada
+GUI --> RECEP : documentos directos del paciente
+
+== 5. Intento de eliminar el paciente — falla por cita activa ==
+
+RECEP -> GUI : click boton eliminar en fila "Maria Garcia"
+GUI --> RECEP : ConfirmDialog "Si tiene citas activas\nno se podra eliminar."
+RECEP -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(25)
+HOOK -> PACVIEW : DELETE /api/paciente/25/
+
+PACVIEW -> PAC : perform_destroy(instance)
+PAC -> AGENDA : Agenda.objects.filter(\n  paciente=instance, is_deleted=False,\n  estado__in=[DISPONIBLE, OCUPADO, REALIZADO]\n).exists()
+AGENDA -> BD : SELECT EXISTS FROM agenda\nWHERE paciente_id=25 AND is_deleted=False\nAND estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : True
+AGENDA --> PAC : tiene_activas = True
+
+PAC -> PACVIEW : raise ValidationError\n"No se puede eliminar: tiene citas activas vinculadas."
+PACVIEW --> HOOK : HTTP 400
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> RECEP : toast error — paciente sin cambios
+
+== 6. Recepcionista cancela la cita ==
+
+note over AGENDA, BD
+  La cancelacion de la cita se realiza desde la gestion de Agenda.
+  El turno pasa de estado OCUPADO a CANCELADO.
+  CANCELADO no bloquea el borrado logico del Paciente.
+end note
+
+RECEP -> AGVIEW : PATCH /api/agenda/{turno_id}/estado/\n{ estado: 'CANCELADO' }
+AGVIEW -> MIXIN : perform_update(serializer)
+MIXIN -> AGENDA : serializer.save(id_usu_modificator=request.user)
+AGENDA -> BD : UPDATE agenda SET estado='CANCELADO',\nid_usu_modificator=... WHERE id=turno_id
+BD --> AGENDA : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='Agenda', accion='EDITAR')
+BD --> MIXIN : OK
+AGVIEW --> RECEP : 200 OK
+
+== 7. Eliminacion exitosa del paciente ==
+
+RECEP -> GUI : click boton eliminar en fila "Maria Garcia"
+GUI --> RECEP : ConfirmDialog
+RECEP -> GUI : Confirmar
+
+GUI -> HOOK : eliminar.mutate(25)
+HOOK -> PACVIEW : DELETE /api/paciente/25/
+
+PACVIEW -> PAC : perform_destroy(instance)
+PAC -> AGENDA : Agenda.objects.filter(\n  paciente=instance, is_deleted=False,\n  estado__in=[DISPONIBLE, OCUPADO, REALIZADO]\n).exists()
+AGENDA -> BD : SELECT EXISTS FROM agenda\nWHERE paciente_id=25 AND is_deleted=False\nAND estado IN ('DISPONIBLE','OCUPADO','REALIZADO')
+BD --> AGENDA : False
+AGENDA --> PAC : tiene_activas = False
+
+PACVIEW -> MIXIN : super.perform_destroy()
+MIXIN -> PAC : is_deleted=True, fecha_eliminacion=now(),\nid_usu_modificator=request.user
+PAC -> BD : UPDATE paciente SET is_deleted=True WHERE id=25
+BD --> PAC : OK
+MIXIN -> BD : INSERT auditoria_registro (tabla='Paciente', accion='ELIMINAR')
+BD --> MIXIN : OK
+
+PACVIEW --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['patients'])
+HOOK -> GUI : showToast("Paciente eliminado correctamente.", "success")
+GUI -> GUI : cerrarModal()
+GUI --> RECEP : fila desaparece — toast exito
+
+note over PERSONA, BD
+  Paciente id=25 queda con is_deleted=True.
+  Persona id=60 (Maria Garcia) permanece en BD con is_deleted=False.
+  La Persona no puede eliminarse (PersonaViewSet lanza MethodNotAllowed).
+  El historial de consultas y documentos queda preservado en la BD.
+  La Persona puede reutilizarse: una nueva alta como Paciente
+  para nro_documento='3000001' creara un nuevo Paciente
+  vinculado a la misma Persona existente (modo agregar_paciente).
+end note
+
+@enduml

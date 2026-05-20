@@ -1,0 +1,94 @@
+@startuml 03_secuencia_crud
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "UsuariosPage.jsx" as GUI
+control "useUsuarios.js" as HOOK
+control "UsuarioViewSet" as VIEW
+entity "User\nPerfilUsuario" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1 — Listar usuarios ==
+
+ADMIN -> GUI : abre UsuariosPage
+GUI -> HOOK : useUsuarios({ search, rol, activo })
+HOOK -> VIEW : GET /api/usuarios/?search=&rol=&activo=
+VIEW -> BD : SELECT * FROM users_perfilusuario\nJOIN auth_user WHERE filtros
+BD --> VIEW : lista PerfilUsuario
+VIEW --> HOOK : 200 [ PerfilUsuarioSerializer[] ]
+HOOK --> GUI : data renderizada en tabla
+
+== Flujo 2 — Crear usuario ==
+
+ADMIN -> GUI : click "Nuevo usuario"
+GUI -> GUI : setModo('crear')
+ADMIN -> GUI : completa username, password,\nrol, nombre, apellido, email
+GUI -> HOOK : useCreateUsuario().mutateAsync(payload)
+HOOK -> VIEW : POST /api/usuarios/\n{ username, password, rol, ... }
+VIEW -> VIEW : UsuarioCreateSerializer.is_valid()
+VIEW -> BD : INSERT INTO auth_user\n(username, password_hash, ...)
+BD --> VIEW : User creado
+VIEW -> BD : INSERT INTO users_perfilusuario\n(user_id, rol, persona_rrhh_id)
+BD --> VIEW : PerfilUsuario creado
+VIEW -> VIEW : _log(CREAR, datos_despues)
+VIEW --> HOOK : 201 PerfilUsuarioSerializer
+HOOK -> HOOK : invalidateQueries(['usuarios'])
+HOOK --> GUI : tabla actualizada
+
+== Flujo 3 — Editar usuario ==
+
+ADMIN -> GUI : click Editar en una fila
+GUI -> GUI : setModo('editar')
+ADMIN -> GUI : modifica first_name, last_name,\nemail, rol, persona_rrhh
+GUI -> HOOK : useUpdateUsuario().mutateAsync({ id, ...payload })
+HOOK -> VIEW : PATCH /api/usuarios/{id}/\n{ first_name, last_name, email, rol }
+VIEW -> VIEW : UsuarioUpdateSerializer.is_valid()\nno cambia username ni password
+VIEW -> BD : UPDATE auth_user SET first_name, last_name, email
+VIEW -> BD : UPDATE users_perfilusuario SET rol, persona_rrhh_id
+BD --> VIEW : OK
+VIEW -> VIEW : _log(EDITAR, datos_antes, datos_despues)
+VIEW --> HOOK : 200 PerfilUsuarioSerializer
+HOOK -> HOOK : invalidateQueries(['usuarios'])
+HOOK --> GUI : tabla actualizada
+
+== Flujo 4 — Cambiar estado activo/inactivo ==
+
+ADMIN -> GUI : click toggle activo/inactivo
+GUI -> GUI : setConfirmEstado(usuario)
+ADMIN -> GUI : confirma en ConfirmDialog
+GUI -> HOOK : useCambiarEstadoUsuario().mutateAsync(id)
+HOOK -> VIEW : POST /api/usuarios/{id}/cambiar-estado/
+VIEW -> VIEW : check: no es_master\ncheck: no es el propio usuario
+VIEW -> BD : UPDATE users_perfilusuario\nSET activo = NOT activo
+BD --> VIEW : OK
+VIEW -> VIEW : _log(EDITAR, activo_antes, activo_despues)
+VIEW --> HOOK : 200 PerfilUsuarioSerializer
+HOOK -> HOOK : invalidateQueries(['usuarios'])
+HOOK --> GUI : tabla actualizada
+
+== Flujo 5 — Resetear contraseña ==
+
+ADMIN -> GUI : click Resetear contraseña
+GUI -> GUI : setModo('resetear')
+ADMIN -> GUI : ingresa nueva_password
+GUI -> HOOK : useResetearPassword().mutateAsync({ id, nueva_password })
+HOOK -> VIEW : POST /api/usuarios/{id}/resetear-password/\n{ nueva_password }
+VIEW -> VIEW : validar len >= 8\ncheck_password(nueva) != actual
+VIEW -> BD : UPDATE auth_user\nSET password = hash(nueva_password)
+BD --> VIEW : OK
+VIEW -> VIEW : _log(EDITAR, '***',\n'*** reseteada por administrador')
+VIEW --> HOOK : 200 { ok: true }
+HOOK --> GUI : showToast('Contraseña actualizada')
+
+@enduml

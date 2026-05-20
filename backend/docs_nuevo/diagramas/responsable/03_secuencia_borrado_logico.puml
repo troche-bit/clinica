@@ -1,0 +1,111 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+
+boundary "PacienteResponsablePage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useResponsable.js" as HOOK
+control "PacienteResponsableViewSet" as VIEW
+entity "PacienteResponsable" as RESP
+entity "Persona" as PERSONA
+entity "Paciente" as PACIENTE
+database "PostgreSQL" as BD
+
+== Flujo principal: borrado logico sin pacientes activos ==
+
+USUARIO -> GUI : click boton eliminar en tabla (solo rol admin)
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : "Eliminar responsable\nSi tiene pacientes vinculados\nactivos no se podra eliminar."
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+GUI -> GUI : setConfirmId(null)
+HOOK -> VIEW : DELETE /api/pacienteresponsable/{id}/
+
+VIEW -> RESP : perform_destroy(instance)
+RESP -> PACIENTE : Paciente.objects.filter(responsable=instance, is_deleted=False).count()
+PACIENTE -> BD : SELECT COUNT(*) FROM paciente\nWHERE responsable_id=id AND is_deleted=False
+BD --> PACIENTE : 0
+PACIENTE --> RESP : activos = 0
+
+VIEW -> VIEW : AuditoriaMixin.perform_destroy()
+VIEW -> RESP : instance.is_deleted=True\ninstance.fecha_eliminacion=now()\ninstance.id_usu_modificator=request.user\ninstance.save()
+RESP -> BD : UPDATE paciente_responsable\nSET is_deleted=True, fecha_eliminacion=...\nWHERE id=id
+BD --> RESP : OK
+
+note right of BD
+  Persona permanece en BD siempre.
+  Solo se marca is_deleted el Responsable.
+  La Persona puede reutilizarse
+  para otro rol o como nuevo responsable.
+end note
+
+VIEW -> BD : INSERT auditoria_registro\n(tabla='PacienteResponsable', accion='ELIMINAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 204 No Content
+
+HOOK -> HOOK : invalidateQueries(['responsables'])
+HOOK -> GUI : showToast("Responsable eliminado correctamente.", "success")
+GUI -> GUI : setConfirmId(null); cerrarModal()
+GUI --> USUARIO : toast exito, fila desaparece de tabla
+
+== Flujo alternativo: borrado bloqueado por pacientes activos ==
+
+USUARIO -> GUI : click boton eliminar en tabla
+GUI -> GUI : setConfirmId(id)
+GUI -> DIALOG : isOpen=true
+DIALOG --> USUARIO : confirmacion
+
+USUARIO -> DIALOG : click Confirmar
+DIALOG -> GUI : confirmarEliminar()
+GUI -> HOOK : eliminar.mutate(confirmId)
+HOOK -> VIEW : DELETE /api/pacienteresponsable/{id}/
+
+VIEW -> RESP : perform_destroy(instance)
+RESP -> PACIENTE : Paciente.objects.filter(responsable=instance, is_deleted=False).count()
+PACIENTE -> BD : SELECT COUNT(*) FROM paciente\nWHERE responsable_id=id AND is_deleted=False
+BD --> PACIENTE : 2
+PACIENTE --> RESP : activos = 2
+
+RESP -> VIEW : raise ValidationError\n"No se puede eliminar: tiene 2 paciente(s) vinculado(s) activo(s)."
+
+note right of VIEW
+  AuditoriaMixin.perform_destroy()
+  NO se ejecuta.
+  No se crea RegistroAuditoria.
+  El Responsable NO se modifica.
+  Los Pacientes vinculados permanecen
+  intactos con su responsable asignado.
+  Debe desvincularse cada paciente
+  desde la gestion de pacientes
+  antes de poder eliminar el responsable.
+end note
+
+VIEW --> HOOK : HTTP 400\n{ detail: 'No se puede eliminar: tiene 2 paciente(s) vinculado(s) activo(s).' }
+
+HOOK -> GUI : onError callback
+HOOK -> GUI : showToast(extraerMensajeError(err), "error")
+GUI -> GUI : setConfirmId(null)
+GUI --> USUARIO : toast con cantidad exacta de pacientes vinculados
+
+== Nota: Persona siempre indestructible ==
+
+note over PERSONA, BD
+  PersonaViewSet.perform_destroy() lanza MethodNotAllowed.
+  Nunca se puede eliminar directamente una Persona.
+  El borrado logico del Responsable (is_deleted=True)
+  no afecta a la Persona vinculada.
+  La Persona permanece disponible para ser
+  reutilizada en un nuevo registro de Responsable
+  gracias al UniqueConstraint condicional
+  (WHERE is_deleted=False).
+end note
+
+@enduml

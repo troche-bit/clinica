@@ -1,0 +1,89 @@
+@startuml 02_secuencia_crud
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "ConsultorioPage.jsx" as GUI
+control "useConsultorios.js" as HOOK
+control "ConsultorioViewSet" as VIEW
+entity "Consultorio" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar con búsqueda ==
+
+USUARIO -> GUI : abre página
+GUI -> HOOK : useConsultorios(search='')
+HOOK -> VIEW : GET /api/consultorio/
+VIEW -> MODEL : filter(is_deleted=False)
+MODEL -> BD : SELECT WHERE is_deleted=False
+BD --> MODEL : registros
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON [{ id, nro_consultorio, descripcion }]
+HOOK --> GUI : data
+GUI --> USUARIO : renderiza tabla + panel cerrado
+
+USUARIO -> GUI : escribe en búsqueda (debounce 300ms)
+GUI -> HOOK : useConsultorios(search='valor')
+HOOK -> VIEW : GET /api/consultorio/?search=valor
+VIEW -> MODEL : filter(is_deleted=False) + SearchFilter
+MODEL -> BD : SELECT WHERE ... ILIKE '%valor%'
+BD --> MODEL : registros filtrados
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON filtrado
+HOOK --> GUI : data actualizada
+GUI --> USUARIO : tabla actualizada
+
+== Flujo 2: Crear ==
+
+USUARIO -> GUI : click "Nuevo consultorio"
+GUI -> GUI : setModo('crear'), setSeleccionado(null)
+GUI --> USUARIO : PanelSimple modo crear
+
+USUARIO -> GUI : completa formulario y click Guardar
+GUI -> HOOK : crear.mutateAsync({ nro_consultorio, descripcion })
+HOOK -> VIEW : POST /api/consultorio/
+VIEW -> VIEW : AuditoriaMixin.perform_create()
+VIEW -> MODEL : serializer.save(id_usu_creator=request.user)
+MODEL -> BD : INSERT INTO consultorio
+BD --> MODEL : registro creado
+MODEL --> VIEW : instancia
+VIEW -> BD : INSERT INTO auditoria_registro (accion=CREAR)
+VIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['consultorios'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Consultorio creado correctamente."
+
+== Flujo 3: Editar ==
+
+USUARIO -> GUI : click botón Editar en tabla
+GUI -> GUI : setSeleccionado(c), setModo('editar')
+GUI --> USUARIO : PanelSimple modo editar con datos
+
+USUARIO -> GUI : modifica campos y click Guardar
+GUI -> HOOK : actualizar.mutateAsync({ id, nro_consultorio, descripcion })
+HOOK -> VIEW : PATCH /api/consultorio/{id}/
+VIEW -> VIEW : AuditoriaMixin.perform_update()
+VIEW -> MODEL : serializer.save(id_usu_modificator=request.user)
+MODEL -> BD : UPDATE consultorio SET ... WHERE id=id
+BD --> MODEL : registro actualizado
+MODEL --> VIEW : instancia
+VIEW -> BD : INSERT INTO auditoria_registro (accion=EDITAR)
+VIEW --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['consultorios'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Consultorio actualizado correctamente."
+
+@enduml

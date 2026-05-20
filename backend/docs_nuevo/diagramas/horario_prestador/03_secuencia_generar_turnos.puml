@@ -1,0 +1,118 @@
+@startuml 03_secuencia_generar_turnos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "HorarioPrestadorPage.jsx" as GUI
+control "useHorarioPrestador.js" as HOOK
+control "HorarioPrestadorViewSet" as VIEW
+entity "HorarioPrestador" as HORARIO
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== Flujo principal: generacion de turnos ==
+
+ADMIN -> GUI : selecciona prestador\n(panel en modo 'ver')
+
+note right of GUI
+  La seccion "Generar turnos" esta integrada
+  en el panel lateral en modo 'ver'.
+  No es un modal separado.
+  genDesde se inicializa a la fecha actual.
+  genHasta se inicializa a hoy + 30 dias.
+end note
+
+GUI -> GUI : previsualizarTurnos(horariosActuales,\ngenDesde, genHasta) — calculo cliente-side
+GUI --> ADMIN : preview: "Se generaran N turno(s)\nentre 12/05/2026 y 31/05/2026"
+
+note right of GUI
+  previsualizarTurnos() calcula slots sin HTTP:
+  1. Itera fechas del rango
+  2. Compara dia de semana con cada horario activo
+  3. Calcula slots = floor((minHasta - minDesde) / intervalo)
+  4. Para el dia de hoy, avanza al primer slot futuro
+  El resultado es solo orientativo — los
+  turnos reales puede que ya existan.
+end note
+
+ADMIN -> GUI : confirma y click "Confirmar generacion"
+GUI -> GUI : handleGenerar()
+
+loop Por cada horario activo del prestador
+  GUI -> HOOK : generarTurnos({ id: horario.id, fecha_desde, fecha_hasta })
+  HOOK -> VIEW : POST /api/horario-prestador/{id}/generar/\n{ fecha_desde:'2026-05-12',\nfecha_hasta:'2026-05-31' }
+
+  VIEW -> VIEW : Si fecha_desde < hoy:\nfecha_desde = hoy
+
+  loop Por cada dia en el rango
+    VIEW -> VIEW : Si horario NO es excepcion:\n  compara horario.dia_semana.id\n  con fecha.weekday() + 1
+    VIEW -> VIEW : Si horario ES excepcion:\n  compara horario.fecha_excepcion == fecha_actual
+
+    VIEW -> VIEW : Si el dia NO coincide: continuar
+
+    loop Por cada slot (hora_actual < hora_hasta)
+      VIEW -> AGENDA : Agenda.objects.filter(\n  horario_prestador=horario,\n  fecha=fecha_actual,\n  hora_desde=hora_actual.time(),\n  is_deleted=False\n).exists()
+      AGENDA -> BD : SELECT EXISTS FROM agenda\nWHERE horario_prestador_id=id\nAND fecha=fecha AND hora_desde=hora
+      BD --> AGENDA : existe / no existe
+
+      alt No existe
+        VIEW -> AGENDA : Agenda.objects.create(\n  horario_prestador=horario,\n  fecha=fecha_actual,\n  hora_desde=hora_actual.time(),\n  hora_hasta=hora_fin.time(),\n  estado='DISPONIBLE',\n  id_usu_creator=request.user\n)
+        AGENDA -> BD : INSERT agenda
+        BD --> AGENDA : OK
+        VIEW -> VIEW : creados += 1
+      else Ya existe
+        VIEW -> VIEW : omitidos += 1
+      end
+
+      VIEW -> VIEW : hora_actual += intervalo
+    end
+  end
+
+  VIEW -> VIEW : detalle.append({ fecha, dia,\nturnos_creados, turnos_omitidos })
+  VIEW --> HOOK : { creados: X, omitidos: Y, detalle: [...] }
+  HOOK --> GUI : res.data
+  GUI -> GUI : totalCreados += res.data.creados\ndetalleTotal += res.data.detalle
+end
+
+GUI -> GUI : setGenResult({ creados: totalCreados, detalle: detalleTotal })
+GUI -> GUI : showToast("Generacion completada: N turnos.", "success")
+GUI --> ADMIN : resultado con detalle por dia\n+ toast exito
+
+note right of ADMIN
+  La Agenda queda con los nuevos turnos
+  en estado DISPONIBLE.
+  Los turnos duplicados (ya existentes)
+  se cuentan en omitidos y no se duplican.
+  useGenerarTurnos NO invalida el cache
+  de ['horarios-prestador'] — solo afecta Agenda.
+end note
+
+== Flujo alternativo: fechas invalidas ==
+
+ADMIN -> GUI : fecha_hasta < fecha_desde
+VIEW -> VIEW : Si fecha_hasta < fecha_desde (luego\nde ajustar fecha_desde al dia actual):\nreturn HTTP 400 'La fecha Hasta no puede\nser menor a la fecha actual.'
+VIEW --> HOOK : HTTP 400
+HOOK --> GUI : onError
+GUI -> GUI : showToast(extraerMensajeError(err), "error")
+GUI --> ADMIN : toast error
+
+== Flujo alternativo: todos los turnos ya existen ==
+
+note over HORARIO, BD
+  Si todos los slots del rango ya existen
+  en Agenda con is_deleted=False, el backend
+  retorna { creados: 0, omitidos: N, detalle: [...] }.
+  El frontend muestra el resultado igualmente.
+  No es un error — es el comportamiento esperado
+  para generaciones repetidas (idempotente).
+end note
+
+GUI -> GUI : setGenResult({ creados: 0, detalle: [...] })
+GUI -> GUI : showToast("Generacion completada: 0 turnos.", "success")
+GUI --> ADMIN : resultado: 0 turnos creados, N omitidos
+
+@enduml

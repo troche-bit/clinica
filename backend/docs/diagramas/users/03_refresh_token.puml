@@ -1,0 +1,105 @@
+@startuml 03_refresh_token
+
+!theme plain
+skinparam backgroundColor #f0f4f8
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #1a3a5c
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceActorBorderColor #1a3a5c
+skinparam noteBorderColor #e8edf2
+skinparam noteBackgroundColor #fafbfc
+
+title Refresh de Token JWT — Clínica Lichi
+
+participant "Componente\n(cualquier hook)" as COMP
+participant "apiClient\n(Axios)"           as API
+participant "Interceptor\nAxios (pendiente)" as INT
+participant "TokenRefresh\nView (simplejwt)" as REF
+participant "TokenObtain\nView"             as TOK
+participant "AuthContext"                   as CTX
+database   "PostgreSQL"                     as DB
+
+note over INT
+  El interceptor de respuesta está
+  pendiente de implementación en client.js.
+  Este diagrama muestra el flujo objetivo.
+end note
+
+== Request original con token vencido ==
+
+COMP -> API : GET|POST /api/cualquier-endpoint/\nAuthorization: Bearer {access_token_vencido}
+activate API
+
+API -> INT : Interceptor de request agrega header
+API --> API : HTTP 401 Unauthorized
+
+== Interceptor detecta 401 ==
+
+API -> INT : onResponseError(error)
+activate INT
+
+INT -> INT : error.response.status === 401?\n→ sí, iniciar refresh
+
+note right of INT
+  Se guarda la request original
+  para reintentarla después
+end note
+
+INT -> INT : refresh_token = localStorage.getItem('refresh_token')
+
+alt refresh_token existe
+
+  INT -> REF : POST /api/token/refresh/\n{ refresh: refresh_token }
+  activate REF
+
+  REF -> DB : SELECT oustanding_token WHERE token = ?\nVERIFY not blacklisted, not expired
+  activate DB
+  DB --> REF : Token válido
+  deactivate DB
+
+  REF --> INT : HTTP 200\n{ access: new_access_token }
+  deactivate REF
+
+  INT -> INT : localStorage.setItem('access_token', new_access_token)
+
+  note right of INT
+    Actualiza el header por defecto
+    de Axios para todas las requests
+    siguientes
+  end note
+
+  INT -> API : Reintentar request original\ncon nuevo access_token
+  activate API
+  API --> COMP : Respuesta exitosa
+  deactivate API
+  deactivate INT
+
+else refresh_token no existe o refresh falla
+
+  INT -> REF : POST /api/token/refresh/\n{ refresh: refresh_token }
+  activate REF
+  REF --> INT : HTTP 401 — Token inválido o vencido
+  deactivate REF
+
+  INT -> CTX : logout()
+  activate CTX
+  CTX -> CTX : queryClient.clear()\nlocalStorage.clear()\nsetUser(null)
+  CTX --> INT : OK
+  deactivate CTX
+
+  INT --> COMP : Error — redirige a /login
+  deactivate INT
+
+end
+
+== Flujo alternativo: renovación proactiva ==
+
+note over API, CTX
+  Alternativa no implementada:
+  renovar el token antes de que venza
+  usando el campo "exp" del payload JWT
+  (disponible via decodeJwt en AuthContext)
+end note
+
+@enduml

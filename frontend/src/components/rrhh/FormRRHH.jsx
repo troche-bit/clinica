@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useEspecialidades } from '../../hooks/clinica/useEspecialidades'
+import { useEspecialidades, useEspecialidadMutations } from '../../hooks/clinica/useEspecialidades'
 import { X, Search } from 'lucide-react'
 import apiClient from '../../api/client'
 
@@ -26,10 +26,12 @@ const ESTADOS = [
 function SelectorEspecialidades({ seleccionadas, onChange }) {
   const { data: espData } = useEspecialidades()
   const todas             = espData?.results ?? espData ?? []
+  const { crear }         = useEspecialidadMutations()
 
   const [busqueda,   setBusqueda]   = useState('')
   const [abierto,    setAbierto]    = useState(false)
   const [focusIdx,   setFocusIdx]   = useState(-1)
+  const [creando,    setCreando]    = useState(false)
 
   const inputRef   = useRef(null)
   const wrapRef    = useRef(null)
@@ -50,6 +52,9 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
     !seleccionadas.includes(e.id) &&
     e.descripcion?.toLowerCase().includes(busqueda.toLowerCase())
   )
+  const mostrarCrear = busqueda.trim().length > 0
+  const totalItems   = opciones.length + (mostrarCrear ? 1 : 0)
+
   useEffect(() => { setFocusIdx(-1) }, [busqueda])
 
   useEffect(() => {
@@ -68,6 +73,20 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
 
   const quitar = (id) => onChange(seleccionadas.filter(s => s !== id))
 
+  const crearEspecialidad = async () => {
+    const nombre = busqueda.trim()
+    if (!nombre || creando) return
+    setCreando(true)
+    try {
+      const res = await crear.mutateAsync({ descripcion: nombre })
+      agregar(res.data)
+    } catch {
+      // silencioso
+    } finally {
+      setCreando(false)
+    }
+  }
+
   const handleKeyDown = (e) => {
     if (!abierto && (e.key === 'ArrowDown' || e.key === 'Enter')) {
       setAbierto(true)
@@ -75,13 +94,17 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setFocusIdx(i => Math.min(i + 1, opciones.length - 1))
+      setFocusIdx(i => Math.min(i + 1, totalItems - 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setFocusIdx(i => Math.max(i - 1, -1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (focusIdx >= 0 && opciones[focusIdx]) agregar(opciones[focusIdx])
+      if (focusIdx === opciones.length && mostrarCrear) {
+        crearEspecialidad()
+      } else if (focusIdx >= 0 && opciones[focusIdx]) {
+        agregar(opciones[focusIdx])
+      }
     } else if (e.key === 'Escape') {
       setAbierto(false)
       setFocusIdx(-1)
@@ -127,7 +150,7 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
 
       {abierto && (
         <div className="se-dropdown" ref={listRef}>
-          {opciones.length === 0
+          {opciones.length === 0 && !mostrarCrear
             ? <div className="se-dropdown-empty">
                 {busqueda ? 'Sin resultados' : 'Todas las especialidades ya fueron seleccionadas'}
               </div>
@@ -142,6 +165,15 @@ function SelectorEspecialidades({ seleccionadas, onChange }) {
                 </div>
               ))
           }
+          {mostrarCrear && (
+            <div
+              className={`se-dropdown-crear${focusIdx === opciones.length ? ' se-dropdown-item-focus' : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); crearEspecialidad() }}
+              onMouseEnter={() => setFocusIdx(opciones.length)}
+            >
+              {creando ? 'Creando...' : `+ Crear "${busqueda.trim()}"`}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -266,6 +298,14 @@ export default function FormRRHH({ prestador = null, onChange }) {
         .se-dropdown-empty {
           padding: 12px 14px; font-size: 13px; color: #9ca3af; text-align: center;
         }
+        .se-dropdown-crear {
+          padding: 9px 14px; font-size: 13.5px; color: #1a3a5c; cursor: pointer;
+          border-top: 1px solid #e8edf2; font-weight: 500;
+          transition: background 0.1s;
+        }
+        .se-dropdown-crear:hover, .se-dropdown-crear.se-dropdown-item-focus {
+          background: #eff6ff;
+        }
         .se-hint {
           font-size: 11px; color: #9ca3af; margin-top: 4px;
         }
@@ -278,7 +318,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
       <div className="fr-grid">
 
         <div className="fr-group">
-          <label className="fr-label">Fecha de ingreso</label>
+          <label className="fr-label fr-label-required">Fecha de ingreso</label>
           <input type="date" className="fr-input" value={form.fecha_ingreso}
             onChange={e => set('fecha_ingreso', e.target.value)} />
         </div>
@@ -329,7 +369,7 @@ export default function FormRRHH({ prestador = null, onChange }) {
             seleccionadas={form.especialidades}
             onChange={(ids) => set('especialidades', ids)}
           />
-          <span className="se-hint">↓ / ↑ navegar · Enter seleccionar · Backspace quitar último</span>
+          <span className="se-hint">Escribí para buscar · si no existe, aparece la opción de crear · ↓ / ↑ navegar · Enter seleccionar</span>
         </div>
 
         <div className="fr-group">

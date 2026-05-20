@@ -1,0 +1,246 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "ConsultasPage.jsx" as PAGE
+  component "VistaMedico" as VMEDICO
+  component "VistaRecepcionista" as VREC
+  component "PanelConsultaActiva" as PANEL
+  component "PanelDocumentos" as DOCS
+  component "ModalHistoriaClinica" as HISTORIA
+  component "TimelineConsulta" as TIMELINE
+  component "Ticker" as TICKER
+  component "TextareaConContador" as TEXTAREA
+  component "SelectorFecha" as SELECTORF
+  component "useConsultas.js" as HOOK
+  component "useAgenda.js" as AHOOK
+  component "client.js" as CLIENT
+
+  note right of PAGE
+    Dos pestañas: Medico / Recepcionista.
+    Pestañas solo visibles para admin.
+    esRestringido = esMedico || esSecretaria:
+    roles restringidos van directo a VistaMedico.
+    Carga: useEventosClinicos + useTipoDocDig
+    para pasarlos como props a PanelConsultaActiva.
+  end note
+
+  note right of VMEDICO
+    Auto-selecciona medicoSeleccionado:
+    - medico: usa user.persona_rrhh_id
+    - secretaria con 1 asignado: usa medico_asignado_id
+    - secretaria con varios o admin: buscador de medicos
+    listaUnificada: mezcla turnosOcupados + consultas
+    cruzados por agenda.id.
+    listaVisible: para esRestringido filtra finalizadas/
+    anuladas (solo visibles si dentroDelLimite24h y esMedico).
+    hayConsultaEnCurso: bloquea el boton "Iniciar" mientras
+    hay una consulta en_consulta activa.
+    handleCrearEIniciar: POST consulta + POST iniciar
+    en secuencia → setConsultaActiva(iniciada).
+    SelectorFecha: solo visible para admin.
+    window.beforeunload: avisa si hay consultaActiva
+    al intentar cerrar el navegador.
+  end note
+
+  note right of PANEL
+    Dos columnas: paciente (220px) + edicion (flex).
+    Acordeon colapsable en mobile para datos de paciente.
+    Datos clinicos del paciente via ConsultaPacienteSerializer:
+    grupo_sanguineo, alergias (con banner de alerta si presentes),
+    enfermedades_cronicas, responsable (nombre + telefono).
+    Form: motivo_consulta*, diagnostico*, tratamiento*,
+    indicaciones*, evento_clinico, proxima_cita.
+    *: campos requeridos para finalizar (CAMPOS_REQ_CONSULTA).
+    intentoFinalizar: activa borde rojo en campos vacios.
+    formPayload(): proxima_cita: '' → null.
+    autoSave via setInterval(30s) mientras en_consulta.
+    puedeEditarAun = esCerrada && dentroDelLimite24h:
+    habilita "Guardar cambios" y muestra tiempo restante.
+    ConfirmDialog para finalizar y para anular.
+    handleFinalizar: PATCH datos → POST finalizar.
+    handleAnular: PATCH datos → POST anular.
+    handleGuardarFinalizada: PATCH datos (solo cuando cerrada).
+    ModalHistoriaClinica: filtra por medicoNombre + especialidadFiltro.
+  end note
+
+  note right of DOCS
+    Upload por drag-and-drop o click.
+    Selector de tipo de documento requerido antes de subir.
+    Formatos aceptados: PDF, JPG, JPEG, PNG.
+    Vista: fetch nativo para blob autenticado.
+    - Imagen → overlay pantalla completa
+    - PDF/otro → window.open('_blank')
+    Descarga: apiClient blob + link.click().
+    Eliminar: ConfirmDialog local.
+    Documentos vinculados a consulta via campo
+    `consulta` en FormData del POST.
+  end note
+
+  note right of HISTORIA
+    Modal con TimelineConsulta items.
+    Carga useConsultasPaciente(paciente.id)
+    → todas las consultas del paciente.
+    Filtra client-side por medicoNombre.
+    Select de especialidad para sub-filtro.
+    TimelineConsulta: card expandible con
+    motivo, diagnostico, tratamiento + docs vinculados.
+    Documentos en timeline: eye button, overlay imagen.
+  end note
+
+  note right of TICKER
+    Componente de reloj para consultas en_consulta.
+    Muestra minutos transcurridos desde hora_desde.
+    setInterval(10s) para actualizar en tiempo real.
+    conUrgencia=true (en VistaRecepcionista):
+      verde < 15 min, amarillo <= 30, rojo > 30.
+    conUrgencia=false (en tarjetas VistaMedico):
+      sin color diferencial.
+  end note
+
+  note right of HOOK
+    useConsultasDelDia(personaRrhhId, fecha):
+      queryKey=['consultas','dia',personaRrhhId,fecha]
+      enabled: !!(personaRrhhId && fecha)
+      refetchInterval=60s
+    useConsultasPaciente(pacienteId): page_size=50
+    useIniciarConsulta / useFinalizarConsulta /
+    useAnularConsulta: invalidan consultas + agenda
+    useUpdateConsulta: invalida solo consultas
+    useCrearConsulta: invalida consultas + agenda
+    useConsultasHoy(fecha?): refetchInterval=60s
+    useStatsConsultasHoy: staleTime=60s, refetchInterval=60s
+    invalidarAgenda(): invalida agenda-dia, agenda-mes,
+    agenda-dia-global, agenda-resumen-mes,
+    agenda-global-mes, agenda-rango, agenda-stats-hoy
+    TOAST: siempre en la pagina (nunca en el hook).
+  end note
+}
+
+package "Backend" {
+  component "ConsultaViewSet" as VIEWSET
+  component "ConsultaListSerializer" as LISTSERIAL
+  component "ConsultaSerializer" as SERIAL
+  component "ConsultaAgendaSerializer" as AGENDASERIAL
+  component "ConsultaPacienteSerializer" as PACSERIAL
+  component "ConsultaMedicoSerializer" as MEDSERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of VIEWSET
+    Permisos de dos niveles:
+    destroy/eliminados = IsAuthenticated + IsAdminRole.
+    todo lo demas = IsAuthenticated.
+    get_queryset filtra por rol JWT:
+    - medico: solo sus consultas (agenda.hp.persona_rrhh_id)
+    - secretaria_medico: solo medicos_asignados (__in)
+    - otros: acepta ?persona_rrhh= query param
+    Params adicionales: ?fecha= ?estado= ?paciente=
+    partial_update: consultas finalizada/anulada
+    solo editables por medico/admin y dentro de 24h.
+    perform_destroy: verifica DocumentoDigPaciente activos.
+    @action iniciar: en_espera → en_consulta, registra hora_desde.
+    @action finalizar: en_consulta → finalizada, hora_hasta,
+    actualiza Agenda.estado = 'REALIZADO'.
+    @action anular: en_consulta → anulada, registra hora_hasta.
+    @action stats-hoy: {total, en_espera, en_consulta, finalizadas}.
+    @action reporte-consultas: PDF WeasyPrint, agrupado por especialidad.
+    @action reporte-consultas-excel: Excel openpyxl.
+    @action dashboard-consultas: stats del mes.
+    @action historia-clinica: PDF WeasyPrint por paciente.
+    _consultas_agrupadas(): helper compartido PDF/Excel.
+  end note
+
+  note right of SERIAL
+    validate() en POST:
+    - agenda.estado debe ser 'ocupado'
+    - no debe existir consulta activa para esa agenda
+    Solo para create (self.instance is None).
+    PATCH: sin validaciones adicionales en validate().
+    partial_update en view maneja la restriccion
+    de edicion post-cierre (rol + limite 24h).
+  end note
+
+  note right of LISTSERIAL
+    ModelSerializer de solo lectura.
+    agenda_detalle: ConsultaAgendaSerializer
+      → paciente_detalle: ConsultaPacienteSerializer
+         (nombre, doc, fecha_nacimiento, grupo_sanguineo,
+          alergias, enfermedades_cronicas,
+          responsable_nombre, responsable_telefono)
+      → medico_detalle: ConsultaMedicoSerializer
+         (persona_rrhh_id, nombre, iniciales)
+      → especialidades: [descripcion, ...]
+    medico_nombre: SerializerMethodField
+    especialidad_nombre: primer elemento
+    evento_clinico_nombre: tipo_evento
+    Todos los campos de Consulta (incluyendo indicaciones).
+  end note
+}
+
+package "Base de Datos" {
+  database "consulta" as DBCON
+  database "agenda" as DBAG
+  database "horario_prestador" as DBHP
+  database "paciente / persona" as DBPAC
+  database "documento_dig_paciente" as DBDOC
+  database "evento_clinico" as DBEV
+}
+
+PAGE --> VMEDICO : "si rol medico/secretaria\no pestaña medico"
+PAGE --> VREC : "si rol recepcionista/admin\no pestaña recepcionista"
+VMEDICO --> PANEL : "consultaActiva seleccionada"
+VMEDICO --> HISTORIA : "boton Historia clinica\ndentro de PanelConsultaActiva"
+PANEL --> DOCS : "PanelDocumentos\n(consulta.id, paciente.id)"
+PANEL --> TEXTAREA : "N textareas con contador\nde caracteres"
+HISTORIA --> TIMELINE : "N TimelineConsulta items"
+TIMELINE --> TICKER : "si estado es en_consulta"
+PAGE --> SELECTORF : "solo para admin\nen VistaRecepcionista"
+VMEDICO --> SELECTORF : "solo para admin\nen VistaMedico"
+
+PAGE --> HOOK : "useConsultasDelDia()\nuseConsultasHoy()\nuseCrearConsulta()\nuseIniciarConsulta()\nuseFinalizarConsulta()\nuseAnularConsulta()\nuseUpdateConsulta()\nuseStatsConsultasHoy()\nuseConsultasPaciente()"
+PAGE --> AHOOK : "useAgendaDia()\nuseAgendaDiaGlobal()"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/consultas/"
+CLIENT --> VIEWSET : "POST /api/consultas/{id}/iniciar/"
+CLIENT --> VIEWSET : "POST /api/consultas/{id}/finalizar/"
+CLIENT --> VIEWSET : "POST /api/consultas/{id}/anular/"
+CLIENT --> VIEWSET : "GET /api/consultas/stats-hoy/"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados"
+VIEWSET --> SERIAL : "create / partial_update"
+LISTSERIAL --> AGENDASERIAL : "agenda_detalle"
+AGENDASERIAL --> PACSERIAL : "paciente_detalle"
+AGENDASERIAL --> MEDSERIAL : "medico_detalle"
+
+MIXIN ..> VIEWSET : "registra auditoria (CREAR/EDITAR/ELIMINAR)"
+
+SERIAL --> DBCON : "INSERT / UPDATE consulta"
+LISTSERIAL --> DBCON : "SELECT JOIN agenda, evento_clinico"
+LISTSERIAL --> DBAG : "SELECT agenda JOIN hp, paciente"
+LISTSERIAL --> DBHP : "SELECT JOIN persona_rrhh, especialidades"
+LISTSERIAL --> DBPAC : "SELECT JOIN persona, responsable"
+
+VIEWSET ..> DBAG : "UPDATE agenda.estado=REALIZADO\nen @action finalizar"
+VIEWSET ..> DBDOC : "SELECT EXISTS en perform_destroy\n(bloquea si hay docs activos)"
+VIEWSET ..> DBEV : "FK evento_clinico"
+
+DOCS --> CLIENT : "POST /api/documentos/ [multipart]\nGET /api/documentos/{id}/descargar/ [fetch nativo]\nDELETE /api/documentos/{id}/"
+
+@enduml

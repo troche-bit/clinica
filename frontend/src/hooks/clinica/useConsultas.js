@@ -40,6 +40,16 @@ export function useConsultaDetalle(consultaId) {
   })
 }
 
+function invalidarAgenda(qc) {
+  qc.invalidateQueries({ queryKey: ['agenda-dia'] })
+  qc.invalidateQueries({ queryKey: ['agenda-mes'] })
+  qc.invalidateQueries({ queryKey: ['agenda-dia-global'] })
+  qc.invalidateQueries({ queryKey: ['agenda-resumen-mes'] })
+  qc.invalidateQueries({ queryKey: ['agenda-global-mes'] })
+  qc.invalidateQueries({ queryKey: ['agenda-rango'] })
+  qc.invalidateQueries({ queryKey: ['agenda-stats-hoy'] })
+}
+
 export function useIniciarConsulta() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -49,7 +59,7 @@ export function useIniciarConsulta() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultas'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda'] })
+      invalidarAgenda(queryClient)
     },
   })
 }
@@ -63,11 +73,21 @@ export function useFinalizarConsulta() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultas'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda-dia'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda-mes'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda-dia-global'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda-resumen-mes'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda-global-mes'] })
+      invalidarAgenda(queryClient)
+    },
+  })
+}
+
+export function useAnularConsulta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (consultaId) => {
+      const { data } = await apiClient.post(`${BASE}${consultaId}/anular/`)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['consultas'] })
+      invalidarAgenda(queryClient)
     },
   })
 }
@@ -94,7 +114,7 @@ export function useCrearConsulta() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultas'] })
-      queryClient.invalidateQueries({ queryKey: ['agenda'] })
+      invalidarAgenda(queryClient)
     },
   })
 }
@@ -111,13 +131,14 @@ export function useStatsConsultasHoy() {
   })
 }
 
-export function useConsultasHoy() {
+export function useConsultasHoy(fecha) {
   const d   = new Date()
-  const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const def = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const f   = fecha || def
   return useQuery({
-    queryKey: ['consultas', 'hoy', hoy],
+    queryKey: ['consultas', 'hoy', f],
     queryFn: async () => {
-      const { data } = await apiClient.get(BASE, { params: { fecha: hoy, page_size: 100 } })
+      const { data } = await apiClient.get(BASE, { params: { fecha: f, page_size: 100 } })
       return data
     },
     refetchInterval: 60_000,

@@ -1,0 +1,243 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor MEDICO
+actor RECEPCIONISTA
+
+boundary "ConsultasPage.jsx" as GUI
+control "useConsultas.js" as HOOK
+control "useAgenda.js" as AHOOK
+control "ConsultaViewSet" as VIEW
+control "AgendaViewSet" as AVIEW
+control "AuditoriaMixin" as MIXIN
+entity "Consulta" as CONSULTA
+entity "Agenda" as AGENDA
+entity "DocumentoDigPaciente" as DOCENTITY
+database "PostgreSQL" as BD
+
+== 1. Recepcionista ve el monitor del dia ==
+
+RECEPCIONISTA -> GUI : abre ConsultasPage\npestaña Recepcionista
+
+GUI -> AHOOK : useAgendaDiaGlobal('2026-05-20')
+AHOOK -> AVIEW : GET /api/agenda/?fecha=2026-05-20
+AVIEW -> BD : SELECT agenda WHERE fecha='2026-05-20'\nAND estado IN ('ocupado','realizado')
+BD --> AVIEW : 12 turnos ocupados
+AVIEW --> AHOOK : turnosData
+
+GUI -> HOOK : useConsultasHoy('2026-05-20') [60s]
+HOOK -> VIEW : GET /api/consultas/?fecha=2026-05-20
+VIEW -> BD : SELECT consulta WHERE agenda.fecha='2026-05-20'\nAND is_deleted=False
+BD --> VIEW : consultas del dia
+VIEW --> HOOK : { results: [3 en_espera, 1 en_consulta, 2 finalizada] }
+
+GUI -> GUI : stats = { total:12, pendientes:6,\nen_consulta:1, finalizadas:2 }
+GUI --> RECEPCIONISTA : grilla 4 stats + tabla\n12 filas con estado de cada turno\nTicker para la consulta en_consulta
+
+== 2. Medico abre su vista y ve sus turnos ==
+
+MEDICO -> GUI : abre ConsultasPage\n(rol medico — sin tabs, VistaMedico)
+
+GUI -> GUI : esMedico=true → medicoSeleccionado = { id: user.persona_rrhh_id }
+
+GUI -> HOOK : useConsultasDelDia(drMartinez.id, '2026-05-20') [60s]
+HOOK -> VIEW : GET /api/consultas/?persona_rrhh=3&fecha=2026-05-20
+VIEW -> BD : SELECT consulta WHERE agenda.hp.persona_rrhh_id=3\nAND agenda.fecha='2026-05-20' AND is_deleted=False
+BD --> VIEW : consultas del medico
+VIEW --> HOOK : { results: [...] }
+
+GUI -> AHOOK : useAgendaDia(drMartinez.id, '2026-05-20')
+AHOOK -> AVIEW : GET /api/agenda/?persona_rrhh=3&fecha=2026-05-20
+AVIEW -> BD : SELECT agenda WHERE...
+BD --> AVIEW : turnos del medico
+
+GUI -> GUI : listaVisible = turnosOcupados (4 turnos)\nsin consulta aun: 3 turnos
+GUI --> MEDICO : 4 tarjetas — 3 con boton "Iniciar consulta"\n1 en_espera con boton "Iniciar"
+
+== 3. Medico inicia la primera consulta del dia ==
+
+MEDICO -> GUI : click "Iniciar consulta" en\nturno 09:00 — Carlos Lopez
+
+GUI -> HOOK : crearConsulta({ agenda: turno_id_1 })
+HOOK -> VIEW : POST /api/consultas/\n{ agenda: 101 }
+
+VIEW -> VIEW : validate()\n  Agenda.objects.get(101).estado == 'ocupado' OK\n  Consulta.objects.filter(agenda=101, is_deleted=False)\n  .exists() == False OK
+
+VIEW -> MIXIN : perform_create(serializer)
+MIXIN -> CONSULTA : serializer.save(id_usu_creator=request.user)
+CONSULTA -> BD : INSERT consulta(agenda_id=101,\nestado='en_espera', hora_desde=null)
+BD --> CONSULTA : id=55
+MIXIN -> BD : INSERT auditoria_registro (CREAR)
+VIEW --> HOOK : 201 { id:55, estado:'en_espera' }
+HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+
+GUI -> HOOK : iniciarConsulta(55)
+HOOK -> VIEW : POST /api/consultas/55/iniciar/
+VIEW -> CONSULTA : estado='en_consulta'\nhora_desde=09:05:00
+CONSULTA -> BD : UPDATE consulta SET estado='en_consulta',\nhora_desde='09:05:00' WHERE id=55
+BD --> CONSULTA : OK
+VIEW --> HOOK : 200 { estado:'en_consulta', hora_desde:'09:05:00' }
+HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+
+GUI -> GUI : setConsultaActiva(iniciada)\nshowToast('Consulta iniciada.', 'success')
+GUI --> MEDICO : PanelConsultaActiva:\n- Carlos Lopez, 42 anos, Cardiologo\n- Alergias: Penicilina (banner ambar)\n- Turno: 09:00 - 09:30\n- Ticker: 0 min (verde)
+
+note right of RECEPCIONISTA
+  En el siguiente ciclo de 60s,
+  VistaRecepcionista actualiza:
+  en_consulta = 2
+  Ticker para turno de drMartinez
+  muestra minutos transcurridos.
+end note
+
+== 4. Medico completa el formulario clinico ==
+
+MEDICO -> GUI : ingresa Motivo: "Dolor en el pecho"
+MEDICO -> GUI : ingresa Diagnostico: "HTA estadio II"
+MEDICO -> GUI : ingresa Tratamiento: "Enalapril 10mg"
+MEDICO -> GUI : ingresa Indicaciones:\n"Control en 30 dias, dieta hiposodica"
+MEDICO -> GUI : selecciona EventoClinico: "Control"
+MEDICO -> GUI : ingresa ProximaCita: 2026-06-20
+
+note right of GUI
+  autoSave: cada 30s el formulario hace
+  PATCH con los datos actuales.
+  Sin toasts en autoguardado.
+end note
+
+GUI -> HOOK : [autoguardado 30s]\nupdateConsulta({ id:55,\nmotivo_consulta:'Dolor en el pecho',\ndiagnostico:'HTA estadio II', ... })
+HOOK -> VIEW : PATCH /api/consultas/55/ { ... }
+VIEW -> MIXIN : perform_update(serializer)
+MIXIN -> CONSULTA : save(id_usu_modificator=user)
+CONSULTA -> BD : UPDATE consulta SET motivo_consulta=..., diagnostico=...,\ntratamiento=..., indicaciones=..., evento_clinico_id=...,\nproxima_cita='2026-06-20' WHERE id=55
+BD --> CONSULTA : OK
+MIXIN -> BD : INSERT auditoria_registro (EDITAR)
+VIEW --> HOOK : 200 OK
+
+== 5. Medico sube un documento durante la consulta ==
+
+MEDICO -> GUI : selecciona tipo: "Electrocardiograma"\narrastra archivo ecg_carlos.pdf
+
+GUI -> VIEW : POST /api/documentos/ [multipart]\n{ archivo: ecg_carlos.pdf, paciente: 22,\ntipo_doc_dig: 5, consulta: 55 }
+VIEW --> GUI : 201 { id: 88, filename: 'ecg_carlos.pdf' }
+GUI -> GUI : showToast('Documento subido correctamente.', 'success')
+GUI --> MEDICO : archivo en lista de documentos\nicono rojo PDF + botones ver/descargar/eliminar
+
+== 6. Medico finaliza la consulta ==
+
+MEDICO -> GUI : click "Completar consulta"
+
+GUI -> GUI : handleClickFinalizar()\n  intentoFinalizar = true\n  faltantes = [] (todos completos)
+GUI -> GUI : setConfirmFinalizar(true)
+GUI --> MEDICO : ConfirmDialog "¿Confirmar la finalizacion?\nEl turno pasara al estado Realizado."
+
+MEDICO -> GUI : click Confirmar
+
+GUI -> HOOK : updateConsulta({ id:55, ...form })
+HOOK -> VIEW : PATCH /api/consultas/55/\n{ motivo, diagnostico, tratamiento, indicaciones,\nevento_clinico_id, proxima_cita:'2026-06-20' }
+VIEW --> HOOK : 200 OK
+
+GUI -> HOOK : finalizarConsulta(55)
+HOOK -> VIEW : POST /api/consultas/55/finalizar/
+
+VIEW -> VIEW : consulta.estado == 'en_consulta' OK
+VIEW -> CONSULTA : estado = 'finalizada'\nhora_hasta = timezone.localtime().time() → '09:38:00'
+CONSULTA -> BD : UPDATE consulta\nSET estado='finalizada', hora_hasta='09:38:00'\nWHERE id=55
+BD --> CONSULTA : OK
+
+VIEW -> AGENDA : agenda = consulta.agenda
+VIEW -> AGENDA : agenda.estado = 'REALIZADO'\nagenda.save()
+AGENDA -> BD : UPDATE agenda SET estado='REALIZADO'\nWHERE id=101
+BD --> AGENDA : OK
+
+VIEW --> HOOK : 200 ConsultaListSerializer
+HOOK -> HOOK : invalidateQueries(['consultas'])\ninvalidarAgenda()
+
+GUI -> GUI : showToast('Consulta finalizada correctamente.', 'success')
+GUI -> GUI : setConsultaActiva(null)
+GUI --> MEDICO : vuelve a lista de 4 turnos\nprimero aparece como Finalizada (opaco)
+
+== 7. Recepcionista ve el estado actualizado ==
+
+note right of RECEPCIONISTA
+  En el proximo ciclo de 60s:
+  stats: en_consulta=1, finalizadas=3
+  La fila de Carlos Lopez muestra
+  badge Finalizada.
+end note
+
+== 8. Medico ve historia clinica del proximo paciente ==
+
+MEDICO -> GUI : click turno 09:30 — Maria Garcia\nclick "Iniciar consulta"
+
+GUI -> HOOK : crearConsulta + iniciarConsulta (igual que paso 3)
+GUI -> GUI : setConsultaActiva(segunda consulta)
+
+MEDICO -> GUI : click "Historia clinica — Cardiologia"
+GUI -> GUI : setModalHistoria(true)
+
+GUI -> HOOK : useConsultasPaciente(paciente.id)
+HOOK -> VIEW : GET /api/consultas/?paciente=22&page_size=50
+VIEW -> BD : SELECT consulta WHERE agenda.paciente_id=22\nAND is_deleted=False ORDER BY -agenda.fecha
+BD --> VIEW : historial de consultas
+VIEW --> HOOK : { results: [consulta anterior de mayo...] }
+HOOK --> GUI : todasConsultas
+
+GUI -> GUI : consultasMedico = todasConsultas\n.filter(c => c.medico_nombre === 'Dr. Martinez')
+GUI --> MEDICO : ModalHistoriaClinica\nTimeline: 1 consulta previa (fecha/hora/estado)\nExpandida: motivo, diagnostico, tratamiento\nDocumentos: ecg_carlos.pdf (icono PDF rojo)
+
+MEDICO -> GUI : cierra modal historia
+GUI --> MEDICO : vuelve a PanelConsultaActiva\ncontinua atencion
+
+== 9. Borrado logico — verificacion de documentos ==
+
+note over MEDICO, BD
+  Si se intenta borrar una consulta via
+  DELETE /api/consultas/{id}/ (solo admin):
+
+  perform_destroy verifica:
+  DocumentoDigPaciente.objects.filter(
+    consulta=instance, is_deleted=False
+  ).exists() → ValidationError si True
+  ("No se puede eliminar: la consulta tiene documentos asociados.")
+
+  Si no tiene documentos activos:
+  AuditoriaMixin.perform_destroy():
+  - instance.is_deleted = True
+  - instance.fecha_eliminacion = now()
+  - instance.save()
+  - INSERT auditoria_registro (ELIMINAR)
+  La Agenda correspondiente NO se modifica
+  (permanece en su estado actual).
+end note
+
+== 10. Edicion post-cierre dentro de 24 hs ==
+
+note over MEDICO, CONSULTA
+  Si el medico detecto un error en el diagnostico
+  y la consulta fue finalizada hace 2 horas:
+
+  dentroDelLimite24h(consulta) → True
+  puedeEditarAun = True
+  → tarjeta muestra boton "Editar"
+  → click → setConsultaActiva(consulta)
+  → panel con campos habilitados
+  → banner "Tiempo restante para editar: 21h 58m"
+  → click "Guardar cambios" → PATCH
+
+  partial_update en VIEW:
+  estado == 'finalizada' Y rol == 'medico' → OK
+  timezone.now() < fecha_modificacion + 24h → OK
+  serializer.save() → UPDATE consulta
+
+  Si ya pasaron 24 hs:
+  partial_update → ValidationError
+  "Esta consulta no puede modificarse:
+  han pasado mas de 24 horas desde su cierre."
+end note
+
+@enduml

@@ -1,0 +1,120 @@
+@startuml 04_componentes
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam package {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+package "Frontend" {
+  component "PacienteResponsablePage.jsx" as PAGE
+  component "ResponsableForm.jsx" as RFORM
+  component "BuscadorPersona.jsx" as BUSC
+  component "FormPersona.jsx" as FPER
+  component "FormResponsable.jsx" as FRESP
+  component "useResponsable.js" as HOOK
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as DIALOG
+
+  note right of PAGE
+    Patron Modal
+    modo: ver / editar / crear / null
+    isOpen={modo !== null}
+    Paginacion 20 por pagina
+    PDF export (blob autenticado)
+    Insert abre modo crear
+  end note
+
+  note right of RFORM
+    Orquestador:
+    BuscadorPersona + FormPersona + FormResponsable
+    Guardado secuencial Persona->Responsable.
+    markDirty() al detectar resultado.
+    markClean() al guardar o desmontar.
+    F10 para guardar.
+  end note
+
+  note right of BUSC
+    Detecta modo segun buscar/:
+    crear_todo (persona: null)
+    agregar_paciente (persona existe, no resp)
+    editar (es_responsable: true)
+    Badge de color por modo.
+  end note
+
+  note right of FRESP
+    Sub-formulario solo campos propios:
+    grupo_sanguineo, ocupacion,
+    es_contacto_emergencia, observacion.
+    Notifica al padre via onChange(form).
+  end note
+}
+
+package "Backend" {
+  component "PacienteResponsableViewSet" as VIEWSET
+  component "PersonaViewSet" as PVIEW
+  component "PacienteResponsableListSerializer" as LISTSERIAL
+  component "PacienteResponsableSerializer" as SERIAL
+  component "AuditoriaMixin" as MIXIN
+
+  note right of PVIEW
+    perform_destroy lanza MethodNotAllowed.
+    Persona es indestructible.
+  end note
+
+  note right of VIEWSET
+    @action buscar: detecta modo
+    segun existencia de persona y responsable.
+    @action eliminados: lista borrados.
+    @action reporte_lista: PDF WeasyPrint.
+    perform_destroy: verifica count()
+    de pacientes activos vinculados.
+  end note
+}
+
+package "Base de Datos" {
+  database "persona" as DBPER
+  database "paciente_responsable" as DBRESP
+  database "paciente\n(FK a responsable)" as DBPAC
+}
+
+PAGE --> RFORM : "modal crear / editar"
+PAGE --> HOOK : "useResponsables (paginado)\nuseResponsableMutations(showToast)"
+PAGE --> DIALOG : "confirmacion eliminacion\n(menciona restriccion por pacientes)"
+
+RFORM --> BUSC : "buscar por documento\n(tipo='responsable')"
+RFORM --> FPER : "sub-formulario persona"
+RFORM --> FRESP : "sub-formulario responsable"
+
+HOOK --> CLIENT : "peticiones HTTP"
+CLIENT --> VIEWSET : "GET/POST/PATCH/DELETE\n/api/pacienteresponsable/"
+CLIENT --> PVIEW : "POST/PATCH /api/persona/"
+
+BUSC --> CLIENT : "GET /api/pacienteresponsable/buscar/?nro_documento=X"
+
+VIEWSET --> MIXIN : hereda
+VIEWSET --> LISTSERIAL : "list / retrieve / eliminados"
+VIEWSET --> SERIAL : "create / update / destroy"
+
+MIXIN ..> VIEWSET : "registra auditoria\n(CREAR/EDITAR/ELIMINAR)"
+
+HOOK ..> PAGE : "invalida queryKey ['responsables']\n+ toast desde el hook (eliminar)\n+ toast desde la pagina (guardar)"
+
+SERIAL --> DBRESP : "INSERT / UPDATE\npaciente_responsable"
+LISTSERIAL --> DBRESP : "SELECT JOIN persona\nWHERE is_deleted=False"
+
+VIEWSET ..> DBPAC : "verifica count pacientes activos\nantes de borrado logico"
+VIEWSET ..> DBPER : "buscar nro_documento"
+PVIEW ..> DBPER : "INSERT / UPDATE persona"
+
+@enduml

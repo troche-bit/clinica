@@ -1,0 +1,64 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+abstract class BaseModel {
+  + id : AutoField
+  + is_deleted : BooleanField = False
+  + fecha_creacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + fecha_modificacion : DateTimeField
+  + id_usu_modificator : ForeignKey
+  + fecha_eliminacion : DateTimeField [null]
+}
+
+class Especialidad {
+  + id : AutoField <<PK>>
+  + descripcion : CharField(150)
+  --
+  db_table = 'especialidad'
+  ordering = ['descripcion']
+  unique: Lower(descripcion) WHERE is_deleted=False
+  index: idx_esp_desc_is_deleted
+  --
+  + __str__() : str
+}
+
+class PersonaRRHH {
+  + id : AutoField <<PK>>
+  + especialidades : ManyToManyField
+  + ...
+  --
+  tabla intermedia: personarrhh_especialidades
+}
+
+BaseModel <|-- Especialidad : hereda
+BaseModel <|-- PersonaRRHH : hereda
+
+Especialidad "0..*" <--> "0..*" PersonaRRHH : especialidades\n(M2M)
+
+note bottom of Especialidad
+  Una especialidad puede estar asignada
+  a muchos prestadores.
+  Un prestador puede tener
+  muchas especialidades.
+end note
+
+@enduml

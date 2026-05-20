@@ -1,0 +1,104 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor USUARIO
+boundary "ConsultorioPage.jsx" as GUI
+control "useConsultorios.js" as HOOK
+control "ConsultorioViewSet" as VIEW
+control "AuditoriaMixin" as MIXIN
+entity "Consultorio" as MODEL
+database "PostgreSQL" as BD
+
+== 1. Crear consultorio ==
+
+USUARIO -> GUI : click "Nuevo consultorio"
+GUI -> GUI : setModo('crear')
+GUI --> USUARIO : PanelSimple modo crear
+
+USUARIO -> GUI : ingresa nro_consultorio="05", descripcion="Piso 2"
+USUARIO -> GUI : click Guardar
+GUI -> HOOK : crear.mutateAsync({ nro_consultorio: "05", descripcion: "Piso 2" })
+HOOK -> VIEW : POST /api/consultorio/
+
+VIEW -> MIXIN : perform_create(serializer)
+MIXIN -> MODEL : serializer.save(id_usu_creator=request.user)
+MODEL -> BD : INSERT INTO consultorio (nro_consultorio, descripcion, id_usu_creator, ...)
+BD --> MODEL : { id: 42, nro_consultorio: "05", ... }
+MODEL --> MIXIN : instancia creada
+
+MIXIN -> BD : INSERT INTO auditoria_registro\n(tabla='Consultorio', registro_id=42,\naccion='CREAR', datos_despues={...},\nusuario=request.user)
+BD --> MIXIN : OK
+MIXIN --> VIEW : 201 Created
+
+VIEW --> HOOK : { id: 42, nro_consultorio: "05", descripcion: "Piso 2" }
+HOOK -> HOOK : invalidateQueries(['consultorios'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Consultorio creado correctamente."
+
+== 2. Editar consultorio ==
+
+USUARIO -> GUI : click botón Editar en fila id=42
+GUI -> GUI : setSeleccionado({ id: 42, ... }), setModo('editar')
+GUI --> USUARIO : PanelSimple modo editar con datos cargados
+
+USUARIO -> GUI : cambia descripcion="Piso 2 - Ala Norte"
+USUARIO -> GUI : click Guardar
+GUI -> HOOK : actualizar.mutateAsync({ id: 42, descripcion: "Piso 2 - Ala Norte" })
+HOOK -> VIEW : PATCH /api/consultorio/42/
+
+VIEW -> MIXIN : perform_update(serializer)
+MIXIN -> MODEL : serializer.save(id_usu_modificator=request.user)
+MODEL -> BD : UPDATE consultorio SET descripcion=...,\nid_usu_modificator=..., fecha_modificacion=...\nWHERE id=42
+BD --> MODEL : OK
+MODEL --> MIXIN : instancia actualizada
+
+MIXIN -> BD : INSERT INTO auditoria_registro\n(tabla='Consultorio', registro_id=42,\naccion='EDITAR',\ndatos_antes={descripcion:"Piso 2"},\ndatos_despues={descripcion:"Piso 2 - Ala Norte"},\nusuario=request.user)
+BD --> MIXIN : OK
+MIXIN --> VIEW : 200 OK
+
+VIEW --> HOOK : registro actualizado
+HOOK -> HOOK : invalidateQueries(['consultorios'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : cerrarPanel()
+GUI --> USUARIO : toast "Consultorio actualizado correctamente."
+
+== 3. Intento de eliminación con dependencias activas ==
+
+USUARIO -> GUI : click botón Eliminar en fila id=42
+GUI -> GUI : setConfirmId(42)
+GUI --> USUARIO : ConfirmDialog: "¿Estás seguro...?\nSi tiene horarios de prestador activos\nno se podrá eliminar."
+
+USUARIO -> GUI : click Confirmar
+GUI -> HOOK : eliminar.mutate(42)
+HOOK -> VIEW : DELETE /api/consultorio/42/
+
+VIEW -> MODEL : perform_destroy(instance)
+note right of MODEL : Validación de dependencias\nantes de delegar al mixin
+MODEL -> BD : SELECT * FROM horario_prestador\nWHERE consultorio_id=42\nAND is_deleted=False
+BD --> MODEL : [horario_1, horario_2, ...]
+
+MODEL -> VIEW : raise ValidationError\n'No se puede eliminar:\ntiene horarios de prestador activos.'
+note right of VIEW : AuditoriaMixin NO ejecuta\nel borrado lógico porque\nperform_destroy lanzó excepción\nantes de llamar a super()
+
+VIEW --> HOOK : HTTP 400 { detail: 'No se puede eliminar:\ntiene horarios de prestador activos.' }
+
+HOOK -> GUI : onError(err)
+GUI -> GUI : extraerMensajeError(err)
+GUI --> USUARIO : toast "No se puede eliminar:\ntiene horarios de prestador activos."
+
+note over BD : Registro id=42 permanece intacto:\nis_deleted=False\nNO se crea RegistroAuditoria\npara operación fallida
+
+@enduml

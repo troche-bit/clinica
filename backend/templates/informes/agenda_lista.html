@@ -1,0 +1,115 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 6pt; margin-bottom: 8pt; }
+.rpt-hdr-left  { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right { display: table-cell; vertical-align: bottom; text-align: right; }
+
+.rpt-clinica { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo  { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-meta    { font-size: 7.5pt; color: #555; margin-top: 2pt; }
+
+/* ── Grupo por médico ── */
+.rpt-grupo { margin-bottom: 14pt; page-break-inside: avoid; }
+.rpt-grupo-hdr {
+  background: #1a3a5c; color: #fff;
+  padding: 4pt 7pt; display: table; width: 100%; margin-bottom: 0;
+}
+.rpt-grupo-nombre { display: table-cell; font-size: 9pt; font-weight: bold; vertical-align: middle; }
+.rpt-grupo-total  { display: table-cell; font-size: 8pt; text-align: right; vertical-align: middle; opacity: .85; }
+
+.rpt-table { width: 100%; border-collapse: collapse; }
+.rpt-table th {
+  background: #eef2f7; color: #1a3a5c;
+  font-size: 7pt; text-transform: uppercase; letter-spacing: .04em;
+  padding: 3pt 4pt; text-align: left; border-bottom: 1pt solid #c7d7ed;
+}
+.rpt-table td {
+  font-size: 8pt; padding: 3pt 4pt;
+  border-bottom: 1px solid #e8e8e8; vertical-align: middle;
+}
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+.col-fecha  { width: 10%; text-align: center; }
+.col-hora   { width: 7%;  text-align: center; }
+.col-pac    { width: 30%; }
+.col-esp    { width: 33%; }
+.col-est    { width: 10%; text-align: center; }
+
+.badge { display: inline-block; border-radius: 3pt; padding: 1pt 5pt; font-size: 6.5pt; font-weight: bold; text-transform: uppercase; }
+.badge-disponible { background: #d1fae5; color: #065f46; }
+.badge-ocupado    { background: #dbeafe; color: #1e40af; }
+.badge-realizado  { background: #ede9fe; color: #5b21b6; }
+.badge-cancelado  { background: #fee2e2; color: #991b1b; }
+.badge-inactivo   { background: #f3f4f6; color: #4b5563; }
+
+.rpt-sin-datos { text-align: center; color: #777; padding: 10pt 0; font-size: 9pt; }
+
+.rpt-footer {
+  margin-top: 8pt; text-align: right; font-size: 7pt; color: #777;
+  border-top: 1px solid #ccc; padding-top: 4pt;
+}
+{% endblock %}
+
+{% block content %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+      <div class="rpt-titulo">Agenda de Turnos</div>
+      <div class="rpt-meta">
+        Período: {{ fecha_desde }} — {{ fecha_hasta }}
+        {% if filtros.estado != 'Todos' %} &nbsp;·&nbsp; Estado: {{ filtros.estado }}{% endif %}
+      </div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-meta">Total: <strong>{{ total }}</strong> turno{{ total|pluralize:"s" }}</div>
+    </div>
+  </div>
+
+  {% if grupos_medico %}
+    {% for grupo in grupos_medico %}
+    <div class="rpt-grupo">
+      <div class="rpt-grupo-hdr">
+        <div class="rpt-grupo-nombre">{{ grupo.medico }}</div>
+        <div class="rpt-grupo-total">{{ grupo.total }} turno{{ grupo.total|pluralize:"s" }}</div>
+      </div>
+      <table class="rpt-table">
+        <thead>
+          <tr>
+            <th class="col-fecha">Fecha</th>
+            <th class="col-hora">Hora</th>
+            <th class="col-pac">Paciente</th>
+            <th class="col-esp">Especialidad</th>
+            <th class="col-est">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in grupo.turnos %}
+          <tr>
+            <td class="col-fecha">{{ t.fecha }}</td>
+            <td class="col-hora">{{ t.hora }}</td>
+            <td class="col-pac">{{ t.paciente }}</td>
+            <td class="col-esp">{{ t.especialidad }}</td>
+            <td class="col-est">
+              <span class="badge badge-{{ t.estado_raw }}">{{ t.estado }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="rpt-sin-datos">Sin turnos para el período indicado.</div>
+  {% endif %}
+
+  <div class="rpt-footer">
+    Generado el {% now "d/m/Y H:i" %}
+  </div>
+
+</div>
+{% endblock %}

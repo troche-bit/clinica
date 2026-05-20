@@ -1,22 +1,8 @@
-import { useState, useEffect } from 'react'
-import { X, Pencil, Trash2, Check } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Pencil, Trash2, Check, ChevronLeft } from 'lucide-react'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
+import { useNavigationGuard } from '../../hooks/useNavigationGuard'
 
-/**
- * Panel lateral genérico para el patrón Master-Detail.
- *
- * Props:
- *   titulos   { nuevo, editar, ver } — títulos del panel según el modo
- *   icono     ReactNode — ícono que aparece en modo 'ver'
- *   campos    Array<{ name, label, placeholder, requerido, soloLectura? }> — definición de campos
- *             soloLectura: true → muestra como texto en modo 'editar' (no se puede cambiar)
- *   item      Object|null — datos del item seleccionado (null en modo 'crear')
- *   modo      'ver' | 'editar' | 'crear'
- *   onCancelar  () => void
- *   onGuardar   (form: Object) => void
- *   onEditar    () => void
- *   onEliminar  (id: number) => void
- *   guardando   bool — deshabilita el botón Guardar mientras se procesa
- */
 export default function PanelSimple({
   titulos,
   icono,
@@ -28,17 +14,22 @@ export default function PanelSimple({
   onEditar,
   onEliminar,
   guardando = false,
+  ocultarEliminar = false,
 }) {
-  // Construye el estado del formulario a partir de los campos definidos y el item actual
   const construirEstado = () =>
     campos.reduce((acc, c) => ({ ...acc, [c.name]: item?.[c.name] || '' }), {})
 
-  const [form, setForm] = useState(construirEstado)
+  const [form, setForm]     = useState(construirEstado)
+  const initialFormRef      = useRef(construirEstado())
+  const { markDirty, markClean, guardAction } = useNavigationGuard()
 
-  // Sincroniza el formulario cuando cambia el item o el modo
   useEffect(() => {
-    setForm(construirEstado())
+    const estado = construirEstado()
+    setForm(estado)
+    initialFormRef.current = estado
   }, [item, modo])
+
+  useEffect(() => { return () => markClean() }, [markClean])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -49,20 +40,30 @@ export default function PanelSimple({
   const esCreacion = modo === 'crear'
   const esVista    = modo === 'ver'
 
-  // El botón Guardar se habilita solo cuando todos los campos requeridos tienen valor
   const formValido = campos
     .filter(c => c.requerido && !c.soloLectura)
     .every(c => form[c.name]?.trim())
 
   const titulo = esCreacion ? titulos.nuevo : esEdicion ? titulos.editar : titulos.ver
 
+  const isDirty = (esEdicion || esCreacion) &&
+    campos.some(c => (form[c.name] || '') !== (initialFormRef.current[c.name] || ''))
+
+  useEffect(() => { isDirty ? markDirty() : markClean() }, [isDirty])
+
+  const handleCancelar = () => guardAction(onCancelar)
+
+  useAtajosTeclado({
+    'F10': { fn: () => { if ((esEdicion || esCreacion) && formValido && !guardando) onGuardar(form) }, soloFueraDeInputs: false },
+  })
+
   return (
     <>
       <style>{`
-        /* ── PanelSimple — panel lateral para el patrón Master-Detail ── */
         .panel-root {
           width: 340px; flex-shrink: 0; background: #ffffff;
           border: 1px solid #e8edf2; border-radius: 12px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
           display: flex; flex-direction: column;
           animation: panelSlideIn 0.2s ease;
           font-family: 'DM Sans', sans-serif;
@@ -70,6 +71,17 @@ export default function PanelSimple({
         @keyframes panelSlideIn {
           from { opacity: 0; transform: translateX(16px); }
           to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes panelSlideInMobile {
+          from { transform: translateX(100%); }
+          to   { transform: translateX(0); }
+        }
+        @media (max-width: 767px) {
+          .panel-root {
+            position: fixed; inset: 0; z-index: 100;
+            width: 100%; border-radius: 0; border: none;
+            animation: panelSlideInMobile 0.25s ease;
+          }
         }
         .panel-header {
           display: flex; align-items: center; justify-content: space-between;
@@ -84,7 +96,7 @@ export default function PanelSimple({
           justify-content: center; color: #9ca3af; transition: all 0.15s;
         }
         .panel-close:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-        .panel-body  { padding: 20px; flex: 1; }
+        .panel-body  { padding: 20px; flex: 1; overflow-y: auto; }
         .panel-field { margin-bottom: 16px; }
         .panel-label {
           font-size: 12px; font-weight: 500; color: #9ca3af;
@@ -99,7 +111,6 @@ export default function PanelSimple({
         }
         .panel-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
         .panel-input::placeholder { color: #d1d5db; }
-        /* Campo bloqueado en modo edición — visualmente diferenciado del input normal */
         .panel-value-readonly {
           font-size: 13.5px; color: #6b7280; font-family: 'Courier New', monospace;
           background: #f8fafc; border: 1.5px solid #e8edf2; border-radius: 9px;
@@ -112,7 +123,17 @@ export default function PanelSimple({
         }
         .panel-footer {
           padding: 14px 20px; border-top: 1px solid #f0f4f8;
-          display: flex; gap: 8px; justify-content: flex-end;
+          display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+        }
+        .panel-kbd-hint {
+          font-size: 10.5px; color: #9ca3af; margin-right: auto;
+          display: flex; align-items: center; gap: 4px;
+        }
+        .panel-kbd {
+          display: inline-flex; align-items: center; justify-content: center;
+          font-size: 10px; font-family: 'Courier New', monospace;
+          background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px;
+          padding: 1px 5px; color: #6b7280; box-shadow: 0 1px 0 #b0b7c3; line-height: 1.4;
         }
         .panel-btn {
           display: inline-flex; align-items: center; gap: 6px;
@@ -128,18 +149,45 @@ export default function PanelSimple({
         .panel-btn-danger            { background: #fff; color: #dc2626; border: 1px solid #fecaca; }
         .panel-btn-danger:hover      { background: #fef2f2; }
         .panel-avatar {
-          width: 48px; height: 48px; border-radius: 12px; background: #dbeafe;
+          width: 48px; height: 48px; border-radius: 12px; background: #e8f0fe;
           display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+          padding: 12px; box-sizing: border-box; color: #1a3a5c;
+        }
+        .panel-mobile-back { display: none; }
+        @media (max-width: 767px) {
+          .panel-mobile-back {
+            display: flex; align-items: center;
+            padding: 10px 16px; border-bottom: 1px solid #f0f4f8;
+            flex-shrink: 0;
+          }
+          .panel-back-btn {
+            display: flex; align-items: center; gap: 4px;
+            background: none; border: none; cursor: pointer;
+            font-size: 13px; font-weight: 500; color: #1a3a5c;
+            font-family: 'DM Sans', sans-serif; padding: 4px 0;
+          }
+          .panel-close { display: none; }
+          .panel-footer {
+            position: sticky; bottom: 0;
+            background: #fff;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+          }
         }
       `}</style>
 
       <div className="panel-root">
+        <div className="panel-mobile-back">
+          <button className="panel-back-btn" onClick={handleCancelar}>
+            <ChevronLeft size={16} /> Volver
+          </button>
+        </div>
+
         <div className="panel-header">
           <div className="panel-header-left">
             <div className="panel-header-bar" />
             <span className="panel-header-title">{titulo}</span>
           </div>
-          <button className="panel-close" onClick={onCancelar}><X size={14} /></button>
+          <button className="panel-close" onClick={handleCancelar}><X size={14} /></button>
         </div>
 
         <div className="panel-body">
@@ -148,7 +196,6 @@ export default function PanelSimple({
           )}
 
           {campos.map((campo, idx) => {
-            // En modo editar, los campos soloLectura se muestran como texto bloqueado
             const bloqueado = esEdicion && campo.soloLectura
 
             return (
@@ -182,9 +229,11 @@ export default function PanelSimple({
         <div className="panel-footer">
           {esVista && (
             <>
-              <button className="panel-btn panel-btn-danger" onClick={() => onEliminar(item.id)}>
-                <Trash2 size={13} /> Eliminar
-              </button>
+              {!ocultarEliminar && (
+                <button className="panel-btn panel-btn-danger" onClick={() => onEliminar(item.id)}>
+                  <Trash2 size={13} /> Eliminar
+                </button>
+              )}
               <button className="panel-btn panel-btn-primary" onClick={onEditar}>
                 <Pencil size={13} /> Editar
               </button>
@@ -192,7 +241,10 @@ export default function PanelSimple({
           )}
           {(esEdicion || esCreacion) && (
             <>
-              <button className="panel-btn panel-btn-secondary" onClick={onCancelar}>
+              <span className="panel-kbd-hint">
+                <span className="panel-kbd">F10</span> Guardar
+              </span>
+              <button className="panel-btn panel-btn-secondary" onClick={handleCancelar}>
                 Cancelar
               </button>
               <button

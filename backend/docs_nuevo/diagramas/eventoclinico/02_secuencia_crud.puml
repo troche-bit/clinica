@@ -1,0 +1,98 @@
+@startuml 02_secuencia_crud
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+
+boundary "EventoClinicoPage.jsx" as GUI
+control "useEventosClinicos.js" as HOOK
+control "EventoClinicoViewSet" as VIEW
+entity "EventoClinico" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar con busqueda ==
+
+ADMIN -> GUI : abre pagina
+GUI -> HOOK : useEventosClinicos(search='')
+HOOK -> VIEW : GET /api/eventoclinico/
+VIEW -> MODEL : filter(is_deleted=False)
+MODEL -> BD : SELECT WHERE is_deleted=False ORDER BY tipo_evento
+BD --> MODEL : registros
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON [{ id, tipo_evento }]
+HOOK --> GUI : data (staleTime 5 min)
+GUI --> ADMIN : renderiza tabla (tipo_evento)\n+ panel cerrado
+
+ADMIN -> GUI : escribe en busqueda (debounce 300ms)
+GUI -> HOOK : useEventosClinicos(search='urgencia')
+HOOK -> VIEW : GET /api/eventoclinico/?search=urgencia
+VIEW -> MODEL : filter(is_deleted=False)\n+ SearchFilter (tipo_evento ILIKE '%urgencia%')
+MODEL -> BD : SELECT WHERE tipo_evento ILIKE '%urgencia%' AND is_deleted=False
+BD --> MODEL : registros filtrados
+MODEL --> VIEW : queryset
+VIEW --> HOOK : JSON filtrado
+HOOK --> GUI : data actualizada
+GUI --> ADMIN : tabla actualizada
+
+== Flujo 2: Crear evento clinico ==
+
+ADMIN -> GUI : click "Nuevo evento clinico" (o Insert)
+GUI -> GUI : guardAction(() => setModo('crear'), setSeleccionado(null))
+GUI --> ADMIN : PanelSimple modo crear\n(campo tipo_evento editable)
+
+ADMIN -> GUI : ingresa tipo_evento="Consulta General"
+ADMIN -> GUI : click Guardar
+GUI -> HOOK : crear.mutateAsync({ tipo_evento: "Consulta General" })
+HOOK -> VIEW : POST /api/eventoclinico/
+
+VIEW -> MODEL : validate_tipo_evento("Consulta General")
+MODEL -> BD : SELECT WHERE Lower(tipo_evento)='consulta general'\nAND is_deleted=False
+BD --> MODEL : [] (no existe)
+
+VIEW -> VIEW : AuditoriaMixin.perform_create()
+VIEW -> MODEL : serializer.save(id_usu_creator=request.user)
+MODEL -> BD : INSERT evento_clinico\n(tipo_evento='Consulta General', id_usu_creator=...)
+BD --> MODEL : { id: 1, tipo_evento: "Consulta General" }
+
+VIEW -> BD : INSERT auditoria_registro\n(tabla='EventoClinico', registro_id=1, accion='CREAR')
+BD --> VIEW : OK
+VIEW --> HOOK : 201 Created
+
+HOOK -> HOOK : invalidateQueries(['eventosclinicos'])
+GUI -> GUI : showToast('Evento clinico creado correctamente.', 'success')
+GUI -> GUI : cerrarPanel()
+GUI --> ADMIN : toast exito
+
+== Flujo 3: Editar evento clinico ==
+
+ADMIN -> GUI : click boton Editar en tabla
+GUI -> GUI : guardAction(() => setSeleccionado(ev), setModo('editar'))
+GUI --> ADMIN : PanelSimple modo editar\n(tipo_evento editable)
+
+ADMIN -> GUI : modifica tipo_evento="Consulta General Ambulatoria"
+ADMIN -> GUI : click Guardar
+GUI -> HOOK : actualizar.mutateAsync({ id: 1, tipo_evento: "Consulta General Ambulatoria" })
+HOOK -> VIEW : PATCH /api/eventoclinico/1/
+
+VIEW -> MODEL : validate_tipo_evento("Consulta General Ambulatoria")
+MODEL -> BD : SELECT WHERE Lower(tipo_evento)=...\nAND is_deleted=False AND id<>1
+BD --> MODEL : [] (no existe)
+
+VIEW -> VIEW : AuditoriaMixin.perform_update()
+VIEW -> MODEL : serializer.save(id_usu_modificator=request.user)
+MODEL -> BD : UPDATE evento_clinico\nSET tipo_evento="Consulta General Ambulatoria"\nWHERE id=1
+BD --> MODEL : OK
+
+VIEW -> BD : INSERT auditoria_registro\n(tabla='EventoClinico', accion='EDITAR',\ndatos_antes={tipo_evento:"Consulta General"},\ndatos_despues={tipo_evento:"Consulta General Ambulatoria"})
+BD --> VIEW : OK
+VIEW --> HOOK : 200 OK
+
+HOOK -> HOOK : invalidateQueries(['eventosclinicos'])
+GUI -> GUI : showToast('Evento clinico actualizado correctamente.', 'success')
+GUI -> GUI : cerrarPanel()
+GUI --> ADMIN : toast exito
+
+@enduml
