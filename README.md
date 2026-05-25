@@ -55,3 +55,9 @@ npm start
 ## Autor
 
 **Enzo Coronel** — [LinkedIn](https://www.linkedin.com/in/enzo-coronel-b1234a322?utm_source=share_via&utm_content=profile&utm_medium=member_android) · [GitHub](https://github.com/troche-bit)
+
+## Licencia
+
+© 2025 Enzo Coronel. Proyecto de tesis académica.
+El código fuente está disponible para revisión con fines educativos.
+Queda prohibida su reproducción total o parcial sin autorización del autor.
