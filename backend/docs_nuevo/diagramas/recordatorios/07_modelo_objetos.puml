@@ -1,0 +1,129 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Recepcionista" <<actor>> {
+  + ver lista de próximas citas
+  + filtrar por período y médico
+  + enviar notificación manual
+  + ver historial de notificaciones
+}
+
+class "Médico" <<actor>> {
+  + registrar próxima cita al finalizar consulta
+}
+
+class "Sistema (Cron)" <<actor>> {
+  + ejecutar envío automático de recordatorios
+  + verificar deduplicación
+}
+
+class "RecordatoriosPage" <<boundary>> {
+  + mostrar lista filtrada por período
+  + mostrar panel de detalle del paciente
+  + mostrar historial expandido por fila
+  + abrir modal de notificación
+  + mostrar estado del recordatorio
+}
+
+class "ModalNotificacion" <<boundary>> {
+  + seleccionar canal de envío
+  + ingresar destinatario
+  + personalizar mensaje
+  + confirmar envío
+}
+
+class "RecordatorioViewSet" <<control>> {
+  + proximas_citas()
+  + stats()
+  + notificar()
+}
+
+class "ConsultaViewSet" <<control>> {
+  + partial_update()
+  + finalizar()
+}
+
+class "enviar_notificacion" <<control>> {
+  + construir contexto
+  + renderizar plantilla
+  + invocar Resend API
+  + actualizar estado
+}
+
+class "enviar_recordatorios" <<control>> {
+  + verificar configuración
+  + calcular fecha objetivo
+  + buscar consultas con proxima_cita
+  + deduplicar por [consulta+tipo+canal+estado]
+  + crear y enviar notificaciones automáticas
+}
+
+class "Resend API" <<control>> {
+  + enviar email
+}
+
+class "Consulta" <<entity>> {
+  + id
+  + proxima_cita
+  + estado
+  + is_deleted
+}
+
+class "Notificacion" <<entity>> {
+  + id
+  + paciente: FK Paciente
+  + consulta: FK Consulta
+  + tipo
+  + canal
+  + estado
+  + destinatario
+  + fecha_envio
+  + id_usu_creator
+  + is_deleted
+}
+
+class "ConfiguracionNotificacion" <<entity>> {
+  + habilitado
+  + auto_recordatorio
+  + horas_anticipacion
+}
+
+class "PlantillaNotificacion" <<entity>> {
+  + tipo
+  + asunto
+  + cuerpo
+  + activa
+}
+
+"Recepcionista" --> "RecordatoriosPage"
+"Médico" --> "ConsultaViewSet"
+"Sistema (Cron)" --> "enviar_recordatorios"
+
+"RecordatoriosPage" --> "ModalNotificacion"
+"RecordatoriosPage" --> "RecordatorioViewSet"
+"RecordatoriosPage" --> "ConsultaViewSet"
+"ModalNotificacion" --> "RecordatorioViewSet"
+
+"RecordatorioViewSet" --> "enviar_notificacion"
+"enviar_recordatorios" --> "enviar_notificacion"
+"enviar_notificacion" --> "Resend API"
+
+"RecordatorioViewSet" --> "Consulta"
+"RecordatorioViewSet" --> "Notificacion"
+"enviar_recordatorios" --> "ConfiguracionNotificacion"
+"enviar_notificacion" --> "PlantillaNotificacion"
+"enviar_notificacion" --> "Notificacion"
+
+"Notificacion" "0..*" --> "1" "Consulta" : consulta (FK)
+
+@enduml

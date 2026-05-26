@@ -1,0 +1,146 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Recepcionista" <<actor>>
+class "Médico" <<actor>>
+class "Sistema (Cron)" <<actor>>
+
+class "RecordatoriosPage" <<boundary>> {
+  +sel_periodo
+  +sel_medico
+  +sel_estado
+  +txt_buscar
+  +tbl_recordatorios
+  +panel_detalle
+  +lbl_paciente
+  +lbl_proxima_cita
+  +lbl_dias_restantes
+  +badge_urgencia
+  +btn_recordatorio
+  +btn_confirmacion
+  +btn_indicaciones
+  +historial_expandido
+  --
+  +cargarProximasCitas()
+  +filtrar()
+  +expandirFila()
+  +abrirPanelDetalle()
+}
+
+class "ModalNotificacion" <<boundary>> {
+  +sel_canal
+  +txt_destinatario
+  +txt_mensaje
+  +btn_enviar
+  +btn_cancelar
+  --
+  +confirmarEnvio()
+  +cancelar()
+}
+
+class "RecordatorioViewSet" <<control>> {
+  +filtros : [dias, medico, estado, busqueda]
+  +deduplicacion : [consulta+tipo+canal+estado='enviado']
+  +auto_refresh : on demand
+  --
+  +get_permissions()
+  +proximas_citas()
+  +stats()
+  +notificar()
+}
+
+class "ConsultaViewSet" <<control>> {
+  +get_permissions()
+  --
+  +partial_update()
+  +finalizar()
+}
+
+class "enviar_notificacion" <<control>> {
+  +construirContexto()
+  +renderizarPlantilla()
+  +invocarResend()
+  +actualizarEstado()
+}
+
+class "enviar_recordatorios" <<control>> {
+  +verificarConfiguracion()
+  +calcularFechaObjetivo()
+  +buscarConsultasPendientes()
+  +deduplicar()
+  +crearYEnviar()
+}
+
+class "Resend API" <<control>> {
+  +send(to, subject, html) : response
+}
+
+class "Consulta" <<entity>> {
+  +id : AutoField
+  +agenda : ForeignKey
+  +proxima_cita : DateField
+  +estado : CharField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "Notificacion" <<entity>> {
+  +id : AutoField
+  +paciente : ForeignKey
+  +consulta : ForeignKey
+  +tipo : CharField
+  +canal : CharField
+  +estado : CharField
+  +destinatario : EmailField
+  +fecha_envio : DateTimeField
+  +id_usu_creator : ForeignKey
+  +is_deleted : BooleanField
+}
+
+class "ConfiguracionNotificacion" <<entity>> {
+  +habilitado : BooleanField
+  +auto_recordatorio : BooleanField
+  +horas_anticipacion : IntegerField
+}
+
+class "PlantillaNotificacion" <<entity>> {
+  +tipo : CharField
+  +asunto : CharField
+  +cuerpo : TextField
+  +activa : BooleanField
+}
+
+"Recepcionista" --> "RecordatoriosPage"
+"Médico" --> "ConsultaViewSet"
+"Sistema (Cron)" --> "enviar_recordatorios"
+
+"RecordatoriosPage" --> "ModalNotificacion"
+"RecordatoriosPage" --> "RecordatorioViewSet"
+"RecordatoriosPage" --> "ConsultaViewSet"
+"ModalNotificacion" --> "RecordatorioViewSet"
+
+"RecordatorioViewSet" --> "enviar_notificacion"
+"enviar_recordatorios" --> "enviar_notificacion"
+"enviar_notificacion" --> "Resend API"
+
+"RecordatorioViewSet" --> "Consulta"
+"RecordatorioViewSet" --> "Notificacion"
+"enviar_recordatorios" --> "ConfiguracionNotificacion"
+"enviar_notificacion" --> "PlantillaNotificacion"
+"enviar_notificacion" --> "Notificacion"
+
+"Notificacion" "0..*" --> "1" "Consulta" : consulta (FK)
+
+@enduml

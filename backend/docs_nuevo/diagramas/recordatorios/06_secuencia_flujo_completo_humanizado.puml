@@ -1,0 +1,130 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor "Médico" as MEDICO
+actor Recepcionista
+actor "Sistema (Cron)" as CRON
+
+boundary "RecordatoriosPage" as GUI
+boundary "ModalNotificacion" as MODAL
+control "RecordatorioViewSet" as RVIEW
+control "ConsultaViewSet" as CVIEW
+control "enviar_notificacion" as SERVICE
+control "enviar_recordatorios" as COMMAND
+control "Resend API" as RESEND
+entity "Consulta" as CONSULTA
+entity "Notificacion" as NOTIF
+entity "ConfiguracionNotificacion" as CONFIG
+entity "PlantillaNotificacion" as PLANTILLA
+database "PostgreSQL" as BD
+
+== 1. Médico finaliza consulta con próxima cita ==
+
+MEDICO -> CVIEW : envía cambios finales con próxima cita='2026-05-27'
+CVIEW -> BD : actualiza campos clínicos incluyendo proxima_cita
+BD --> CVIEW : cambios guardados
+CVIEW --> MEDICO : consulta actualizada
+MEDICO -> CVIEW : solicita finalizar la consulta
+CVIEW -> BD : cambia estado a finalizada y registra hora de cierre
+BD --> CVIEW : consulta finalizada
+CVIEW --> MEDICO : mensaje de éxito
+
+== 2. Recepcionista ve nueva cita en la lista de recordatorios ==
+
+Recepcionista -> GUI : abre la pestaña "7 días"
+GUI -> RVIEW : solicita citas próximas para los siguientes 7 días
+RVIEW -> BD : obtiene consultas con proxima_cita dentro del rango, anotadas con urgencia, estado y días restantes
+BD --> RVIEW : lista de citas próximas
+RVIEW --> GUI : citas con badge de urgencia
+GUI --> Recepcionista : tabla con la cita de la consulta id=55 — badge "7 día(s)"
+
+== 3. Recepcionista envía notificación manual ==
+
+Recepcionista -> GUI : hace clic en la fila de la cita del paciente
+GUI --> Recepcionista : panel de detalle con datos del paciente y próxima cita
+Recepcionista -> GUI : hace clic en "Recordatorio de cita"
+GUI --> Recepcionista : solicita confirmación del canal y destinatario
+Recepcionista -> MODAL : completa canal=email, destinatario y mensaje personalizado
+Recepcionista -> MODAL : hace clic en "Enviar"
+MODAL -> RVIEW : envía solicitud de notificación manual
+
+RVIEW -> BD : crea Notificacion con estado=pendiente
+BD --> RVIEW : notificación id=10 creada
+RVIEW -> SERVICE : invoca el servicio de envío
+SERVICE -> BD : obtiene datos del paciente y la consulta
+BD --> SERVICE : datos del contexto
+SERVICE -> PLANTILLA : obtiene plantilla del tipo "recordatorio_cita"
+PLANTILLA --> SERVICE : plantilla con asunto y cuerpo
+SERVICE -> SERVICE : construye el contexto con nombre del paciente y fecha de cita
+SERVICE -> RESEND : envía el email con el asunto y cuerpo renderizado
+RESEND --> SERVICE : envío aceptado con éxito
+SERVICE -> BD : actualiza Notificacion estado='enviado' con fecha_envio
+BD --> SERVICE : actualización guardada
+SERVICE -> BD : registra en auditoría (Notificacion — creada y enviada)
+BD --> SERVICE : OK
+RVIEW --> MODAL : notificación enviada con éxito
+MODAL --> Recepcionista : cierra el modal — mensaje de éxito
+GUI --> Recepcionista : fila actualizada con estado "enviado"
+
+== 4. Cron del día siguiente — sin acción ==
+
+CRON -> COMMAND : ejecuta enviar_recordatorios (día 25)
+COMMAND -> BD : consulta ConfiguracionNotificacion
+BD --> COMMAND : habilitado=True, horas_anticipacion=24
+COMMAND -> COMMAND : fecha objetivo = hoy + 1 = 26 (no es el día 27)
+COMMAND --> CRON : no hay consultas con proxima_cita=26 — termina sin envíos
+
+== 5. Cron 24 horas antes — deduplicación ==
+
+CRON -> COMMAND : ejecuta enviar_recordatorios (día 26)
+COMMAND -> BD : consulta ConfiguracionNotificacion
+BD --> COMMAND : habilitado=True, horas_anticipacion=24
+COMMAND -> COMMAND : fecha objetivo = hoy + 1 = 27
+COMMAND -> BD : busca consultas con proxima_cita=27
+BD --> COMMAND : consulta id=55 encontrada
+COMMAND -> BD : verifica si ya existe notificación enviada para consulta=55, tipo=recordatorio_cita, canal=email, estado=enviado
+BD --> COMMAND : ya existe la notificación manual id=10
+COMMAND -> COMMAND : omite la consulta id=55 por deduplicación
+COMMAND --> CRON : resultado: 0 enviados, 1 omitido
+
+note over COMMAND, BD
+  La deduplicación evita que el cron
+  duplique notificaciones ya enviadas manualmente.
+  Verifica [consulta + tipo + canal + estado='enviado'].
+end note
+
+== 6. Recepcionista ve el historial expandido ==
+
+Recepcionista -> GUI : expande la fila de la cita del paciente
+GUI --> Recepcionista : historial inline con 1 notificación — la enviada manualmente
+GUI --> Recepcionista : sin duplicados — el cron no generó un segundo registro
+
+== 7. Escenario alternativo — notificación solo automática ==
+
+note over CRON, BD
+  Si NO hubo notificación manual previa:
+  el cron no encuentra ninguna notificación enviada
+  y crea la Notificacion automáticamente
+  con id_usu_creator=None (tarea programada).
+  El flujo de envío es idéntico al manual.
+end note
+
+CRON -> COMMAND : ejecuta enviar_recordatorios
+COMMAND -> BD : busca consultas con proxima_cita en fecha objetivo
+BD --> COMMAND : consulta encontrada
+COMMAND -> BD : verifica deduplicación — no existe notificación enviada
+BD --> COMMAND : sin notificaciones previas
+COMMAND -> BD : crea Notificacion con id_usu_creator=None y estado=pendiente
+BD --> COMMAND : notificación creada
+COMMAND -> SERVICE : invoca el servicio de envío
+SERVICE -> RESEND : envía el email automáticamente
+RESEND --> SERVICE : envío aceptado
+SERVICE -> BD : actualiza estado='enviado'
+BD --> SERVICE : OK
+COMMAND --> CRON : resultado: 1 enviado, 0 omitidos
+
+@enduml
