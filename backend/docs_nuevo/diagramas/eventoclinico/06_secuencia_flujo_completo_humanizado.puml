@@ -1,0 +1,179 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+actor Administrador
+actor Medico
+
+boundary "Página Eventos Clínicos" as GUI
+boundary "Página Consultas" as CONSUI
+control "Lógica de datos" as HOOK
+control "Servicio Evento Clínico" as EVIEW
+control "Servicio Consultas" as CVIEW
+control "Auditoría" as MIXIN
+entity "EventoClinico" as EMODEL
+entity "Consulta" as CMODEL
+database "Base de datos" as BD
+
+== 1. Administrador crea el evento clínico "Consulta General" ==
+
+Administrador -> GUI : hace clic en "Nuevo evento clínico"
+GUI --> Administrador : formulario en blanco
+
+Administrador -> GUI : escribe tipo_evento="Consulta General"
+Administrador -> GUI : hace clic en Guardar
+GUI -> HOOK : solicita crear el evento con los datos ingresados
+HOOK -> EVIEW : envía los datos del nuevo evento clínico
+
+EVIEW -> EMODEL : verifica que no exista otro evento con el mismo nombre
+EMODEL -> BD : consulta eventos activos con nombre idéntico (sin distinguir mayúsculas)
+BD --> EMODEL : no existe — nombre disponible
+
+EVIEW -> MIXIN : registra la creación
+MIXIN -> EMODEL : guarda el evento con el usuario que lo creó
+EMODEL -> BD : inserta el evento clínico en la base de datos
+BD --> EMODEL : evento creado con id=1
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> EVIEW : creado con éxito
+
+EVIEW --> HOOK : evento clínico creado con éxito
+HOOK -> HOOK : refresca la lista de eventos clínicos
+HOOK --> GUI : operación exitosa
+GUI --> Administrador : aviso — "Evento clínico creado correctamente."
+
+== 2. Médico registra una consulta usando el evento ==
+
+Medico -> CONSUI : selecciona "Consulta General" en el desplegable de eventos
+CONSUI -> HOOK : obtiene la lista de eventos clínicos disponibles
+HOOK -> EVIEW : solicita todos los eventos activos
+EVIEW -> BD : consulta eventos no eliminados ordenados por nombre
+BD --> EVIEW : lista con "Consulta General" disponible
+EVIEW --> HOOK : lista de eventos
+HOOK --> CONSUI : desplegable con "Consulta General" disponible
+
+Medico -> CONSUI : completa el formulario de la consulta
+Medico -> CONSUI : hace clic en Guardar consulta
+CONSUI -> CVIEW : envía los datos de la nueva consulta
+
+CVIEW -> MIXIN : registra la creación
+MIXIN -> CMODEL : guarda la consulta con el usuario que la creó
+CMODEL -> BD : inserta la consulta vinculada al evento "Consulta General"
+BD --> CMODEL : consulta creada con id=10
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+CVIEW --> CONSUI : consulta registrada con éxito
+CONSUI --> Medico : aviso — consulta registrada
+
+== 3. Intento fallido de eliminar el evento — tiene una consulta activa ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila "Consulta General"
+GUI --> Administrador : pide confirmación
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar el evento clínico id=1
+HOOK -> EVIEW : solicita eliminar el evento
+
+EVIEW -> EMODEL : verifica si existen consultas activas vinculadas al evento
+EMODEL -> CMODEL : comprueba consultas no eliminadas con este evento
+CMODEL -> BD : busca consultas activas vinculadas al evento id=1
+BD --> CMODEL : encontró la consulta id=10 (en curso)
+CMODEL --> EMODEL : existen dependencias
+
+EMODEL -> EVIEW : rechaza la operación — tiene consultas activas vinculadas
+
+note right of EVIEW
+  La auditoría no se registra
+  porque la operación fue
+  rechazada antes de ejecutarse.
+end note
+
+EVIEW --> HOOK : responde con error
+HOOK -> GUI : muestra el mensaje de error
+GUI --> Administrador : aviso — "No se puede eliminar: el evento clínico tiene consultas activas vinculadas."
+
+== 4. Médico finaliza la consulta ==
+
+Medico -> CONSUI : hace clic en Finalizar consulta (id=10)
+CONSUI -> CVIEW : solicita finalizar la consulta id=10
+CVIEW -> CMODEL : actualiza el estado a "finalizada" y registra la hora de cierre
+CMODEL -> BD : actualiza la consulta con estado finalizada
+BD --> CMODEL : actualización confirmada
+CVIEW --> CONSUI : consulta finalizada
+CONSUI --> Medico : aviso — consulta finalizada
+
+== 5. Nuevo intento fallido — consulta finalizada sigue siendo dependencia activa ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila "Consulta General"
+GUI --> Administrador : pide confirmación
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar el evento clínico id=1
+HOOK -> EVIEW : solicita eliminar el evento
+
+EVIEW -> EMODEL : verifica si existen consultas activas vinculadas al evento
+EMODEL -> CMODEL : comprueba consultas no eliminadas con este evento
+CMODEL -> BD : busca consultas activas vinculadas al evento id=1
+BD --> CMODEL : encontró la consulta id=10 (finalizada, no eliminada)
+CMODEL --> EMODEL : existen dependencias
+
+note right of EMODEL
+  Una consulta finalizada mantiene
+  su estado activo (no eliminada)
+  porque forma parte del historial
+  clínico del paciente.
+  El estado "finalizada" no equivale
+  a borrado lógico.
+end note
+
+EMODEL -> EVIEW : rechaza la operación — tiene consultas activas vinculadas
+
+EVIEW --> HOOK : responde con error
+HOOK -> GUI : muestra el mensaje de error
+GUI --> Administrador : aviso — "No se puede eliminar: el evento clínico tiene consultas activas vinculadas."
+
+== 6. Administrador crea un evento alternativo y lo usa en adelante ==
+
+Administrador -> GUI : hace clic en "Nuevo evento clínico"
+GUI --> Administrador : formulario en blanco
+
+Administrador -> GUI : escribe tipo_evento="Consulta General v2"
+Administrador -> GUI : hace clic en Guardar
+GUI -> HOOK : solicita crear el evento con los datos ingresados
+HOOK -> EVIEW : envía los datos del nuevo evento clínico
+
+EVIEW -> EMODEL : verifica que no exista otro evento con el mismo nombre
+EMODEL -> BD : consulta eventos activos con nombre "Consulta General v2"
+BD --> EMODEL : no existe — nombre disponible
+
+EVIEW -> MIXIN : registra la creación
+MIXIN -> EMODEL : guarda el evento con el usuario que lo creó
+EMODEL -> BD : inserta el evento clínico en la base de datos
+BD --> EMODEL : evento creado con id=2
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> EVIEW : creado con éxito
+
+EVIEW --> HOOK : evento clínico creado con éxito
+HOOK -> HOOK : refresca la lista de eventos clínicos
+HOOK --> GUI : operación exitosa
+GUI --> Administrador : aviso — "Evento clínico creado correctamente."
+
+note over BD
+  "Consulta General" (id=1) permanece activo para preservar el historial.
+  "Consulta General v2" (id=2) disponible para nuevas consultas.
+  Cada operación queda registrada en auditoría.
+end note
+
+@enduml

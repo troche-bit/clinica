@@ -1,0 +1,156 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+actor Administrador
+actor Medico
+
+boundary "Página Tipos de Documento" as GUI
+boundary "Carga de Documentos" as DOCUI
+control "Lógica de datos" as HOOK
+control "Servicio Tipo Documento" as VIEW
+control "Servicio Documentos" as DOCVIEW
+control "Auditoría" as MIXIN
+control "Generador de ruta" as BSP
+entity "TipoDocDigital" as MODEL
+entity "DocumentoDigPaciente" as DOC
+database "Base de datos" as BD
+collections "Almacenamiento de archivos" as MEDIA
+
+== 1. Administrador crea el tipo "Historia Clínica" ==
+
+Administrador -> GUI : hace clic en "Nuevo tipo"
+GUI --> Administrador : formulario en blanco
+
+Administrador -> GUI : escribe descripcion="Historia Clínica" y storage_key="historia_clinica"
+Administrador -> GUI : hace clic en Guardar
+GUI -> HOOK : solicita crear el tipo con los datos ingresados
+HOOK -> VIEW : envía los datos del nuevo tipo de documento
+
+VIEW -> MODEL : verifica que la descripción y la clave de almacenamiento no estén duplicadas
+MODEL -> BD : consulta tipos activos con la misma descripción o clave
+BD --> MODEL : no existen duplicados — datos disponibles
+
+VIEW -> MIXIN : registra la creación
+MIXIN -> MODEL : guarda el tipo con el usuario que lo creó
+MODEL -> BD : inserta el tipo de documento en la base de datos
+BD --> MODEL : tipo creado con id=3
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> VIEW : creado con éxito
+
+VIEW --> HOOK : tipo de documento creado con éxito
+HOOK -> HOOK : refresca la lista de tipos de documento
+HOOK --> GUI : operación exitosa
+GUI --> Administrador : aviso — "Tipo creado correctamente."
+
+== 2. Médico sube un documento de paciente ==
+
+Medico -> DOCUI : selecciona el tipo "Historia Clínica" y elige el archivo PDF
+Medico -> DOCUI : hace clic en Subir documento
+DOCUI -> DOCVIEW : envía el archivo junto con los datos del documento
+
+DOCVIEW -> BSP : solicita generar la ruta de almacenamiento
+BSP --> DOCVIEW : ruta generada — documentos/historia_clinica/2026/archivo.pdf
+
+DOCVIEW -> MEDIA : guarda el archivo en la ruta generada
+MEDIA --> DOCVIEW : archivo guardado con éxito
+
+DOCVIEW -> MIXIN : registra la creación del documento
+MIXIN -> DOC : guarda el registro con el usuario que lo subió
+DOC -> BD : inserta el documento vinculado al tipo "Historia Clínica"
+BD --> DOC : documento creado con id=88
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+DOCVIEW --> DOCUI : documento subido con éxito
+DOCUI --> Medico : aviso — documento registrado
+
+== 3. Intento fallido de eliminar el tipo — tiene un documento activo ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila "Historia Clínica"
+GUI --> Administrador : pide confirmación
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar el tipo de documento id=3
+HOOK -> VIEW : solicita eliminar el tipo
+
+VIEW -> MODEL : verifica si existen documentos activos vinculados al tipo
+MODEL -> BD : busca documentos activos vinculados al tipo id=3
+BD --> MODEL : encontró el documento id=88 activo
+
+MODEL -> VIEW : rechaza la operación — tiene documentos activos vinculados
+
+note right of VIEW
+  La auditoría no se registra.
+  El tipo permanece activo.
+  El archivo físico no se toca.
+end note
+
+VIEW --> HOOK : responde con error
+HOOK -> GUI : muestra el mensaje de error
+GUI --> Administrador : aviso — "No se puede eliminar: tiene documentos activos vinculados."
+
+== 4. Administrador elimina el documento ==
+
+Administrador -> DOCVIEW : solicita eliminar el documento id=88
+DOCVIEW -> MEDIA : elimina el archivo físico del almacenamiento
+MEDIA --> DOCVIEW : archivo eliminado
+
+DOCVIEW -> MIXIN : delega el borrado lógico del registro
+MIXIN -> DOC : marca el documento como eliminado con fecha y usuario
+DOC -> BD : actualiza el registro con estado eliminado
+BD --> DOC : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+DOCVIEW --> Administrador : eliminado con éxito
+
+note right of MEDIA
+  El archivo físico fue eliminado del disco.
+  El registro en base de datos queda marcado
+  como eliminado para preservar el historial.
+end note
+
+== 5. Eliminación exitosa del tipo — ya sin documentos activos ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila "Historia Clínica"
+GUI --> Administrador : pide confirmación
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar el tipo de documento id=3
+HOOK -> VIEW : solicita eliminar el tipo
+
+VIEW -> MODEL : verifica si existen documentos activos vinculados al tipo
+MODEL -> BD : busca documentos activos vinculados al tipo id=3
+BD --> MODEL : no encontró documentos activos — puede eliminarse
+
+VIEW -> MIXIN : delega el borrado lógico
+MIXIN -> MODEL : marca el tipo como eliminado con fecha y usuario
+MODEL -> BD : actualiza el registro con estado eliminado
+BD --> MODEL : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> VIEW : eliminado con éxito
+
+VIEW --> HOOK : tipo de documento eliminado con éxito
+HOOK -> HOOK : refresca la lista de tipos de documento
+HOOK --> GUI : operación exitosa
+GUI --> Administrador : aviso — "Tipo eliminado correctamente."
+
+note over BD, MEDIA
+  El tipo "Historia Clínica" queda marcado como eliminado en la base de datos.
+  El nombre y la clave pueden volver a usarse en un nuevo tipo.
+end note
+
+@enduml

@@ -1,0 +1,100 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Medico" <<actor>>
+
+class "TipoDocDigPage" <<boundary>> {
+  +txt_buscar
+  +btn_nuevo
+  +panel_lateral
+  +txt_descripcion
+  +txt_storage_key
+  +btn_editar
+  +btn_eliminar
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  --
+  +abrirCrear()
+  +abrirEditar()
+  +confirmarEliminacion()
+}
+
+class "CargaDocumentosUI" <<boundary>> {
+  +sel_tipo_doc
+  +inp_archivo
+  +btn_subir_documento
+  --
+  +seleccionarTipo()
+  +seleccionarArchivo()
+  +subirDocumento()
+}
+
+class "TipoDocDigitalViewSet" <<control>> {
+  +queryset : TipoDocDigital.activos
+  +search_fields : [descripcion, storage_key]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "DocumentoDigPacienteViewSet" <<control>> {
+  +queryset : DocumentoDigPaciente.activos
+  +filtros : [paciente, consulta, tipo_doc_dig]
+  --
+  +get_permissions()
+  +list()
+  +create()
+  +destroy()
+  +descargar()
+}
+
+class "TipoDocDigital" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +storage_key : SlugField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "DocumentoDigPaciente" <<entity>> {
+  +id : AutoField
+  +tipo_doc_dig : ForeignKey
+  +archivo : FileField
+  +is_deleted : BooleanField
+}
+
+Administrador --> TipoDocDigPage
+Administrador --> CargaDocumentosUI
+Medico --> CargaDocumentosUI
+
+TipoDocDigPage --> TipoDocDigitalViewSet
+CargaDocumentosUI --> TipoDocDigitalViewSet
+CargaDocumentosUI --> DocumentoDigPacienteViewSet
+
+TipoDocDigitalViewSet --> TipoDocDigital
+DocumentoDigPacienteViewSet --> DocumentoDigPaciente
+
+TipoDocDigital "1" --> "0..*" DocumentoDigPaciente : documentos
+
+@enduml

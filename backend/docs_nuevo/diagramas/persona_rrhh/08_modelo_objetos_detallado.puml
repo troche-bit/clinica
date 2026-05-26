@@ -1,0 +1,241 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+' ── Actores ──────────────────────────────────────────────────
+
+class "Administrador" <<actor>> {
+  + gestionar prestadores
+  + eliminar prestadores
+  + ver registros eliminados
+  + crear usuarios vinculados
+}
+
+' ── Boundaries ───────────────────────────────────────────────
+
+class "PersonaRRHHPage" <<boundary>> {
+  -- Elementos UI --
+  + txt_buscar: string
+  + btn_nuevo: Button
+  + btn_ver: Button
+  + btn_editar: Button
+  + btn_eliminar: Button
+  + btn_listado_pdf: Button
+  + btn_listado_excel: Button
+  -- Comportamiento --
+  + mostrar lista de prestadores
+  + abrir modal_formulario
+  + confirmar eliminación con ConfirmDialog
+  + mostrar toast éxito/error
+}
+
+class "PersonaRRHHForm" <<boundary>> {
+  -- Elementos UI --
+  + modal_formulario: Modal
+  + tab_ficha: Tab
+  + tab_documentos: Tab
+  + btn_guardar: Button
+  + btn_cancelar: Button
+  + btn_confirmar: Button
+  -- Comportamiento --
+  + modo: crear | editar | ver
+  + gestionar resultado de búsqueda
+  + invocar guardar en dos pasos (Persona → PersonaRRHH)
+}
+
+class "BuscadorPersona" <<boundary>> {
+  -- Elementos UI --
+  + txt_nro_documento: TextInput
+  + btn_buscar_persona: Button
+  -- Comportamiento --
+  + disparar búsqueda al perder foco
+  + mostrar badge: "Documento no encontrado" | "Persona encontrada" | "Ya es prestador"
+  + resolver modo: crear_todo | agregar_prestador | ya_es_prestador
+}
+
+class "FormPersona" <<boundary>> {
+  -- Elementos UI --
+  + inp_razon_social: TextInput
+  + inp_telefono: TextInput
+  + inp_fecha_nacimiento: DateInput
+  + sel_tipo_documento: Select
+  + sel_ciudad: Select
+  -- Comportamiento --
+  + editable en modo crear_todo
+  + solo lectura si persona ya existe
+}
+
+class "FormRRHH" <<boundary>> {
+  -- Elementos UI --
+  + txt_cargo: TextInput
+  + sel_tipo_contrato: Select
+  + txt_nro_matricula: TextInput
+  + sel_especialidades: SelectorEspecialidades (M2M)
+  + inp_archivo_doc: FileInput
+  -- Comportamiento --
+  + cargo obligatorio
+  + nro_matricula opcional
+  + especialidades selección múltiple
+  + carga de documentos desde tab_documentos
+}
+
+' ── Controls ─────────────────────────────────────────────────
+
+class "PersonaRRHHViewSet" <<control>> {
+  -- Configuración --
+  + queryset: PersonaRRHH.activos (is_deleted=False)
+  + search_fields: [persona__razon_social, persona__nro_documento, cargo, nro_matricula]
+  + permission_classes: IsAdminRole para todo CUD y eliminados
+  -- Acciones --
+  + list()
+  + create()
+  + retrieve()
+  + partial_update()
+  + destroy()
+  + eliminados()
+  + buscar(): GET ?nro_documento=X → {persona, personarrhh, es_prestador}
+  + reporte_lista(): GET → PDF WeasyPrint — prestadores activos con especialidades
+  + reporte_lista_excel(): GET → Excel openpyxl — mismos campos
+  + perform_destroy(): verifica turnos activos → cascade agenda/horarios/especialidades
+}
+
+class "PersonaViewSet" <<control>> {
+  -- Configuración --
+  + queryset: Persona.activos (is_deleted=False)
+  + search_fields: [nro_documento, razon_social]
+  -- Acciones --
+  + create()
+  + buscar(): GET ?nro_documento=X → {persona, personarrhh, es_prestador}
+}
+
+class "HorarioPrestadorViewSet" <<control>> {
+  -- Configuración --
+  + queryset: HorarioPrestador.activos (is_deleted=False)
+  -- Acciones --
+  + generar(): POST — genera turnos Agenda para un rango de fechas
+  + cancelar_rango(): POST — cancela turnos DISPONIBLES en rango
+}
+
+class "AgendaViewSet" <<control>> {
+  -- Configuración --
+  + queryset: Agenda.activos (is_deleted=False)
+  -- Acciones --
+  + cancelar_rango(): POST — cancela masivamente turnos de un prestador
+}
+
+class "PerfilUsuarioViewSet" <<control>> {
+  -- Configuración --
+  + permission_classes: IsAdminRole
+  -- Acciones --
+  + create(): vincula User + PerfilUsuario con persona_rrhh_id y rol='medico'
+}
+
+' ── Entities ─────────────────────────────────────────────────
+
+class "PersonaRRHH" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + persona: FK → Persona
+  + cargo: CharField
+  + tipo_contrato: CharField [DEPENDIENTE/INDEPENDIENTE]
+  + nro_matricula: CharField (nullable)
+  + especialidades: M2M → Especialidad
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+  + fecha_eliminacion: DateTimeField (nullable)
+  + id_usu_creator: FK → User
+  + id_usu_modificator: FK → User
+}
+
+class "Persona" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + nro_documento: CharField (único)
+  + razon_social: CharField
+  + tipo_documento: FK → TipoDocumento
+  + ciudad: FK → Ciudad
+  + telefono: CharField
+  + fecha_nacimiento: DateField
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+}
+
+class "HorarioPrestador" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + persona_rrhh: FK → PersonaRRHH
+  + consultorio: FK → Consultorio
+  + especialidad: FK → Especialidad
+  + dia_semana: FK → DiaSemana
+  + hora_desde: TimeField
+  + hora_hasta: TimeField
+  + intervalo_minutos: IntegerField
+  + excepcion: BooleanField
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+}
+
+class "Agenda" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + horario_prestador: FK → HorarioPrestador
+  + paciente: FK → Paciente (nullable)
+  + estado: CharField [DISPONIBLE/OCUPADO/CANCELADO/REALIZADO/INACTIVO]
+  + fecha: DateField
+  + hora_desde: TimeField
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+}
+
+class "PerfilUsuario" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + user: OneToOneField → User
+  + persona_rrhh: FK → PersonaRRHH (nullable)
+  + rol: CharField [admin/medico/recepcionista/secretaria_medico]
+  + activo: BooleanField = True
+  + nombre_completo: CharField
+}
+
+' ── Relaciones ───────────────────────────────────────────────
+
+"Administrador" --> "PersonaRRHHPage"
+
+"PersonaRRHHPage" --> "PersonaRRHHForm"
+"PersonaRRHHForm" --> "BuscadorPersona"
+"PersonaRRHHForm" --> "FormPersona"
+"PersonaRRHHForm" --> "FormRRHH"
+
+"PersonaRRHHPage" --> "PersonaRRHHViewSet"
+"PersonaRRHHForm" --> "PersonaRRHHViewSet"
+"PersonaRRHHForm" --> "PersonaViewSet"
+"BuscadorPersona" --> "PersonaViewSet"
+
+"PersonaRRHHViewSet" --> "PersonaRRHH"
+"PersonaViewSet" --> "Persona"
+"HorarioPrestadorViewSet" --> "HorarioPrestador"
+"AgendaViewSet" --> "Agenda"
+"PerfilUsuarioViewSet" --> "PerfilUsuario"
+
+"PersonaRRHH" --> "Persona"
+"HorarioPrestador" --> "PersonaRRHH"
+"Agenda" --> "HorarioPrestador"
+"PerfilUsuario" --> "PersonaRRHH"
+
+@enduml

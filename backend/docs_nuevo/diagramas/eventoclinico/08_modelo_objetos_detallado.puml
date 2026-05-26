@@ -1,0 +1,101 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Medico" <<actor>>
+
+class "EventoClinicoPage" <<boundary>> {
+  +txt_buscar
+  +btn_nuevo
+  +panel_lateral
+  +txt_tipo_evento
+  +btn_editar
+  +btn_eliminar
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  --
+  +abrirCrear()
+  +abrirEditar()
+  +confirmarEliminacion()
+}
+
+class "ConsultasPage" <<boundary>> {
+  +sel_evento_clinico
+  +formularioConsulta
+  --
+  +cargarEventos()
+  +seleccionarEvento()
+  +guardarConsulta()
+  +iniciarConsulta()
+  +finalizarConsulta()
+}
+
+class "EventoClinicoViewSet" <<control>> {
+  +queryset : EventoClinico.activos
+  +search_fields : [tipo_evento]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "ConsultaViewSet" <<control>> {
+  +queryset : Consulta.activos
+  +search_fields : [paciente__persona__razon_social]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +retrieve()
+  +iniciar()
+  +finalizar()
+}
+
+class "EventoClinico" <<entity>> {
+  +id : AutoField
+  +tipo_evento : CharField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "Consulta" <<entity>> {
+  +id : AutoField
+  +evento_clinico : ForeignKey
+  +estado : CharField
+  +is_deleted : BooleanField
+}
+
+Administrador --> EventoClinicoPage
+Administrador --> ConsultasPage
+Medico --> ConsultasPage
+
+EventoClinicoPage --> EventoClinicoViewSet
+ConsultasPage --> EventoClinicoViewSet
+ConsultasPage --> ConsultaViewSet
+
+EventoClinicoViewSet --> EventoClinico
+ConsultaViewSet --> Consulta
+
+EventoClinico "1" --> "0..*" Consulta : consultas
+
+@enduml

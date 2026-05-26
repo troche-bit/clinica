@@ -1,0 +1,88 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Medico" <<actor>>
+
+class "TipoDocDigPage" <<boundary>> {
+  +seleccionado
+  +modo
+  +confirmId
+  --
+  +abrirCrear()
+  +abrirEditar()
+  +confirmarEliminacion()
+}
+
+class "CargaDocumentosUI" <<boundary>> {
+  +tipoSeleccionado
+  +archivoSeleccionado
+  --
+  +seleccionarTipo()
+  +seleccionarArchivo()
+  +subirDocumento()
+}
+
+class "TipoDocDigitalViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  --
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "DocumentoDigPacienteViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +create()
+  +destroy()
+  +descargar()
+}
+
+class "TipoDocDigital" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +storage_key : SlugField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "DocumentoDigPaciente" <<entity>> {
+  +id : AutoField
+  +tipo_doc_dig : ForeignKey
+  +archivo : FileField
+  +is_deleted : BooleanField
+}
+
+Administrador --> TipoDocDigPage
+Administrador --> CargaDocumentosUI
+Medico --> CargaDocumentosUI
+
+TipoDocDigPage --> TipoDocDigitalViewSet
+CargaDocumentosUI --> TipoDocDigitalViewSet
+CargaDocumentosUI --> DocumentoDigPacienteViewSet
+
+TipoDocDigitalViewSet --> TipoDocDigital
+DocumentoDigPacienteViewSet --> DocumentoDigPaciente
+
+TipoDocDigital "1" --> "0..*" DocumentoDigPaciente : documentos
+
+@enduml

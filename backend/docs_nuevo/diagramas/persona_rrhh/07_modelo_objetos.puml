@@ -1,0 +1,173 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+' ── Actores ──────────────────────────────────────────────────
+
+class "Administrador" <<actor>> {
+  + gestionar prestadores
+  + eliminar prestadores
+  + ver registros eliminados
+  + crear usuarios vinculados
+}
+
+' ── Boundaries ───────────────────────────────────────────────
+
+class "PersonaRRHHPage" <<boundary>> {
+  + mostrar lista de prestadores
+  + abrir modal crear/editar/ver
+  + tab ficha / tab documentos
+  + confirmar eliminación
+  + mostrar notificación
+}
+
+class "PersonaRRHHForm" <<boundary>> {
+  + modo: crear | editar | ver
+  + buscar persona por documento
+  + mostrar badge resultado búsqueda
+  + guardar datos
+  + cancelar
+}
+
+class "BuscadorPersona" <<boundary>> {
+  + campo nro_documento
+  + disparar búsqueda
+  + mostrar resultado: crear_todo | agregar_prestador | ya_es_prestador
+}
+
+class "FormPersona" <<boundary>> {
+  + campos persona (editables o solo lectura)
+  + validación en tiempo real
+}
+
+class "FormRRHH" <<boundary>> {
+  + cargo
+  + tipo_contrato
+  + nro_matricula
+  + selector de especialidades (M2M)
+  + carga de documentos
+}
+
+' ── Controls ─────────────────────────────────────────────────
+
+class "PersonaRRHHViewSet" <<control>> {
+  + list()
+  + create()
+  + retrieve()
+  + partial_update()
+  + destroy()
+  + eliminados()
+  + buscar()
+  + reporte_lista()
+  + reporte_lista_excel()
+  + perform_destroy()
+}
+
+class "PersonaViewSet" <<control>> {
+  + create()
+  + buscar()
+}
+
+class "HorarioPrestadorViewSet" <<control>> {
+  + generar()
+  + cancelar_rango()
+}
+
+class "AgendaViewSet" <<control>> {
+  + cancelar_rango()
+}
+
+class "PerfilUsuarioViewSet" <<control>> {
+  + create()
+}
+
+' ── Entities ─────────────────────────────────────────────────
+
+class "PersonaRRHH" <<entity>> {
+  + id
+  + persona: FK Persona
+  + cargo
+  + tipo_contrato
+  + nro_matricula
+  + especialidades: M2M Especialidad
+  + is_deleted
+  + fecha_creacion
+  + fecha_modificacion
+  + fecha_eliminacion
+  + id_usu_creator
+  + id_usu_modificator
+}
+
+class "Persona" <<entity>> {
+  + id
+  + nro_documento
+  + razon_social
+  + tipo_documento: FK
+  + ciudad: FK
+  + telefono
+  + fecha_nacimiento
+  + is_deleted
+}
+
+class "HorarioPrestador" <<entity>> {
+  + id
+  + persona_rrhh: FK PersonaRRHH
+  + consultorio: FK
+  + especialidad: FK
+  + dia_semana: FK
+  + hora_desde
+  + hora_hasta
+  + intervalo_minutos
+  + is_deleted
+}
+
+class "Agenda" <<entity>> {
+  + id
+  + horario_prestador: FK HorarioPrestador
+  + paciente: FK Paciente
+  + estado
+  + is_deleted
+}
+
+class "PerfilUsuario" <<entity>> {
+  + id
+  + user: OneToOne User
+  + persona_rrhh: FK PersonaRRHH
+  + rol
+  + activo
+}
+
+' ── Relaciones ───────────────────────────────────────────────
+
+"Administrador" --> "PersonaRRHHPage"
+
+"PersonaRRHHPage" --> "PersonaRRHHForm"
+"PersonaRRHHForm" --> "BuscadorPersona"
+"PersonaRRHHForm" --> "FormPersona"
+"PersonaRRHHForm" --> "FormRRHH"
+
+"PersonaRRHHPage" --> "PersonaRRHHViewSet"
+"PersonaRRHHForm" --> "PersonaRRHHViewSet"
+"PersonaRRHHForm" --> "PersonaViewSet"
+"BuscadorPersona" --> "PersonaViewSet"
+
+"PersonaRRHHViewSet" --> "PersonaRRHH"
+"PersonaViewSet" --> "Persona"
+"HorarioPrestadorViewSet" --> "HorarioPrestador"
+"AgendaViewSet" --> "Agenda"
+"PerfilUsuarioViewSet" --> "PerfilUsuario"
+
+"PersonaRRHH" --> "Persona"
+"HorarioPrestador" --> "PersonaRRHH"
+"Agenda" --> "HorarioPrestador"
+"PerfilUsuario" --> "PersonaRRHH"
+
+@enduml

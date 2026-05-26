@@ -1,0 +1,89 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Medico" <<actor>>
+
+class "EventoClinicoPage" <<boundary>> {
+  +seleccionado
+  +modo
+  +confirmId
+  --
+  +abrirCrear()
+  +abrirEditar()
+  +confirmarEliminacion()
+}
+
+class "ConsultasPage" <<boundary>> {
+  +eventoSeleccionado
+  +formularioConsulta
+  --
+  +cargarEventos()
+  +seleccionarEvento()
+  +guardarConsulta()
+}
+
+class "EventoClinicoViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  --
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "ConsultaViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  --
+  +list()
+  +create()
+  +retrieve()
+  +iniciar()
+  +finalizar()
+}
+
+class "EventoClinico" <<entity>> {
+  +id : AutoField
+  +tipo_evento : CharField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "Consulta" <<entity>> {
+  +id : AutoField
+  +evento_clinico : ForeignKey
+  +estado : CharField
+  +is_deleted : BooleanField
+}
+
+Administrador --> EventoClinicoPage
+Administrador --> ConsultasPage
+Medico --> ConsultasPage
+
+EventoClinicoPage --> EventoClinicoViewSet
+ConsultasPage --> EventoClinicoViewSet
+ConsultasPage --> ConsultaViewSet
+
+EventoClinicoViewSet --> EventoClinico
+ConsultaViewSet --> Consulta
+
+EventoClinico "1" --> "0..*" Consulta : consultas
+
+@enduml

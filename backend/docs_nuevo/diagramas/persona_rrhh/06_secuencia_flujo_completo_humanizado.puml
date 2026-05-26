@@ -1,0 +1,188 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN as "Administrador"
+
+boundary "PersonaRRHHPage.jsx" as GUI
+boundary "PersonaRRHHForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSC
+boundary "FormRRHH.jsx" as FRRHH
+control "usePersonaRRHH.js" as HOOK
+control "PersonaRRHHViewSet" as RVIEW
+control "PersonaViewSet" as PVIEW
+control "HorarioPrestadorViewSet" as HVIEW
+control "AgendaViewSet" as AGVIEW
+control "PerfilUsuarioViewSet" as UVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "Persona" as PERSONA
+entity "PersonaRRHH" as RRHH
+entity "HorarioPrestador" as HORARIO
+entity "Agenda" as AGENDA
+entity "PerfilUsuario" as PERFIL
+database "PostgreSQL" as BD
+
+== 1. Admin busca prestador por documento — persona no existia ==
+
+ADMIN -> GUI : hace clic en "Nuevo prestador"
+GUI -> GUI : abre modal en modo crear
+GUI --> ADMIN : Modal modo crear
+
+ADMIN -> FORM : ingresa nro_documento="4000001"
+FORM -> BUSC : inicia búsqueda
+BUSC -> PVIEW : solicita persona con documento=4000001
+PVIEW -> BD : consulta si existe la persona
+BD --> PVIEW : sin resultados — persona no existe
+PVIEW --> BUSC : persona no encontrada, tampoco es prestador
+
+BUSC --> FORM : modo = 'crear_todo'
+FORM --> ADMIN : badge azul "Documento no encontrado"\nFormPersona (todos los campos editables)\nFormRRHH (cargo, tipo_contrato, nro_matricula,\nespecialidades con SelectorEspecialidades)
+
+== 2. Crea Persona mediante el formulario ==
+
+ADMIN -> FORM : completa datos de Persona\n(razon_social:'Dr. Juan Perez', tipo_documento,\ntelefono, ciudad, fecha_nacimiento)
+ADMIN -> FRRHH : completa datos del Prestador\n(cargo:'Medico Clinico', tipo_contrato:'DEPENDIENTE',\nnro_matricula:'MP-12345', especialidades:[1,3])
+ADMIN -> FORM : hace clic en Guardar (o F10)
+
+FORM -> PVIEW : envía datos de la nueva Persona
+PVIEW -> MIXIN : delega la creación
+MIXIN -> PERSONA : guarda con usuario creador
+PERSONA -> BD : inserta registro de persona
+BD --> PERSONA : id=80
+MIXIN -> BD : registra en auditoría (Persona — creado)
+BD --> MIXIN : OK
+PVIEW --> FORM : creada con éxito — id: 80
+
+== 3. Crea PersonaRRHH con especialidades M2M ==
+
+FORM -> RVIEW : envía datos del nuevo Prestador\n(persona=80, cargo='Medico Clinico',\nnro_matricula='MP-12345', especialidades=[1,3])
+RVIEW -> MIXIN : delega la creación
+MIXIN -> RRHH : guarda con usuario creador y asigna especialidades M2M
+RRHH -> BD : inserta registro de prestador
+BD --> RRHH : id=20
+RRHH -> BD : inserta vínculos en tabla especialidad_prestador (M2M)
+BD --> RRHH : OK
+MIXIN -> BD : registra en auditoría (PersonaRRHH — creado)
+BD --> MIXIN : OK
+RVIEW --> FORM : creado con éxito — id: 20
+
+FORM -> HOOK : refresca la lista de prestadores
+FORM --> GUI : notifica éxito
+GUI -> GUI : muestra mensaje "Prestador guardado correctamente."
+GUI -> GUI : cierra modal
+GUI --> ADMIN : notificación de éxito — prestador creado
+
+== 4. Admin crea usuario vinculado al prestador ==
+
+note over PERFIL, BD
+  La creación del usuario se realiza desde la gestión de Usuarios.
+  Se crea un PerfilUsuario con rol='medico' y persona_rrhh_id=20.
+  El JWT del médico incluirá el claim persona_rrhh_id=20.
+end note
+
+ADMIN -> UVIEW : envía datos del nuevo usuario\n(persona_rrhh=20, rol='medico', activo=True)
+UVIEW -> BD : inserta User y PerfilUsuario vinculados
+BD --> UVIEW : PerfilUsuario creado
+UVIEW --> ADMIN : usuario vinculado con éxito
+
+== 5. Se generan horarios para el prestador ==
+
+note over HORARIO, BD
+  La generación de turnos se realiza desde la gestión de Horario Prestador.
+  Se genera la agenda para un rango de fechas configurado.
+  Cada turno queda en estado DISPONIBLE.
+end note
+
+ADMIN -> HVIEW : solicita generar turnos para persona_rrhh=20\n(fecha_desde, fecha_hasta, consultorio, especialidad)
+HVIEW -> MIXIN : delega la creación de cada turno
+MIXIN -> HORARIO : guarda horario template con usuario creador
+HORARIO -> BD : inserta registros de agenda generados
+BD --> HORARIO : turnos DISPONIBLE creados
+MIXIN -> BD : registra en auditoría (HorarioPrestador — creado)
+HVIEW --> ADMIN : turnos generados con éxito
+
+== 6. Intento fallido de eliminar — tiene turnos activos ==
+
+ADMIN -> GUI : hace clic en eliminar en la fila "Dr. Juan Perez"
+GUI --> ADMIN : ConfirmDialog "Si tiene turnos activos\nno se podra eliminar."
+ADMIN -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar prestador id=20
+HOOK -> RVIEW : solicita eliminar prestador id=20
+
+RVIEW -> RRHH : verifica y ejecuta la eliminación
+RRHH -> AGENDA : verifica si existen turnos activos del prestador
+AGENDA -> BD : verifica si existe algún turno activo\n(DISPONIBLE, OCUPADO o REALIZADO)
+BD --> AGENDA : existe al menos un turno activo
+AGENDA --> RRHH : tiene turnos activos = sí
+
+RRHH -> RVIEW : rechaza la operación\n"No se puede eliminar: tiene turnos activos vinculados."
+RVIEW --> HOOK : responde con error
+HOOK -> GUI : muestra error (extraerMensajeError)
+GUI --> ADMIN : notificación de error — prestador sin cambios
+
+== 7. Admin cancela los turnos activos ==
+
+note over AGENDA, BD
+  La cancelación masiva se realiza desde la gestión de Agenda.
+  Se cancela el rango completo de turnos DISPONIBLES del prestador.
+  Los turnos OCUPADOS o REALIZADOS no se cancelan automáticamente.
+end note
+
+ADMIN -> AGVIEW : solicita cancelar rango de turnos\n(persona_rrhh=20, fecha_desde, fecha_hasta)
+AGVIEW -> MIXIN : delega la actualización de cada turno
+MIXIN -> AGENDA : marca turnos DISPONIBLES como CANCELADO
+AGENDA -> BD : actualiza estado de turnos a CANCELADO
+BD --> AGENDA : OK
+MIXIN -> BD : registra en auditoría (Agenda — editado)
+BD --> MIXIN : OK
+AGVIEW --> ADMIN : cancelados N turnos — detalle de no cancelados
+
+== 8. Eliminacion exitosa del prestador ==
+
+ADMIN -> GUI : hace clic en eliminar en la fila "Dr. Juan Perez"
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar prestador id=20
+HOOK -> RVIEW : solicita eliminar prestador id=20
+
+RVIEW -> RRHH : verifica y ejecuta la eliminación
+RRHH -> AGENDA : verifica si existen turnos activos del prestador
+AGENDA -> BD : verifica si existe algún turno activo\n(DISPONIBLE, OCUPADO o REALIZADO)
+BD --> AGENDA : no existe ningún turno activo
+AGENDA --> RRHH : tiene turnos activos = no
+
+RVIEW -> MIXIN : delega el borrado lógico en cascada
+MIXIN -> AGENDA : marca como eliminados los turnos del prestador
+AGENDA -> BD : actualiza agenda con is_deleted=True
+BD --> AGENDA : OK
+MIXIN -> HORARIO : marca como eliminados los horarios del prestador
+HORARIO -> BD : actualiza horarios con is_deleted=True
+BD --> HORARIO : OK
+MIXIN -> RRHH : desvincula especialidades M2M y marca como eliminado
+RRHH -> BD : vacía tabla especialidad_prestador para id=20
+RRHH -> BD : actualiza prestador marcando como eliminado
+BD --> RRHH : OK
+MIXIN -> BD : registra en auditoría (PersonaRRHH — eliminado)
+BD --> MIXIN : OK
+
+RVIEW --> HOOK : eliminado con éxito
+HOOK -> HOOK : refresca la lista de prestadores
+HOOK -> GUI : muestra mensaje "Prestador eliminado correctamente."
+GUI -> GUI : cierra modal
+GUI --> ADMIN : la fila desaparece — notificación de éxito
+
+note over PERSONA, BD
+  PersonaRRHH id=20 queda marcado como eliminado.
+  Persona id=80 (Dr. Juan Perez) permanece en la base de datos activa.
+  La Persona no puede eliminarse — rechaza la operación con MethodNotAllowed.
+  PerfilUsuario vinculado permanece con persona_rrhh_id=20 (campo historico).
+  El médico no podrá iniciar sesión si su PerfilUsuario queda inactivo.
+end note
+
+@enduml

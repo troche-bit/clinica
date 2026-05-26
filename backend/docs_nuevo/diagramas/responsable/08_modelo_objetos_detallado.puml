@@ -1,0 +1,191 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+' ── Actores ──────────────────────────────────────────────────
+
+class "Recepcionista" <<actor>> {
+  + gestionar responsables
+  + vincular responsable a paciente
+  + desvincular responsable
+}
+
+class "Administrador" <<actor>> {
+  + gestionar responsables
+  + eliminar responsables
+  + ver registros eliminados
+}
+
+' ── Boundaries ───────────────────────────────────────────────
+
+class "PacienteResponsablePage" <<boundary>> {
+  -- Elementos UI --
+  + txt_buscar: string
+  + btn_nuevo: Button
+  + btn_ver: Button
+  + btn_editar: Button
+  + btn_eliminar: Button
+  + btn_listado_pdf: Button
+  -- Comportamiento --
+  + mostrar lista de responsables
+  + abrir modal_formulario
+  + confirmar eliminación con ConfirmDialog
+  + mostrar toast éxito/error
+}
+
+class "ResponsableForm" <<boundary>> {
+  -- Elementos UI --
+  + modal_formulario: Modal
+  + btn_guardar: Button
+  + btn_cancelar: Button
+  + btn_confirmar: Button
+  -- Comportamiento --
+  + modo: crear | editar | ver
+  + gestionar resultado de búsqueda
+  + invocar guardar en dos pasos (Persona → Responsable)
+}
+
+class "BuscadorPersona" <<boundary>> {
+  -- Elementos UI --
+  + txt_nro_documento: TextInput
+  + btn_buscar_persona: Button
+  -- Comportamiento --
+  + disparar búsqueda al perder foco
+  + mostrar badge: "Documento no encontrado" | "Persona encontrada" | "Ya es responsable"
+  + resolver modo: crear_todo | agregar_responsable | ya_es_responsable
+}
+
+class "FormPersona" <<boundary>> {
+  -- Elementos UI --
+  + inp_razon_social: TextInput
+  + inp_telefono: TextInput
+  + inp_fecha_nacimiento: DateInput
+  + sel_tipo_documento: Select
+  + sel_ciudad: Select
+  -- Comportamiento --
+  + editable en modo crear_todo
+  + solo lectura si persona ya existe
+}
+
+class "FormResponsable" <<boundary>> {
+  -- Elementos UI --
+  + txt_ocupacion: TextInput
+  + sel_grupo_sanguineo: Select
+  + chk_es_contacto_emergencia: Checkbox
+  -- Comportamiento --
+  + ocupacion opcional
+  + es_contacto_emergencia opcional (default: false)
+}
+
+' ── Controls ─────────────────────────────────────────────────
+
+class "PacienteResponsableViewSet" <<control>> {
+  -- Configuración --
+  + queryset: PacienteResponsable.activos (is_deleted=False)
+  + search_fields: [persona__razon_social, persona__nro_documento]
+  + permission_classes: tres niveles (lectura/escritura/admin)
+  -- Acciones --
+  + list()
+  + create()
+  + retrieve()
+  + partial_update()
+  + destroy()
+  + eliminados()
+  + buscar(): GET ?nro_documento=X → {persona, pacienteresponsable, es_responsable}
+  + perform_destroy(): verifica pacientes activos antes de delegar
+}
+
+class "PersonaViewSet" <<control>> {
+  -- Configuración --
+  + queryset: Persona.activos (is_deleted=False)
+  + search_fields: [nro_documento, razon_social]
+  -- Acciones --
+  + create()
+  + buscar(): GET ?nro_documento=X → {persona, pacienteresponsable, es_responsable}
+}
+
+class "PacienteViewSet" <<control>> {
+  -- Configuración --
+  + queryset: Paciente.activos (is_deleted=False)
+  -- Acciones --
+  + partial_update(): PATCH — desvincula responsable (responsable=null)
+}
+
+' ── Entities ─────────────────────────────────────────────────
+
+class "PacienteResponsable" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + persona: FK → Persona
+  + grupo_sanguineo: CharField
+  + ocupacion: CharField (nullable)
+  + es_contacto_emergencia: BooleanField = False
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+  + fecha_eliminacion: DateTimeField (nullable)
+  + id_usu_creator: FK → User
+  + id_usu_modificator: FK → User
+}
+
+class "Persona" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + nro_documento: CharField (único)
+  + razon_social: CharField
+  + tipo_documento: FK → TipoDocumento
+  + ciudad: FK → Ciudad
+  + telefono: CharField
+  + fecha_nacimiento: DateField
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+}
+
+class "Paciente" <<entity>> {
+  -- Campos de negocio --
+  + id: AutoField
+  + persona: FK → Persona
+  + responsable: FK → PacienteResponsable (nullable)
+  + sexo: CharField [M/F]
+  + grupo_sanguineo: CharField
+  -- Campos BaseModel --
+  + is_deleted: BooleanField = False
+  + fecha_creacion: DateTimeField
+  + fecha_modificacion: DateTimeField
+}
+
+' ── Relaciones ───────────────────────────────────────────────
+
+"Recepcionista" --> "PacienteResponsablePage"
+"Administrador" --> "PacienteResponsablePage"
+
+"PacienteResponsablePage" --> "ResponsableForm"
+"ResponsableForm" --> "BuscadorPersona"
+"ResponsableForm" --> "FormPersona"
+"ResponsableForm" --> "FormResponsable"
+
+"PacienteResponsablePage" --> "PacienteResponsableViewSet"
+"ResponsableForm" --> "PacienteResponsableViewSet"
+"ResponsableForm" --> "PersonaViewSet"
+"BuscadorPersona" --> "PersonaViewSet"
+"ResponsableForm" --> "PacienteViewSet"
+
+"PacienteResponsableViewSet" --> "PacienteResponsable"
+"PersonaViewSet" --> "Persona"
+"PacienteViewSet" --> "Paciente"
+
+"PacienteResponsable" --> "Persona"
+"Paciente" --> "PacienteResponsable"
+
+@enduml
