@@ -11,15 +11,8 @@ skinparam class {
   ArrowColor #000000
 }
 
-skinparam actor {
-  BackgroundColor #ffffff
-  BorderColor #000000
-}
-
-left to right direction
-
-actor "Administrador" as ADMIN
-actor "Recepcionista" as RECEP
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
 
 class "UbicacionesPage" <<boundary>> {
   +paisSeleccionado
@@ -96,8 +89,8 @@ class "Ciudad" <<entity>> {
   +fecha_eliminacion : DateTimeField
 }
 
-ADMIN --> UbicacionesPage
-RECEP --> UbicacionesPage
+Administrador --> UbicacionesPage
+Recepcionista --> UbicacionesPage
 
 UbicacionesPage --> PaisViewSet
 UbicacionesPage --> DepartamentoViewSet
