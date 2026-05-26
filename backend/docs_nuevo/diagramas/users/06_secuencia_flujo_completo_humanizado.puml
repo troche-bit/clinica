@@ -1,0 +1,141 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+actor Usuario
+
+boundary "Página de Login" as LOGIN
+boundary "Página de Usuarios" as GUI
+control "Autenticación" as AUTH
+control "Gestión de Usuarios" as VIEW
+entity "PerfilUsuario" as PERFIL
+entity "Usuario del sistema" as USERMODEL
+database "Base de datos" as BD
+
+== 1. Administrador inicia sesión ==
+
+Administrador -> LOGIN : ingresa usuario y contraseña
+LOGIN -> AUTH : envía credenciales
+AUTH -> BD : verifica usuario y contraseña
+BD --> AUTH : datos del usuario
+AUTH -> BD : consulta si el perfil está activo
+BD --> AUTH : perfil activo
+AUTH -> AUTH : genera token con rol, nombre e iniciales
+AUTH --> LOGIN : acceso concedido
+LOGIN --> Administrador : redirige al sistema\nmenú filtrado según su rol
+
+== 2. Credenciales incorrectas o cuenta inactiva ==
+
+Administrador -> LOGIN : ingresa credenciales inválidas
+LOGIN -> AUTH : envía credenciales
+AUTH -> BD : verifica usuario
+BD --> AUTH : no encontrado o contraseña incorrecta
+AUTH --> LOGIN : acceso denegado
+LOGIN --> Administrador : aviso — credenciales inválidas
+
+Usuario -> LOGIN : credenciales válidas pero cuenta desactivada
+LOGIN -> AUTH : envía credenciales
+AUTH -> BD : consulta perfil
+BD --> AUTH : perfil inactivo
+AUTH --> LOGIN : acceso denegado
+LOGIN --> Usuario : aviso — cuenta desactivada, contactar al administrador
+
+== 3. Administrador lista y filtra usuarios ==
+
+Administrador -> GUI : abre la página de usuarios
+GUI -> VIEW : solicita lista de usuarios
+VIEW -> BD : consulta usuarios con filtros activos
+BD --> VIEW : lista de perfiles
+VIEW --> GUI : tabla de usuarios actualizada
+GUI --> Administrador : muestra lista con nombre, rol y estado
+
+Administrador -> GUI : filtra por rol o estado activo
+GUI -> VIEW : solicita lista con nuevos filtros
+VIEW -> BD : consulta con los filtros aplicados
+BD --> VIEW : lista filtrada
+VIEW --> GUI : tabla actualizada
+GUI --> Administrador : muestra resultados filtrados
+
+== 4. Administrador crea un nuevo usuario ==
+
+Administrador -> GUI : hace clic en Nuevo usuario
+GUI --> Administrador : abre formulario de creación
+Administrador -> GUI : completa nombre, apellido, usuario,\ncontraseña, rol y prestador vinculado
+Administrador -> GUI : confirma la creación
+
+GUI -> VIEW : envía datos del nuevo usuario
+VIEW -> VIEW : verifica que el nombre de usuario no exista
+VIEW -> BD : crea la cuenta de acceso al sistema
+BD --> VIEW : cuenta creada
+VIEW -> BD : crea el perfil con rol y prestador asignado
+BD --> VIEW : perfil creado
+VIEW -> BD : registra la acción en auditoría
+BD --> VIEW : registro guardado
+
+VIEW --> GUI : usuario creado con éxito
+GUI --> Administrador : cierra formulario y actualiza la tabla
+
+== 5. Administrador edita un usuario existente ==
+
+Administrador -> GUI : hace clic en editar sobre un usuario
+GUI --> Administrador : abre formulario con datos actuales
+Administrador -> GUI : modifica nombre, apellido, email o rol
+Administrador -> GUI : guarda los cambios
+
+GUI -> VIEW : envía los cambios
+VIEW -> VIEW : verifica que no se cambie el rol del usuario maestro
+VIEW -> BD : actualiza datos de la cuenta
+VIEW -> BD : actualiza perfil con nuevo rol o prestador
+BD --> VIEW : actualización confirmada
+VIEW -> BD : registra la acción en auditoría
+BD --> VIEW : registro guardado
+
+VIEW --> GUI : usuario actualizado con éxito
+GUI --> Administrador : tabla actualizada
+
+== 6. Administrador activa o desactiva un usuario ==
+
+Administrador -> GUI : hace clic en el toggle de estado de un usuario
+GUI --> Administrador : pide confirmación
+Administrador -> GUI : confirma el cambio
+
+GUI -> VIEW : solicita cambiar estado del usuario
+VIEW -> VIEW : verifica que no sea el usuario maestro\nverifica que no sea el propio administrador
+VIEW -> BD : cambia el estado activo/inactivo
+BD --> VIEW : cambio confirmado
+VIEW -> BD : registra la acción en auditoría
+BD --> VIEW : registro guardado
+
+VIEW --> GUI : estado actualizado
+GUI --> Administrador : tabla actualizada con nuevo estado
+
+== 7. Administrador resetea la contraseña de un usuario ==
+
+Administrador -> GUI : hace clic en resetear contraseña
+GUI --> Administrador : abre formulario para nueva contraseña
+Administrador -> GUI : ingresa la nueva contraseña
+Administrador -> GUI : confirma el cambio
+
+GUI -> VIEW : envía la nueva contraseña
+VIEW -> VIEW : verifica que tenga al menos 8 caracteres\nverifica que sea distinta a la actual
+VIEW -> BD : actualiza la contraseña del usuario
+BD --> VIEW : actualización confirmada
+VIEW -> BD : registra la acción en auditoría (contraseña oculta)
+BD --> VIEW : registro guardado
+
+VIEW --> GUI : contraseña actualizada con éxito
+GUI --> Administrador : muestra mensaje de confirmación
+
+== 8. Administrador cierra sesión ==
+
+Administrador -> GUI : hace clic en Cerrar sesión
+GUI -> AUTH : solicita cierre de sesión
+AUTH -> AUTH : elimina tokens almacenados\nlimpia datos en memoria
+AUTH --> GUI : sesión cerrada
+GUI --> Administrador : redirige a la pantalla de inicio de sesión
+
+@enduml

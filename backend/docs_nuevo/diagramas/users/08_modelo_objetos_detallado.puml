@@ -1,0 +1,108 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Usuario autenticado" <<actor>>
+
+class "UsuariosPage" <<boundary>> {
+  +txt_buscar
+  +sel_rol
+  +sel_activo
+  +tbl_usuarios
+  +btn_nuevo
+  +btn_editar
+  +btn_toggle_estado
+  +btn_resetear_password
+  +modal_formulario
+  +txt_username
+  +inp_password
+  +inp_confirmar_pass
+  +txt_nombre
+  +txt_apellido
+  +txt_email
+  +sel_rol_form
+  +sel_prestador
+  +lst_medicos_asignados
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  --
+  +abrirFormularioCrear()
+  +abrirFormularioEditar()
+  +cambiarEstado()
+  +resetearPassword()
+  +cerrarSesion()
+}
+
+class "PerfilUsuarioViewSet" <<control>> {
+  +queryset : PerfilUsuario.todos
+  +search_fields : [username, first_name, last_name]
+  +filtro_rol : rol
+  +filtro_activo : activo
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +retrieve()
+  +partial_update()
+  +me()
+  +cambiar_password()
+  +cambiar_estado()
+  +resetear_password()
+  +_log()
+}
+
+class "CustomTokenObtainPairView" <<control>> {
+  +claims : [rol, nombre, iniciales, activo,\npersona_rrhh_id, medicos_asignados]
+  --
+  +get_token()
+  +validate()
+  +post()
+}
+
+class "PerfilUsuario" <<entity>> {
+  +id : AutoField
+  +user : OneToOneField
+  +rol : CharField
+  +activo : BooleanField
+  +persona_rrhh : ForeignKey
+  +medicos_asignados : ManyToManyField
+  --
+  +nombre_completo : property
+  +iniciales : property
+}
+
+class "User" <<entity>> {
+  +id : AutoField
+  +username : CharField
+  +password : CharField
+  +first_name : CharField
+  +last_name : CharField
+  +email : CharField
+  +is_superuser : BooleanField
+  +is_active : BooleanField
+}
+
+Administrador         --> UsuariosPage
+"Usuario autenticado" --> UsuariosPage
+
+UsuariosPage --> PerfilUsuarioViewSet
+UsuariosPage --> CustomTokenObtainPairView
+
+PerfilUsuarioViewSet      --> PerfilUsuario
+CustomTokenObtainPairView --> PerfilUsuario
+
+PerfilUsuario "1" --> "1" User : user (OneToOne)
+
+@enduml

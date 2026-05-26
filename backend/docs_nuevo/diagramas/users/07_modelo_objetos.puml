@@ -1,0 +1,79 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Usuario autenticado" <<actor>>
+
+class "UsuariosPage" <<boundary>> {
+  +usuarioSeleccionado
+  +filtroRol
+  +filtroActivo
+  --
+  +abrirFormularioCrear()
+  +abrirFormularioEditar()
+  +cambiarEstado()
+  +resetearPassword()
+  +cerrarSesion()
+}
+
+class "PerfilUsuarioViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  --
+  +list()
+  +create()
+  +retrieve()
+  +partial_update()
+  +me()
+  +cambiar_password()
+  +cambiar_estado()
+  +resetear_password()
+}
+
+class "CustomTokenObtainPairView" <<control>> {
+  +get_token()
+  +validate()
+  --
+  +post()
+}
+
+class "PerfilUsuario" <<entity>> {
+  +id : AutoField
+  +rol : CharField
+  +activo : BooleanField
+  +persona_rrhh : ForeignKey
+  +medicos_asignados : ManyToManyField
+}
+
+class "User" <<entity>> {
+  +id : AutoField
+  +username : CharField
+  +password : CharField
+  +first_name : CharField
+  +last_name : CharField
+  +email : CharField
+  +is_superuser : BooleanField
+}
+
+Administrador         --> UsuariosPage
+"Usuario autenticado" --> UsuariosPage
+
+UsuariosPage --> PerfilUsuarioViewSet
+UsuariosPage --> CustomTokenObtainPairView
+
+PerfilUsuarioViewSet    --> PerfilUsuario
+CustomTokenObtainPairView --> PerfilUsuario
+
+PerfilUsuario "1" --> "1" User : user (OneToOne)
+
+@enduml
