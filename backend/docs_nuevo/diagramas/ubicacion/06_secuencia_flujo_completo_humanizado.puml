@@ -1,0 +1,165 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+
+boundary "Página Ubicaciones" as GUI
+control "Lógica de datos" as HOOK
+control "Servicio Países" as PVIS
+control "Servicio Departamentos" as DVIS
+control "Servicio Ciudades" as CVIS
+control "Auditoría" as MIXIN
+
+entity "País" as MPAIS
+entity "Departamento" as MDEPTO
+entity "Ciudad" as MCIUDAD
+entity "Persona" as MPERS
+
+database "Base de datos" as BD
+
+== 1. Administrador navega la jerarquía ==
+
+Administrador -> GUI : abre la página
+GUI -> HOOK : pide la lista de países
+HOOK -> PVIS : obtiene todos los países activos
+PVIS -> BD : consulta países no eliminados
+BD --> PVIS : [Paraguay, Argentina, Brasil]
+PVIS --> HOOK : lista de países
+HOOK --> GUI : columna Países con datos
+GUI --> Administrador : Departamentos y Ciudades deshabilitados
+
+Administrador -> GUI : selecciona "Paraguay"
+GUI -> HOOK : pide departamentos de Paraguay
+HOOK -> DVIS : obtiene departamentos activos de Paraguay
+DVIS -> BD : consulta departamentos del país seleccionado
+BD --> DVIS : [Central, Cordillera]
+DVIS --> HOOK : lista de departamentos
+HOOK --> GUI : columna Departamentos activa
+
+Administrador -> GUI : selecciona "Central"
+GUI -> HOOK : pide ciudades de Central
+HOOK -> CVIS : obtiene ciudades activas de Central
+CVIS -> BD : consulta ciudades del departamento seleccionado
+BD --> CVIS : [Luque, San Lorenzo, Capiata]
+CVIS --> HOOK : lista de ciudades
+HOOK --> GUI : columna Ciudades activa
+
+== 2. Administrador crea una nueva ciudad ==
+
+Administrador -> GUI : hace clic en Agregar en la columna Ciudades
+GUI -> GUI : abre fila editable en blanco
+Administrador -> GUI : escribe "Fernando de la Mora"
+Administrador -> GUI : confirma la creación
+
+GUI -> HOOK : solicita crear ciudad "Fernando de la Mora" en Central
+HOOK -> CVIS : envía los datos de la nueva ciudad
+
+CVIS -> MCIUDAD : verifica que no exista otra ciudad con ese nombre en el mismo departamento
+MCIUDAD -> BD : busca ciudad con mismo nombre en Central
+BD --> MCIUDAD : no existe — puede continuar
+
+CVIS -> MIXIN : registra la creación
+MIXIN -> MCIUDAD : guarda la nueva ciudad con el usuario que la creó
+MCIUDAD -> BD : inserta la ciudad en la base de datos
+BD --> MCIUDAD : ciudad creada con id=4
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+
+CVIS --> HOOK : ciudad creada con éxito
+HOOK -> HOOK : refresca la lista de ciudades
+HOOK -> GUI : muestra mensaje "Ciudad creada."
+GUI --> Administrador : la nueva ciudad aparece en la tabla
+
+== 3. Intento fallido de eliminar un departamento con ciudades activas ==
+
+Administrador -> GUI : hace clic en eliminar "Central"
+GUI --> Administrador : pide confirmación
+Administrador -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar Central
+HOOK -> DVIS : intenta eliminar el departamento
+
+DVIS -> MDEPTO : verifica si tiene ciudades activas
+MDEPTO -> BD : busca ciudades activas vinculadas a Central
+BD --> MDEPTO : encontró ciudades activas
+MDEPTO -> DVIS : rechaza la operación — tiene ciudades activas vinculadas
+
+note right of DVIS
+  El departamento no se modifica.
+  La auditoría no se registra.
+end note
+
+DVIS --> HOOK : responde con error
+HOOK -> GUI : muestra mensaje de error
+GUI --> Administrador : aviso — no se puede eliminar porque tiene ciudades activas
+
+== 4. Administrador elimina la ciudad recién creada ==
+
+Administrador -> GUI : hace clic en eliminar "Fernando de la Mora"
+GUI --> Administrador : pide confirmación
+Administrador -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar la ciudad
+HOOK -> CVIS : intenta eliminar la ciudad
+
+CVIS -> MCIUDAD : verifica si tiene personas vinculadas
+MCIUDAD -> MPERS : busca personas activas con esa ciudad
+MPERS -> BD : consulta personas vinculadas
+BD --> MPERS : no hay personas vinculadas
+MPERS --> MCIUDAD : puede eliminarse
+
+CVIS -> MIXIN : registra la eliminación
+MIXIN -> MCIUDAD : marca la ciudad como eliminada
+MCIUDAD -> BD : actualiza el estado de la ciudad a eliminada
+BD --> MCIUDAD : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+
+CVIS --> HOOK : ciudad eliminada con éxito
+HOOK -> HOOK : refresca la lista de ciudades
+HOOK -> GUI : muestra mensaje "Ciudad eliminada."
+GUI --> Administrador : la ciudad desaparece de la tabla
+
+== 5. Administrador elimina el departamento ya sin ciudades activas ==
+
+Administrador -> GUI : hace clic en eliminar "Cordillera"
+GUI --> Administrador : pide confirmación
+Administrador -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar el departamento
+HOOK -> DVIS : intenta eliminar el departamento
+
+DVIS -> MDEPTO : verifica si tiene ciudades activas
+MDEPTO -> BD : busca ciudades activas en Cordillera
+BD --> MDEPTO : no hay ciudades activas
+
+MDEPTO -> MPERS : verifica si hay personas vinculadas al departamento
+MPERS -> BD : busca personas cuya ciudad pertenezca a Cordillera
+BD --> MPERS : no hay personas vinculadas
+MPERS --> MDEPTO : puede eliminarse
+
+DVIS -> MIXIN : registra la eliminación
+MIXIN -> MDEPTO : marca el departamento como eliminado
+MDEPTO -> BD : actualiza el estado del departamento a eliminado
+BD --> MDEPTO : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+
+DVIS --> HOOK : departamento eliminado con éxito
+HOOK -> HOOK : refresca la lista de departamentos
+HOOK -> GUI : muestra mensaje "Departamento eliminado."
+GUI --> Administrador : el departamento desaparece de la tabla
+
+note over BD
+  El registro queda guardado en la base de datos pero marcado como eliminado.
+  El nombre puede volver a usarse en un nuevo registro.
+end note
+
+@enduml
