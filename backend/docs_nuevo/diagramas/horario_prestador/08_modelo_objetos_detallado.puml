@@ -1,0 +1,137 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Secretaria médico" <<actor>>
+
+class "HorarioPrestadorPage" <<boundary>> {
+  +txt_buscar
+  +sel_prestador
+  +tbl_prestadores
+  +pills_horarios
+  +panel_lateral
+  +btn_editar_horarios
+  +btn_agregar_horario
+  +inp_fecha_desde_gen
+  +inp_fecha_hasta_gen
+  +lbl_preview_turnos
+  +btn_confirmar_generacion
+  +btn_reporte_pdf
+  +btn_reporte_excel
+  --
+  +cargarPrestadores()
+  +cargarHorarios()
+  +seleccionarPrestador()
+  +previsualizar()
+  +confirmarGeneracion()
+}
+
+class "BloqueHorario" <<boundary>> {
+  +sel_dia_semana
+  +inp_hora_desde
+  +inp_hora_hasta
+  +sel_intervalo
+  +sel_especialidades
+  +chk_excepcion
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  --
+  +agregarBloque()
+  +editarBloque()
+  +guardarCambios()
+  +calcularSlots()
+}
+
+class "HorarioPrestadorViewSet" <<control>> {
+  +queryset : HorarioPrestador.activos
+  +filtros : [persona_rrhh, dia_semana]
+  +solapamiento_validado : useMemo
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +generar()
+  +reporte_horarios()
+  +reporte_horarios_excel()
+  +perform_destroy()
+}
+
+class "PersonaRRHHViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+}
+
+class "AgendaViewSet" <<control>> {
+  +get_permissions()
+  --
+  +bulk_create() via generar
+}
+
+class "HorarioPrestador" <<entity>> {
+  +id : AutoField
+  +persona_rrhh : ForeignKey
+  +dia_semana : ForeignKey
+  +hora_desde : TimeField
+  +hora_hasta : TimeField
+  +intervalo : IntegerField
+  +especialidades : ManyToManyField
+  +estado : BooleanField
+  +excepcion : BooleanField
+  +fecha_excepcion : DateField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "Agenda" <<entity>> {
+  +id : AutoField
+  +horario_prestador : ForeignKey
+  +paciente : ForeignKey
+  +fecha : DateField
+  +hora_desde : TimeField
+  +estado : CharField
+  +is_deleted : BooleanField
+}
+
+class "PersonaRRHH" <<entity>> {
+  +id : AutoField
+  +persona : ForeignKey
+  +is_deleted : BooleanField
+}
+
+"Administrador" --> "HorarioPrestadorPage"
+"Secretaria médico" --> "HorarioPrestadorPage"
+
+"HorarioPrestadorPage" --> "BloqueHorario"
+
+"HorarioPrestadorPage" --> "HorarioPrestadorViewSet"
+"HorarioPrestadorPage" --> "PersonaRRHHViewSet"
+"BloqueHorario" --> "HorarioPrestadorViewSet"
+"HorarioPrestadorViewSet" --> "AgendaViewSet"
+
+"HorarioPrestadorViewSet" --> "HorarioPrestador"
+"AgendaViewSet" --> "Agenda"
+"PersonaRRHHViewSet" --> "PersonaRRHH"
+
+"HorarioPrestador" "0..*" --> "1" "PersonaRRHH" : persona_rrhh (FK)
+"Agenda" "0..*" --> "1" "HorarioPrestador" : horario_prestador (FK)
+
+@enduml

@@ -1,0 +1,126 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>> {
+  + abrir hub de informes
+  + generar PDF con filtros
+  + descargar Excel con filtros
+  + generar historia clínica
+  + navegar a dashboards
+  + cambiar período de visualización
+}
+
+class "InformesPacientePage" <<boundary>> {
+  + mostrar 3 tarjetas de estadísticas
+  + mostrar 5 tarjetas de listados
+  + mostrar 5 tarjetas de dashboards
+  + abrir modal de filtros paciente
+  + buscar paciente para historia clínica
+  + abrir PDF en nueva pestaña
+  + descargar Excel automáticamente
+}
+
+class "DashboardPacientesPage" <<boundary>> {
+  + mostrar gráfico donut (sexo)
+  + mostrar gráfico barras (por día)
+  + mostrar barras horizontales (departamentos)
+  + mostrar curva de tendencia (6 meses)
+  + cambiar período sin nueva solicitud
+}
+
+class "DashboardConsultasPage" <<boundary>> {
+  + mostrar top prestadores
+  + mostrar distribución por especialidad
+  + mostrar comparativa 6 meses
+}
+
+class "DashboardAgendaPage" <<boundary>> {
+  + mostrar estadísticas de agenda
+  + mostrar estadísticas por prestador
+  + mostrar mapa de calor (día×hora)
+}
+
+class "PacienteViewSet" <<control>> {
+  + reporte_lista()
+  + reporte_lista_excel()
+  + dashboard_mensual()
+  + count()
+}
+
+class "ConsultaViewSet" <<control>> {
+  + stats_hoy()
+  + historia_clinica()
+  + dashboard_consultas()
+}
+
+class "AgendaViewSet" <<control>> {
+  + stats_hoy()
+  + dashboard_agenda()
+  + dashboard_prestadores()
+  + dashboard_ocupacion()
+}
+
+class "WeasyPrint" <<control>> {
+  + render PDF desde plantilla HTML
+}
+
+class "openpyxl" <<control>> {
+  + render Excel .xlsx
+}
+
+class "Paciente" <<entity>> {
+  + id
+  + persona: FK Persona
+  + sexo
+  + grupo_sanguineo
+  + fecha_creacion
+  + is_deleted
+}
+
+class "Consulta" <<entity>> {
+  + id
+  + estado
+  + evento_clinico: FK EventoClinico
+  + proxima_cita
+  + is_deleted
+}
+
+class "Agenda" <<entity>> {
+  + id
+  + estado
+  + fecha
+  + hora_desde
+  + is_deleted
+}
+
+"Administrador" --> "InformesPacientePage"
+"Administrador" --> "DashboardPacientesPage"
+"Administrador" --> "DashboardConsultasPage"
+"Administrador" --> "DashboardAgendaPage"
+
+"InformesPacientePage" --> "PacienteViewSet"
+"InformesPacientePage" --> "ConsultaViewSet"
+"InformesPacientePage" --> "AgendaViewSet"
+"DashboardPacientesPage" --> "PacienteViewSet"
+"DashboardConsultasPage" --> "ConsultaViewSet"
+"DashboardAgendaPage" --> "AgendaViewSet"
+
+"PacienteViewSet" --> "WeasyPrint"
+"PacienteViewSet" --> "openpyxl"
+"ConsultaViewSet" --> "WeasyPrint"
+
+"PacienteViewSet" --> "Paciente"
+"ConsultaViewSet" --> "Consulta"
+"AgendaViewSet" --> "Agenda"
+
+@enduml

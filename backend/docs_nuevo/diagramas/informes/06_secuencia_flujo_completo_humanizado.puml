@@ -1,0 +1,140 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+
+boundary "InformesPacientePage" as GUI
+boundary "DashboardPacientesPage" as DASH_PAC
+boundary "DashboardConsultasPage" as DASH_CON
+boundary "DashboardAgendaPage" as DASH_AG
+control "PacienteViewSet" as PVIEW
+control "ConsultaViewSet" as CVIEW
+control "AgendaViewSet" as AGVIEW
+control "WeasyPrint" as WPDF
+control "openpyxl" as EXCEL
+entity "Paciente" as PACIENTE
+entity "Consulta" as CONSULTA
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== 1. Administrador abre el hub de informes ==
+
+Administrador -> GUI : abre /informes
+GUI -> CVIEW : solicita estadísticas de consultas del día
+CVIEW -> BD : cuenta consultas del día por estado
+BD --> CVIEW : totales del día
+CVIEW --> GUI : tarjeta "consultas hoy"
+GUI -> AGVIEW : solicita estadísticas de agenda del día
+AGVIEW -> BD : cuenta turnos del día por estado
+BD --> AGVIEW : totales del día
+AGVIEW --> GUI : tarjeta "agenda hoy"
+GUI -> PVIEW : solicita total de pacientes activos
+PVIEW -> BD : cuenta pacientes activos
+BD --> PVIEW : total
+PVIEW --> GUI : tarjeta "total pacientes"
+GUI --> Administrador : 3 tarjetas de stats + 5 tarjetas de listados + 5 tarjetas de estadísticas
+
+== 2. Administrador genera PDF de listado de pacientes ==
+
+Administrador -> GUI : hace clic en la tarjeta "Listado de pacientes"
+GUI --> Administrador : abre modal de filtros (país, sexo, fecha desde/hasta)
+Administrador -> GUI : selecciona filtros y hace clic en "Ver PDF"
+GUI -> PVIEW : solicita reporte PDF con los filtros seleccionados (respuesta tipo blob)
+PVIEW -> BD : consulta pacientes activos aplicando filtros
+BD --> PVIEW : lista de pacientes filtrada
+PVIEW -> WPDF : genera documento PDF con la lista
+WPDF --> PVIEW : archivo PDF listo
+PVIEW --> GUI : blob PDF
+GUI --> Administrador : abre el PDF en una nueva pestaña del navegador
+
+== 3. Administrador descarga Excel de pacientes ==
+
+Administrador -> GUI : hace clic en "Descargar Excel" con los mismos filtros
+GUI -> PVIEW : solicita reporte Excel con los filtros seleccionados
+PVIEW -> BD : consulta pacientes activos aplicando filtros
+BD --> PVIEW : lista de pacientes filtrada
+PVIEW -> EXCEL : genera archivo .xlsx con la lista
+EXCEL --> PVIEW : archivo .xlsx listo
+PVIEW --> GUI : archivo .xlsx
+GUI --> Administrador : descarga automática del archivo Excel
+
+== 4. Administrador genera Historia Clínica de un paciente ==
+
+Administrador -> GUI : hace clic en la tarjeta "Historia Clínica"
+GUI --> Administrador : muestra buscador de pacientes
+Administrador -> GUI : escribe "María" (búsqueda con retardo)
+GUI -> PVIEW : solicita pacientes que coincidan con "María"
+PVIEW -> BD : busca pacientes por nombre
+BD --> PVIEW : coincidencias
+PVIEW --> GUI : lista de sugerencias
+Administrador -> GUI : selecciona "María Rodríguez" (id=25)
+GUI -> CVIEW : solicita historia clínica del paciente id=25
+CVIEW -> BD : obtiene consultas del paciente con documentos adjuntos
+BD --> CVIEW : historial completo
+CVIEW -> WPDF : genera PDF de la historia clínica con consultas y documentos
+WPDF --> CVIEW : archivo PDF listo
+CVIEW --> GUI : blob PDF
+GUI --> Administrador : abre la historia clínica en una nueva pestaña
+
+== 5. Administrador navega al Dashboard de Pacientes ==
+
+Administrador -> DASH_PAC : abre /informes/dashboard/pacientes
+DASH_PAC -> PVIEW : solicita estadísticas del mes en curso
+PVIEW -> BD : calcula total_mes, por_dia, por_semana, por_sexo, por_grupo_etario, por_departamento, tendencia_6meses
+BD --> PVIEW : datos estadísticos completos
+PVIEW --> DASH_PAC : estadísticas del mes
+DASH_PAC --> Administrador : gráfico donut (sexo) + barras (por día) + barras horizontales (departamentos) + curva (tendencia 6 meses)
+
+== 6. Administrador cambia el período del Dashboard de Pacientes ==
+
+Administrador -> DASH_PAC : hace clic en el toggle "Semana"
+DASH_PAC -> DASH_PAC : reutiliza los datos ya cargados en memoria (sin nueva solicitud)
+DASH_PAC --> Administrador : gráficos actualizados con agrupación semanal
+
+note over DASH_PAC
+  El cambio entre Día / Semana / Mes
+  no genera una nueva solicitud al servidor.
+  Los datos ya descargados se reorganizan en memoria.
+end note
+
+== 7. Administrador ve el Dashboard de Consultas ==
+
+Administrador -> DASH_CON : abre el dashboard de consultas
+DASH_CON -> CVIEW : solicita estadísticas de consultas
+CVIEW -> BD : calcula top prestadores, por especialidad, comparativa 6 meses
+BD --> CVIEW : datos estadísticos
+CVIEW --> DASH_CON : estadísticas de consultas
+DASH_CON --> Administrador : gráficos de top prestadores + por especialidad + comparativa mensual
+
+== 8. Administrador ve el Dashboard de Agenda ==
+
+Administrador -> DASH_AG : abre el dashboard de agenda
+DASH_AG -> AGVIEW : solicita estadísticas de agenda
+AGVIEW -> BD : calcula ocupación, cancelaciones, distribución por día
+BD --> AGVIEW : datos estadísticos
+AGVIEW --> DASH_AG : estadísticas de agenda
+DASH_AG --> Administrador : gráficos de ocupación y cancelaciones
+
+== 9. Administrador ve el Dashboard de Prestadores ==
+
+Administrador -> DASH_AG : selecciona la vista de prestadores
+DASH_AG -> AGVIEW : solicita estadísticas por prestador
+AGVIEW -> BD : calcula consultas y turnos por prestador
+BD --> AGVIEW : datos por prestador
+AGVIEW --> DASH_AG : estadísticas por prestador
+DASH_AG --> Administrador : gráficos comparativos por prestador
+
+== 10. Administrador ve el Mapa de Calor de ocupación ==
+
+Administrador -> DASH_AG : selecciona la vista de mapa de calor
+DASH_AG -> AGVIEW : solicita datos de ocupación (grilla día×hora)
+AGVIEW -> BD : calcula ocupación por día de semana y franja horaria
+BD --> AGVIEW : matriz de ocupación
+AGVIEW --> DASH_AG : datos de la grilla
+DASH_AG --> Administrador : mapa de calor con intensidad de ocupación por hora y día
+
+@enduml

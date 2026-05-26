@@ -1,0 +1,140 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+actor "Secretaria médico" as SECRETARIA
+
+boundary "HorarioPrestadorPage" as GUI
+boundary "BloqueHorario" as BLOQUE
+control "HorarioPrestadorViewSet" as HVIEW
+control "PersonaRRHHViewSet" as PRVIEW
+control "AgendaViewSet" as AGVIEW
+control "AuditoriaMixin" as MIXIN
+entity "HorarioPrestador" as HORARIO
+entity "Agenda" as AGENDA
+entity "PersonaRRHH" as RRHH
+database "PostgreSQL" as BD
+
+== 1. Administrador carga la página de horarios ==
+
+Administrador -> GUI : abre la página de horarios de prestadores
+GUI -> PRVIEW : solicita lista de prestadores
+PRVIEW -> BD : obtiene prestadores activos
+BD --> PRVIEW : lista de prestadores
+PRVIEW --> GUI : prestadores disponibles
+GUI -> HVIEW : solicita todos los horarios (hasta 200 registros)
+HVIEW -> BD : consulta horarios activos con prestador y día de semana
+BD --> HVIEW : lista de horarios
+HVIEW --> GUI : tabla de horarios con prestadores y pills de días asignados
+GUI --> Administrador : tabla con prestadores y sus horarios resumidos en pills
+
+== 2. Administrador selecciona un prestador ==
+
+Administrador -> GUI : selecciona al prestador "Dr. García"
+GUI -> GUI : cambia el panel lateral a modo "ver"
+GUI -> HVIEW : solicita horarios del prestador seleccionado
+HVIEW -> BD : consulta horarios del Dr. García activos
+BD --> HVIEW : horarios con días, franjas horarias y especialidades
+HVIEW --> GUI : horarios del prestador
+GUI --> Administrador : panel lateral con horarios del Dr. García y panel Generar turnos
+
+== 3. Administrador agrega un horario para el martes ==
+
+Administrador -> GUI : hace clic en "Editar horarios"
+GUI --> Administrador : panel en modo edición con bloques existentes
+Administrador -> BLOQUE : hace clic en "Agregar horario"
+BLOQUE --> Administrador : nuevo bloque vacío para completar
+Administrador -> BLOQUE : completa día=Martes, hora_desde=08:00, hora_hasta=12:00, intervalo=30, especialidades=[Clínica]
+Administrador -> GUI : hace clic en "Guardar"
+
+GUI -> HVIEW : envía cambios parciales del bloque existente Lunes id=5
+HVIEW -> HVIEW : valida solapamiento y unicidad del horario
+HVIEW -> MIXIN : delega la actualización del bloque Lunes
+MIXIN -> HORARIO : guarda los cambios con usuario modificador
+HORARIO -> BD : actualiza el bloque Lunes id=5
+BD --> HORARIO : cambios guardados
+MIXIN -> BD : registra en auditoría (HorarioPrestador — editado)
+BD --> MIXIN : OK
+HVIEW --> GUI : bloque Lunes actualizado con éxito
+
+GUI -> HVIEW : envía nuevo bloque Martes
+HVIEW -> HVIEW : valida que no exista ya un horario para el mismo día y hora de inicio
+HVIEW -> MIXIN : delega la creación del nuevo bloque
+MIXIN -> HORARIO : guarda con usuario creador
+HORARIO -> BD : inserta nuevo horario para el Martes
+BD --> HORARIO : horario creado con éxito
+MIXIN -> BD : registra en auditoría (HorarioPrestador — creado)
+BD --> MIXIN : OK
+HVIEW --> GUI : nuevo bloque Martes creado con éxito
+
+GUI --> Administrador : mensaje "Horarios guardados correctamente"
+
+== 4. Administrador previsualiza los turnos a generar ==
+
+Administrador -> GUI : ajusta fecha desde=01/06/2026 y fecha hasta=30/06/2026
+GUI -> GUI : recalcula en memoria los slots por día activo según los horarios
+GUI --> Administrador : vista previa "Se generarán ~24 turno(s)" para el período indicado
+
+== 5. Administrador confirma la generación de turnos ==
+
+Administrador -> GUI : hace clic en "Confirmar generación de turnos"
+GUI --> Administrador : solicita confirmación (ConfirmDialog)
+Administrador -> GUI : confirma la generación
+GUI -> HVIEW : envía solicitud de generación con fecha_desde y fecha_hasta para cada horario activo
+
+loop por cada horario activo del prestador
+  HVIEW -> HVIEW : itera los días del rango que coinciden con el día de semana del horario
+  loop por cada fecha-franja del rango
+    HVIEW -> BD : verifica si ya existe el turno en esa fecha y hora
+    BD --> HVIEW : no existe
+    HVIEW -> AGVIEW : crea turno con estado DISPONIBLE
+    AGVIEW -> AGENDA : inserta turno disponible vinculado al horario
+    AGENDA -> BD : inserta registro de agenda
+    BD --> AGENDA : turno creado con éxito
+  end
+end
+
+HVIEW --> GUI : resultado: {creados: 24, omitidos: 0}
+GUI --> Administrador : mensaje de éxito con cantidad de turnos creados y omitidos
+
+note over HVIEW, BD
+  Los turnos omitidos son los que ya existían
+  en la base de datos para esa fecha y hora.
+  No se generan duplicados.
+end note
+
+== 6. Administrador descarga reporte de horarios ==
+
+Administrador -> GUI : hace clic en "Reporte PDF" o "Reporte Excel"
+GUI -> HVIEW : solicita el reporte de horarios
+
+alt PDF
+  HVIEW -> BD : consulta horarios activos con prestador activo
+  BD --> HVIEW : datos del reporte
+  HVIEW --> GUI : archivo PDF (WeasyPrint)
+  GUI --> Administrador : abre PDF en nueva pestaña
+else Excel
+  HVIEW -> BD : consulta horarios activos con prestador activo
+  BD --> HVIEW : datos del reporte
+  HVIEW --> GUI : archivo .xlsx (openpyxl)
+  GUI --> Administrador : descarga el archivo Excel
+end
+
+== 7. Secretaria genera turnos para su médico asignado ==
+
+SECRETARIA -> GUI : abre la página de horarios
+GUI -> GUI : obtiene medico_asignado_id del token JWT
+GUI -> HVIEW : solicita horarios del médico asignado
+HVIEW -> BD : filtra horarios por médico asignado
+BD --> HVIEW : horarios del médico
+HVIEW --> GUI : horarios del médico asignado
+GUI -> HVIEW : envía solicitud de generación de turnos para el médico asignado
+HVIEW -> HVIEW : valida que la secretaria solo genere para su médico
+HVIEW --> GUI : turnos generados con éxito
+GUI --> SECRETARIA : mensaje de éxito
+
+@enduml

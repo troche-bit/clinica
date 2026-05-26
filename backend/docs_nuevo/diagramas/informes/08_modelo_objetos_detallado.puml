@@ -1,0 +1,159 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+
+class "InformesPacientePage" <<boundary>> {
+  +cards_stats
+  +cards_listados
+  +cards_dashboards
+  +modal_filtros_paciente
+  +sel_pais
+  +sel_departamento
+  +sel_ciudad
+  +sel_sexo
+  +sel_grupo_sanguineo
+  +inp_fecha_desde
+  +inp_fecha_hasta
+  +btn_ver_pdf
+  +btn_descargar_excel
+  +txt_buscar_historia
+  +modal_filtros_horario
+  +modal_filtros_consulta
+  --
+  +abrirModalFiltros()
+  +generarPDF()
+  +descargarExcel()
+  +buscarPaciente()
+  +generarHistoriaClinica()
+}
+
+class "DashboardPacientesPage" <<boundary>> {
+  +toggle_periodo
+  +btn_dia
+  +btn_semana
+  +btn_mes
+  +donut_sexo
+  +barras_dia
+  +barra_h_departamentos
+  +curva_tendencia
+  --
+  +cargarEstadisticas()
+  +cambiarPeriodo()
+}
+
+class "DashboardConsultasPage" <<boundary>> {
+  +graficos
+  +barras_prestadores
+  +barras_especialidad
+  +curva_comparativa
+  --
+  +cargarDashboard()
+}
+
+class "DashboardAgendaPage" <<boundary>> {
+  +graficos
+  +barras_ocupacion
+  +barras_prestadores
+  +mapa_calor
+  --
+  +cargarDashboard()
+  +verMapaCalor()
+}
+
+class "PacienteViewSet" <<control>> {
+  +filtros : [pais, departamento, ciudad, sexo, grupo_sanguineo, fecha_desde, fecha_hasta]
+  --
+  +get_permissions()
+  +reporte_lista()
+  +reporte_lista_excel()
+  +dashboard_mensual()
+  +count()
+}
+
+class "ConsultaViewSet" <<control>> {
+  +filtros : [persona_rrhh, especialidad, fecha_desde, fecha_hasta]
+  --
+  +get_permissions()
+  +stats_hoy()
+  +historia_clinica()
+  +dashboard_consultas()
+}
+
+class "AgendaViewSet" <<control>> {
+  +filtros : [persona_rrhh, especialidad, fecha_desde, fecha_hasta]
+  --
+  +get_permissions()
+  +stats_hoy()
+  +dashboard_agenda()
+  +dashboard_prestadores()
+  +dashboard_ocupacion()
+}
+
+class "WeasyPrint" <<control>> {
+  +render(template, context) : PDF
+}
+
+class "openpyxl" <<control>> {
+  +render(datos) : xlsx
+}
+
+class "Paciente" <<entity>> {
+  +id : AutoField
+  +persona : ForeignKey
+  +sexo : CharField
+  +grupo_sanguineo : CharField
+  +fecha_creacion : DateTimeField
+  +is_deleted : BooleanField
+}
+
+class "Consulta" <<entity>> {
+  +id : AutoField
+  +agenda : ForeignKey
+  +estado : CharField
+  +evento_clinico : ForeignKey
+  +proxima_cita : DateField
+  +is_deleted : BooleanField
+}
+
+class "Agenda" <<entity>> {
+  +id : AutoField
+  +paciente : ForeignKey
+  +horario_prestador : ForeignKey
+  +estado : CharField
+  +fecha : DateField
+  +hora_desde : TimeField
+  +is_deleted : BooleanField
+}
+
+"Administrador" --> "InformesPacientePage"
+"Administrador" --> "DashboardPacientesPage"
+"Administrador" --> "DashboardConsultasPage"
+"Administrador" --> "DashboardAgendaPage"
+
+"InformesPacientePage" --> "PacienteViewSet"
+"InformesPacientePage" --> "ConsultaViewSet"
+"InformesPacientePage" --> "AgendaViewSet"
+"DashboardPacientesPage" --> "PacienteViewSet"
+"DashboardConsultasPage" --> "ConsultaViewSet"
+"DashboardAgendaPage" --> "AgendaViewSet"
+
+"PacienteViewSet" --> "WeasyPrint"
+"PacienteViewSet" --> "openpyxl"
+"ConsultaViewSet" --> "WeasyPrint"
+
+"PacienteViewSet" --> "Paciente"
+"ConsultaViewSet" --> "Consulta"
+"AgendaViewSet" --> "Agenda"
+
+@enduml
