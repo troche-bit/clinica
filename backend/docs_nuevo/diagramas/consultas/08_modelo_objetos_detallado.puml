@@ -1,0 +1,154 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Médico" <<actor>>
+class "Recepcionista" <<actor>>
+
+class "ConsultasPage" <<boundary>> {
+  +sel_fecha
+  +sel_medico
+  +stats_cards
+  +tbl_turnos_dia
+  +btn_iniciar_consulta
+  +panel_consulta_activa
+  +txt_motivo
+  +txt_diagnostico
+  +txt_tratamiento
+  +txt_indicaciones
+  +sel_evento_clinico
+  +inp_proxima_cita
+  +btn_completar_consulta
+  +btn_historia_clinica
+  +ticker_tiempo
+  --
+  +abrirPanelConsulta()
+  +iniciarConsulta()
+  +finalizarConsulta()
+  +autoGuardar()
+}
+
+class "ModalHistoriaClinica" <<boundary>> {
+  +txt_buscar_paciente
+  +tbl_consultas_paciente
+  +panel_detalle_consulta
+  +lst_documentos_consulta
+  --
+  +cargarHistorial()
+  +verDetalle()
+}
+
+class "PanelDocumentos" <<boundary>> {
+  +inp_archivo_doc
+  +sel_tipo_doc
+  +btn_subir_doc
+  +lst_documentos
+  +btn_confirmar
+  --
+  +subirDocumento()
+  +eliminarDocumento()
+}
+
+class "ConsultaViewSet" <<control>> {
+  +queryset : Consulta.activos
+  +filtros : [persona_rrhh, fecha, paciente]
+  +auto_refresh : 60s
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +retrieve()
+  +partial_update()
+  +destroy()
+  +iniciar()
+  +finalizar()
+  +stats_hoy()
+  +historia_clinica()
+  +perform_destroy()
+}
+
+class "AgendaViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +asignar()
+  +cambiar_estado()
+}
+
+class "DocumentoDigPacienteViewSet" <<control>> {
+  +get_permissions()
+  --
+  +create()
+  +destroy()
+}
+
+class "Consulta" <<entity>> {
+  +id : AutoField
+  +agenda : ForeignKey
+  +estado : CharField
+  +motivo_consulta : TextField
+  +diagnostico : TextField
+  +tratamiento : TextField
+  +indicaciones : TextField
+  +evento_clinico : ForeignKey
+  +proxima_cita : DateField
+  +hora_desde : TimeField
+  +hora_hasta : TimeField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "Agenda" <<entity>> {
+  +id : AutoField
+  +paciente : ForeignKey
+  +horario_prestador : ForeignKey
+  +fecha : DateField
+  +hora_desde : TimeField
+  +estado : CharField
+  +is_deleted : BooleanField
+}
+
+class "DocumentoDigPaciente" <<entity>> {
+  +id : AutoField
+  +consulta : ForeignKey
+  +tipo_doc_dig : ForeignKey
+  +archivo : FileField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+"Médico" --> "ConsultasPage"
+"Recepcionista" --> "ConsultasPage"
+
+"ConsultasPage" --> "ModalHistoriaClinica"
+"ConsultasPage" --> "PanelDocumentos"
+
+"ConsultasPage" --> "ConsultaViewSet"
+"ConsultasPage" --> "AgendaViewSet"
+"ModalHistoriaClinica" --> "ConsultaViewSet"
+"PanelDocumentos" --> "DocumentoDigPacienteViewSet"
+
+"ConsultaViewSet" --> "Consulta"
+"AgendaViewSet" --> "Agenda"
+"DocumentoDigPacienteViewSet" --> "DocumentoDigPaciente"
+
+"Consulta" "1" --> "1" "Agenda" : agenda (FK)
+"DocumentoDigPaciente" "0..*" --> "1" "Consulta" : consulta (FK)
+
+@enduml

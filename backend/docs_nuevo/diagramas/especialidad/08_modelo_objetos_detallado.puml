@@ -1,0 +1,94 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+
+class "EspecialidadPage" <<boundary>> {
+  +txt_buscar
+  +btn_nuevo
+  +panel_lateral
+  +txt_descripcion
+  +btn_editar
+  +btn_eliminar
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  --
+  +abrirCrear()
+  +abrirEditar()
+  +confirmarEliminacion()
+}
+
+class "FormRRHH" <<boundary>> {
+  +sel_especialidades
+  +prestadorSeleccionado
+  --
+  +cargarEspecialidades()
+  +seleccionarEspecialidad()
+  +guardarPrestador()
+}
+
+class "EspecialidadViewSet" <<control>> {
+  +queryset : Especialidad.activos
+  +search_fields : [descripcion]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "PersonaRRHHViewSet" <<control>> {
+  +queryset : PersonaRRHH.activos
+  +search_fields : [persona__razon_social, persona__nro_documento]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +retrieve()
+  +partial_update()
+}
+
+class "Especialidad" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "PersonaRRHH" <<entity>> {
+  +id : AutoField
+  +especialidades : ManyToManyField
+  +is_deleted : BooleanField
+}
+
+Administrador --> EspecialidadPage
+Administrador --> FormRRHH
+
+EspecialidadPage --> EspecialidadViewSet
+FormRRHH --> EspecialidadViewSet
+FormRRHH --> PersonaRRHHViewSet
+
+EspecialidadViewSet --> Especialidad
+PersonaRRHHViewSet --> PersonaRRHH
+
+PersonaRRHH "0..*" --> "0..*" Especialidad : especialidades
+
+@enduml

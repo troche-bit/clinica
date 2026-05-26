@@ -1,0 +1,140 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+' ── Actores ──────────────────────────────────────────────────
+
+class "Recepcionista" <<actor>> {
+  + gestionar responsables
+  + vincular responsable a paciente
+  + desvincular responsable
+}
+
+class "Administrador" <<actor>> {
+  + gestionar responsables
+  + eliminar responsables
+  + ver registros eliminados
+}
+
+' ── Boundaries ───────────────────────────────────────────────
+
+class "PacienteResponsablePage" <<boundary>> {
+  + mostrar lista de responsables
+  + abrir modal crear/editar/ver
+  + confirmar eliminación
+  + mostrar notificación
+}
+
+class "ResponsableForm" <<boundary>> {
+  + modo: crear | editar | ver
+  + buscar persona por documento
+  + mostrar badge resultado búsqueda
+  + guardar datos
+  + cancelar
+}
+
+class "BuscadorPersona" <<boundary>> {
+  + campo nro_documento
+  + disparar búsqueda
+  + mostrar resultado: crear_todo | agregar_responsable | ya_es_responsable
+}
+
+class "FormPersona" <<boundary>> {
+  + campos persona (editables o solo lectura)
+  + validación en tiempo real
+}
+
+class "FormResponsable" <<boundary>> {
+  + ocupacion
+  + grupo_sanguineo
+  + es_contacto_emergencia
+}
+
+' ── Controls ─────────────────────────────────────────────────
+
+class "PacienteResponsableViewSet" <<control>> {
+  + list()
+  + create()
+  + retrieve()
+  + partial_update()
+  + destroy()
+  + eliminados()
+  + buscar()
+  + perform_destroy()
+}
+
+class "PersonaViewSet" <<control>> {
+  + create()
+  + buscar()
+}
+
+class "PacienteViewSet" <<control>> {
+  + partial_update()
+}
+
+' ── Entities ─────────────────────────────────────────────────
+
+class "PacienteResponsable" <<entity>> {
+  + id
+  + persona: FK Persona
+  + grupo_sanguineo
+  + ocupacion
+  + es_contacto_emergencia
+  + is_deleted
+  + fecha_creacion
+  + fecha_modificacion
+  + fecha_eliminacion
+  + id_usu_creator
+  + id_usu_modificator
+}
+
+class "Persona" <<entity>> {
+  + id
+  + nro_documento
+  + razon_social
+  + tipo_documento: FK
+  + ciudad: FK
+  + telefono
+  + fecha_nacimiento
+  + is_deleted
+}
+
+class "Paciente" <<entity>> {
+  + id
+  + persona: FK Persona
+  + responsable: FK PacienteResponsable
+  + is_deleted
+}
+
+' ── Relaciones ───────────────────────────────────────────────
+
+"Recepcionista" --> "PacienteResponsablePage"
+"Administrador" --> "PacienteResponsablePage"
+
+"PacienteResponsablePage" --> "ResponsableForm"
+"ResponsableForm" --> "BuscadorPersona"
+"ResponsableForm" --> "FormPersona"
+"ResponsableForm" --> "FormResponsable"
+
+"PacienteResponsablePage" --> "PacienteResponsableViewSet"
+"ResponsableForm" --> "PacienteResponsableViewSet"
+"ResponsableForm" --> "PersonaViewSet"
+"BuscadorPersona" --> "PersonaViewSet"
+"ResponsableForm" --> "PacienteViewSet"
+
+"PacienteResponsableViewSet" --> "PacienteResponsable"
+"PersonaViewSet" --> "Persona"
+"PacienteViewSet" --> "Paciente"
+
+"PacienteResponsable" --> "Persona"
+"Paciente" --> "PacienteResponsable"
+
+@enduml

@@ -1,0 +1,148 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+actor Administrador
+
+boundary "Página Especialidades" as GUI
+boundary "Formulario Prestador" as FORM
+control "Lógica de datos" as HOOK
+control "Servicio Especialidad" as EVIEW
+control "Servicio Prestador" as RVIEW
+control "Auditoría" as MIXIN
+entity "Especialidad" as MODEL
+entity "PersonaRRHH" as RRHH
+database "Base de datos" as BD
+
+== 1. Administrador crea la especialidad "Neurología" ==
+
+Administrador -> GUI : hace clic en "Nueva especialidad"
+GUI --> Administrador : formulario en blanco
+
+Administrador -> GUI : escribe descripcion="Neurología"
+Administrador -> GUI : hace clic en Guardar
+GUI -> HOOK : solicita crear la especialidad con los datos ingresados
+HOOK -> EVIEW : envía los datos de la nueva especialidad
+
+EVIEW -> MIXIN : registra la creación
+MIXIN -> MODEL : guarda la especialidad con el usuario que la creó
+MODEL -> BD : inserta la especialidad en la base de datos
+BD --> MODEL : especialidad creada con id=12
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> EVIEW : creada con éxito
+
+EVIEW --> HOOK : especialidad creada con éxito
+HOOK -> HOOK : refresca la lista de especialidades
+HOOK --> GUI : operación exitosa
+GUI --> Administrador : aviso — "Especialidad creada correctamente."
+
+== 2. Administrador asigna la especialidad a un prestador ==
+
+Administrador -> FORM : abre el formulario de edición de un prestador existente
+FORM -> HOOK : obtiene la lista completa de especialidades disponibles
+HOOK -> EVIEW : solicita todas las especialidades activas
+EVIEW -> BD : consulta especialidades no eliminadas
+BD --> EVIEW : lista con "Neurología" disponible
+EVIEW --> HOOK : lista completa
+HOOK --> FORM : datos con "Neurología" disponible
+
+Administrador -> FORM : selecciona "Neurología" en el selector de especialidades
+Administrador -> FORM : hace clic en Guardar
+FORM -> RVIEW : envía los cambios parciales del prestador incluyendo la especialidad seleccionada
+
+RVIEW -> MIXIN : registra la actualización
+MIXIN -> RRHH : guarda los cambios con el usuario que los realizó
+RRHH -> BD : actualiza la tabla intermedia prestador-especialidades vinculando "Neurología"
+BD --> RRHH : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> RVIEW : actualizado con éxito
+RVIEW --> FORM : prestador actualizado
+FORM --> Administrador : aviso — "Prestador actualizado correctamente."
+
+== 3. Intento fallido de eliminar "Neurología" — tiene un prestador asignado ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila "Neurología" (id=12)
+GUI --> Administrador : pide confirmación — "¿Estás seguro? Si tiene prestadores asignados no se podrá eliminar."
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar la especialidad id=12
+HOOK -> EVIEW : solicita eliminar la especialidad
+
+EVIEW -> MODEL : verifica si algún prestador activo tiene esta especialidad asignada
+MODEL -> BD : cuenta prestadores activos vinculados a la especialidad id=12
+BD --> MODEL : encontró 1 prestador activo
+
+MODEL -> EVIEW : rechaza la operación — 1 prestador tiene esta especialidad asignada
+
+note right of BD
+  La especialidad id=12 permanece sin cambios.
+  La auditoría no se registra.
+end note
+
+EVIEW --> HOOK : responde con error
+HOOK -> GUI : muestra el mensaje de error
+GUI --> Administrador : aviso — "No se puede eliminar: 1 prestador(es) tienen esta especialidad asignada."
+
+== 4. Administrador desvincula el prestador ==
+
+Administrador -> FORM : edita el prestador, quita "Neurología" del selector
+Administrador -> FORM : hace clic en Guardar
+FORM -> RVIEW : envía los cambios parciales del prestador sin la especialidad id=12
+
+RVIEW -> MIXIN : registra la actualización
+MIXIN -> RRHH : guarda los cambios con el usuario que los realizó
+RRHH -> BD : elimina el vínculo entre el prestador y "Neurología"
+BD --> RRHH : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> RVIEW : actualizado con éxito
+RVIEW --> FORM : prestador actualizado
+FORM --> Administrador : aviso — "Prestador actualizado correctamente."
+
+== 5. Eliminación exitosa de "Neurología" ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila "Neurología" (id=12)
+GUI --> Administrador : pide confirmación
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar la especialidad id=12
+HOOK -> EVIEW : solicita eliminar la especialidad
+
+EVIEW -> MODEL : verifica si algún prestador activo tiene esta especialidad asignada
+MODEL -> BD : cuenta prestadores activos vinculados a la especialidad id=12
+BD --> MODEL : no encontró prestadores activos — puede eliminarse
+
+EVIEW -> MIXIN : delega el borrado lógico
+MIXIN -> MODEL : marca la especialidad como eliminada con fecha y usuario
+MODEL -> BD : actualiza el registro con estado eliminado
+BD --> MODEL : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> EVIEW : eliminada con éxito
+
+EVIEW --> HOOK : especialidad eliminada con éxito
+HOOK -> HOOK : refresca la lista de especialidades
+HOOK --> GUI : operación exitosa
+GUI -> GUI : cierra el panel lateral
+GUI --> Administrador : aviso — "Especialidad eliminada."
+
+note over BD
+  El registro id=12 permanece en la base de datos marcado como eliminado.
+  El nombre "Neurología" puede volver a usarse en una nueva especialidad.
+end note
+
+@enduml

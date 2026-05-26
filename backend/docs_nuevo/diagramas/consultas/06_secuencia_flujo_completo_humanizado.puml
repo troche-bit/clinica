@@ -1,0 +1,160 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Recepcionista
+actor "Médico" as MEDICO
+
+boundary "ConsultasPage" as GUI
+boundary "ModalHistoriaClinica" as MODAL
+boundary "PanelDocumentos" as PDOC
+control "ConsultaViewSet" as CVIEW
+control "AgendaViewSet" as AGVIEW
+control "DocumentoDigPacienteViewSet" as DOCVIEW
+control "AuditoriaMixin" as MIXIN
+entity "Consulta" as CONSULTA
+entity "Agenda" as AGENDA
+entity "DocumentoDigPaciente" as DOCE
+database "PostgreSQL" as BD
+
+== 1. Recepcionista ve el monitor del día ==
+
+Recepcionista -> GUI : abre el monitor del día
+GUI -> CVIEW : solicita estadísticas del día (stats_hoy)
+CVIEW -> BD : consulta total, pendientes, en consulta y finalizadas del día
+BD --> CVIEW : resultados del día
+CVIEW --> GUI : 4 tarjetas de estadísticas
+GUI -> AGVIEW : solicita turnos del día
+AGVIEW -> BD : consulta agenda de hoy con paciente y prestador
+BD --> AGVIEW : lista de turnos del día
+AGVIEW --> GUI : tabla con turnos
+GUI --> Recepcionista : monitor actualizado con estadísticas y tabla de turnos
+
+== 2. Médico abre su vista del día ==
+
+MEDICO -> GUI : abre la vista del médico
+GUI -> GUI : obtiene persona_rrhh_id del token JWT
+GUI -> CVIEW : solicita consultas del médico del día
+CVIEW -> BD : consulta consultas filtrando por persona_rrhh y fecha de hoy
+BD --> CVIEW : lista de consultas del médico
+CVIEW --> GUI : consultas del día del médico
+GUI -> AGVIEW : solicita turnos del día del médico
+AGVIEW -> BD : consulta turnos del médico
+BD --> AGVIEW : lista de turnos
+AGVIEW --> GUI : turnos del día del médico
+GUI --> MEDICO : tabla de turnos y consultas del día
+
+== 3. Médico inicia la primera consulta ==
+
+MEDICO -> GUI : hace clic en "Iniciar consulta" sobre el turno del paciente
+GUI -> CVIEW : envía nueva consulta con referencia al turno {agenda: turno_id}
+CVIEW -> BD : verifica que el turno esté en estado ocupado y sin consulta existente
+BD --> CVIEW : turno válido — sin consulta previa
+CVIEW -> MIXIN : delega la creación de la consulta
+MIXIN -> CONSULTA : guarda con usuario creador
+CONSULTA -> BD : inserta registro de consulta con estado en_espera
+BD --> CONSULTA : consulta id=55 creada
+MIXIN -> BD : registra en auditoría (Consulta — creada)
+BD --> MIXIN : OK
+CVIEW -> CVIEW : cambia estado a en_consulta y registra hora de inicio (09:05)
+CVIEW -> MIXIN : registra el inicio en auditoría
+CVIEW --> GUI : consulta iniciada con éxito
+GUI --> MEDICO : abre el panel de consulta activa con datos del paciente
+
+== 4. Médico completa el formulario clínico ==
+
+MEDICO -> GUI : ingresa motivo, diagnóstico, tratamiento e indicaciones
+MEDICO -> GUI : selecciona evento clínico y fecha de próxima cita
+GUI -> GUI : autoguardado cada 30 segundos (autoSave)
+GUI -> CVIEW : envía cambios parciales de la consulta id=55
+CVIEW -> MIXIN : delega la actualización
+MIXIN -> CONSULTA : guarda los cambios con usuario modificador
+CONSULTA -> BD : actualiza los campos clínicos
+BD --> CONSULTA : cambios guardados
+MIXIN -> BD : registra en auditoría (Consulta — editada)
+BD --> MIXIN : OK
+CVIEW --> GUI : cambios guardados con éxito
+
+== 5. Médico sube un documento durante la consulta ==
+
+MEDICO -> PDOC : selecciona archivo y tipo de documento
+PDOC -> DOCVIEW : envía el archivo y tipo (multipart/form-data)
+DOCVIEW -> MIXIN : delega la creación del documento
+MIXIN -> DOCE : guarda el documento vinculado a la consulta
+DOCE -> BD : inserta registro de documento con ruta del archivo
+BD --> DOCE : documento creado con éxito
+MIXIN -> BD : registra en auditoría (DocumentoDigPaciente — creado)
+BD --> MIXIN : OK
+DOCVIEW --> PDOC : documento subido con éxito
+PDOC --> MEDICO : archivo visible en el panel de documentos
+
+== 6. Médico finaliza la consulta ==
+
+MEDICO -> GUI : hace clic en "Completar consulta"
+GUI --> MEDICO : solicita confirmación (ConfirmDialog)
+MEDICO -> GUI : confirma la finalización
+GUI -> CVIEW : envía cambios finales de la consulta id=55
+CVIEW -> MIXIN : delega la actualización final
+MIXIN -> CONSULTA : guarda los últimos cambios
+CONSULTA -> BD : actualiza los campos clínicos finales
+BD --> CONSULTA : cambios guardados
+MIXIN -> BD : registra en auditoría (Consulta — editada)
+GUI -> CVIEW : solicita finalizar la consulta id=55
+CVIEW -> CVIEW : cambia estado a finalizada y registra hora de cierre
+CVIEW -> BD : actualiza estado=finalizada y hora_hasta
+BD --> CVIEW : consulta finalizada
+CVIEW -> AGVIEW : actualiza el turno al estado REALIZADO
+AGVIEW -> BD : actualiza estado de la agenda a realizado
+BD --> AGVIEW : OK
+CVIEW --> GUI : consulta finalizada con éxito
+GUI --> MEDICO : mensaje de éxito — turno marcado como realizado
+
+== 7. Médico consulta la historia clínica del paciente ==
+
+MEDICO -> GUI : hace clic en "Historia clínica"
+GUI -> MODAL : abre el modal de historia clínica
+MODAL -> CVIEW : solicita historial de consultas del paciente id=25
+CVIEW -> BD : obtiene consultas del paciente filtrando por médico
+BD --> CVIEW : lista de consultas anteriores
+CVIEW --> MODAL : historial de consultas con documentos
+MODAL --> MEDICO : muestra el historial clínico completo
+
+== 8. Borrado lógico de consulta (solo admin) ==
+
+MEDICO -> GUI : solicita eliminar la consulta id=55
+GUI --> MEDICO : solicita confirmación (ConfirmDialog)
+MEDICO -> GUI : confirma la eliminación
+GUI -> CVIEW : solicita eliminar la consulta id=55
+CVIEW -> BD : verifica si existen documentos activos vinculados
+BD --> CVIEW : existen documentos activos vinculados
+CVIEW --> GUI : rechaza la operación — "No se puede eliminar: tiene documentos activos vinculados."
+GUI --> MEDICO : notificación de error — consulta sin cambios
+
+note over CVIEW, BD
+  Si no hay documentos activos vinculados:
+  el mixin marca la consulta como eliminada,
+  registra fecha de eliminación y usuario,
+  y deja constancia en auditoría.
+end note
+
+== 9. Edición post-cierre dentro de las 24 horas ==
+
+MEDICO -> GUI : selecciona una consulta finalizada para editar
+GUI -> GUI : verifica que hayan pasado menos de 24 horas desde el cierre
+GUI --> MEDICO : formulario editable (edición dentro del límite de 24 h)
+MEDICO -> GUI : modifica los datos clínicos
+GUI -> CVIEW : envía cambios parciales de la consulta id=55
+CVIEW -> CVIEW : valida que el estado sea finalizada y que hayan pasado menos de 24 horas
+CVIEW -> MIXIN : delega la actualización
+MIXIN -> CONSULTA : guarda los cambios con usuario modificador
+CONSULTA -> BD : actualiza los campos clínicos
+BD --> CONSULTA : cambios guardados
+MIXIN -> BD : registra en auditoría (Consulta — editada post-cierre)
+BD --> MIXIN : OK
+CVIEW --> GUI : cambios guardados con éxito
+GUI --> MEDICO : notificación de éxito
+
+@enduml

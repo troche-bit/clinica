@@ -1,0 +1,179 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor RECEP as "Recepcionista"
+
+boundary "PacientePage.jsx" as GUI
+boundary "PacienteForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSC
+boundary "FormPaciente.jsx" as FPAC
+control "usePatients.js" as HOOK
+control "PacienteViewSet" as PACVIEW
+control "PersonaViewSet" as PVIEW
+control "AgendaViewSet" as AGVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "Persona" as PERSONA
+entity "Paciente" as PAC
+entity "Agenda" as AGENDA
+database "PostgreSQL" as BD
+
+== 1. Recepcionista crea paciente — persona no existia ==
+
+RECEP -> GUI : hace clic en "Nuevo paciente"
+GUI -> GUI : abre modal en modo crear
+GUI --> RECEP : Modal modo crear
+
+RECEP -> FORM : ingresa nro_documento="3000001"
+FORM -> BUSC : inicia búsqueda
+BUSC -> PVIEW : solicita persona con documento=3000001
+PVIEW -> BD : consulta si existe la persona
+BD --> PVIEW : sin resultados — persona no existe
+PVIEW --> BUSC : persona no encontrada, tampoco es paciente
+
+BUSC --> FORM : modo = 'crear_todo'
+FORM --> RECEP : badge azul "Documento no encontrado"\nFormPersona (todos los campos editables)\nFormPaciente (sexo obligatorio, grupo_sanguineo, responsable, ...)
+
+== 2. Crea Persona y Paciente en modo crear_todo ==
+
+RECEP -> FORM : completa datos de Persona\n(razon_social:'Maria Garcia', tipo_documento,\ntelefono, ciudad, fecha_nacimiento)
+RECEP -> FPAC : completa datos del Paciente\n(sexo:'F', grupo_sanguineo:'A+',\nalergias_conocidas:'Penicilina')
+RECEP -> FORM : hace clic en Guardar (o F10)
+
+FORM -> PVIEW : envía datos de la nueva Persona
+PVIEW -> MIXIN : delega la creación
+MIXIN -> PERSONA : guarda con usuario creador
+PERSONA -> BD : inserta registro de persona
+BD --> PERSONA : id=60
+MIXIN -> BD : registra en auditoría (Persona — creado)
+BD --> MIXIN : OK
+PVIEW --> FORM : creada con éxito — id: 60
+
+FORM -> PACVIEW : envía datos del nuevo Paciente\n(persona=60, sexo='F', grupo_sanguineo='A+',\nalergias_conocidas='Penicilina')
+PACVIEW -> MIXIN : delega la creación
+MIXIN -> PAC : guarda con usuario creador
+PAC -> BD : inserta registro de paciente
+BD --> PAC : id=25
+MIXIN -> BD : registra en auditoría (Paciente — creado)
+BD --> MIXIN : OK
+PACVIEW --> FORM : creado con éxito — id: 25
+
+FORM -> HOOK : refresca la lista de pacientes
+FORM --> GUI : notifica éxito
+GUI -> GUI : muestra mensaje "Paciente guardado correctamente."
+GUI -> GUI : cierra modal
+GUI --> RECEP : notificación de éxito — paciente creado
+
+== 3. Paciente recibe una cita en la agenda ==
+
+note over AGENDA, BD
+  La asignacion de cita se realiza desde la gestion de Agenda.
+  Un turno disponible se asigna al Paciente id=25.
+  El turno queda en estado OCUPADO.
+end note
+
+RECEP -> AGVIEW : actualiza turno asignando al paciente=25
+AGVIEW -> MIXIN : delega la actualización
+MIXIN -> AGENDA : guarda con usuario modificador
+AGENDA -> BD : actualiza turno con paciente_id=25 y estado=OCUPADO
+BD --> AGENDA : OK
+MIXIN -> BD : registra en auditoría (Agenda — editado)
+BD --> MIXIN : OK
+AGVIEW --> RECEP : actualización exitosa
+
+== 4. Recepcionista visualiza historial clinico del paciente ==
+
+RECEP -> GUI : hace clic en "Ver" en la fila "Maria Garcia"
+GUI -> GUI : abre modal en modo ver
+GUI --> RECEP : Modal modo ver — pestaña Datos
+
+RECEP -> GUI : cambia a pestaña "Consultas"
+GUI -> PACVIEW : obtiene historial de consultas del paciente=25
+BD --> GUI : historial de consultas
+GUI --> RECEP : lista de consultas del paciente
+
+RECEP -> GUI : cambia a pestaña "Documentos"
+GUI -> PACVIEW : obtiene documentos del paciente=25
+BD --> GUI : documentos sin consulta vinculada
+GUI --> RECEP : documentos directos del paciente
+
+== 5. Intento de eliminar el paciente — falla por cita activa ==
+
+RECEP -> GUI : hace clic en eliminar en la fila "Maria Garcia"
+GUI --> RECEP : ConfirmDialog "Si tiene citas activas\nno se podra eliminar."
+RECEP -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar paciente id=25
+HOOK -> PACVIEW : solicita eliminar paciente id=25
+
+PACVIEW -> PAC : verifica y ejecuta la eliminación
+PAC -> AGENDA : verifica si existen citas activas del paciente
+AGENDA -> BD : verifica si existe alguna cita activa\n(DISPONIBLE, OCUPADO o REALIZADO)
+BD --> AGENDA : existe al menos una cita activa
+AGENDA --> PAC : tiene citas activas = sí
+
+PAC -> PACVIEW : rechaza la operación\n"No se puede eliminar: tiene citas activas vinculadas."
+PACVIEW --> HOOK : responde con error
+HOOK -> GUI : muestra error (extraerMensajeError)
+GUI --> RECEP : notificación de error — paciente sin cambios
+
+== 6. Recepcionista cancela la cita ==
+
+note over AGENDA, BD
+  La cancelacion de la cita se realiza desde la gestion de Agenda.
+  El turno pasa de estado OCUPADO a CANCELADO.
+  CANCELADO no bloquea el borrado logico del Paciente.
+end note
+
+RECEP -> AGVIEW : actualiza estado del turno a CANCELADO
+AGVIEW -> MIXIN : delega la actualización
+MIXIN -> AGENDA : guarda con usuario modificador
+AGENDA -> BD : actualiza turno con estado=CANCELADO
+BD --> AGENDA : OK
+MIXIN -> BD : registra en auditoría (Agenda — editado)
+BD --> MIXIN : OK
+AGVIEW --> RECEP : actualización exitosa
+
+== 7. Eliminacion exitosa del paciente ==
+
+RECEP -> GUI : hace clic en eliminar en la fila "Maria Garcia"
+GUI --> RECEP : ConfirmDialog
+RECEP -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar paciente id=25
+HOOK -> PACVIEW : solicita eliminar paciente id=25
+
+PACVIEW -> PAC : verifica y ejecuta la eliminación
+PAC -> AGENDA : verifica si existen citas activas del paciente
+AGENDA -> BD : verifica si existe alguna cita activa\n(DISPONIBLE, OCUPADO o REALIZADO)
+BD --> AGENDA : no existe ninguna cita activa
+AGENDA --> PAC : tiene citas activas = no
+
+PACVIEW -> MIXIN : delega el borrado lógico
+MIXIN -> PAC : marca como eliminado con usuario modificador
+PAC -> BD : actualiza paciente marcando como eliminado
+BD --> PAC : OK
+MIXIN -> BD : registra en auditoría (Paciente — eliminado)
+BD --> MIXIN : OK
+
+PACVIEW --> HOOK : eliminado con éxito
+HOOK -> HOOK : refresca la lista de pacientes
+HOOK -> GUI : muestra mensaje "Paciente eliminado correctamente."
+GUI -> GUI : cierra modal
+GUI --> RECEP : la fila desaparece — notificación de éxito
+
+note over PERSONA, BD
+  Paciente id=25 queda marcado como eliminado.
+  Persona id=60 (Maria Garcia) permanece en la base de datos activa.
+  La Persona no puede eliminarse — rechaza la operación con MethodNotAllowed.
+  El historial de consultas y documentos queda preservado en la BD.
+  La Persona puede reutilizarse: una nueva alta como Paciente
+  para nro_documento='3000001' creara un nuevo Paciente
+  vinculado a la misma Persona existente (modo agregar_paciente).
+end note
+
+@enduml

@@ -1,0 +1,108 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+actor Administrador
+actor Recepcionista
+
+boundary "Página Consultorios" as GUI
+control "Lógica de datos" as HOOK
+control "Servicio Consultorio" as VIEW
+control "Auditoría" as MIXIN
+entity "Consultorio" as MODEL
+entity "HorarioPrestador" as HORARIO
+database "Base de datos" as BD
+
+== 1. Administrador crea un consultorio ==
+
+Administrador -> GUI : hace clic en "Nuevo consultorio"
+GUI -> GUI : abre panel lateral en modo crear
+GUI --> Administrador : formulario en blanco
+
+Administrador -> GUI : escribe nro_consultorio="05" y descripcion="Piso 2"
+Administrador -> GUI : hace clic en Guardar
+GUI -> HOOK : solicita crear consultorio con los datos ingresados
+HOOK -> VIEW : envía los datos del nuevo consultorio
+
+VIEW -> MIXIN : registra la creación
+MIXIN -> MODEL : guarda el consultorio con el usuario que lo creó
+MODEL -> BD : inserta el consultorio en la base de datos
+BD --> MODEL : consultorio creado con id=42
+
+MIXIN -> BD : registra la acción en auditoría
+BD --> MIXIN : registro guardado
+MIXIN --> VIEW : creado con éxito
+
+VIEW --> HOOK : consultorio creado con éxito
+HOOK -> HOOK : refresca la lista de consultorios
+HOOK --> GUI : operación exitosa
+GUI -> GUI : cierra el panel lateral
+GUI --> Administrador : aviso — "Consultorio creado correctamente."
+
+== 2. Administrador edita un consultorio ==
+
+Administrador -> GUI : hace clic en Editar en la fila id=42
+GUI -> GUI : carga los datos del consultorio en el panel lateral (modo editar)
+GUI --> Administrador : formulario con datos precargados
+
+Administrador -> GUI : cambia descripcion a "Piso 2 - Ala Norte"
+Administrador -> GUI : hace clic en Guardar
+GUI -> HOOK : solicita actualizar el consultorio id=42 con los nuevos datos
+HOOK -> VIEW : envía los cambios parciales del consultorio
+
+VIEW -> MIXIN : registra la actualización
+MIXIN -> MODEL : guarda los cambios con el usuario que los realizó
+MODEL -> BD : actualiza la descripción y los campos de auditoría
+BD --> MODEL : actualización confirmada
+
+MIXIN -> BD : registra la acción en auditoría con datos antes y después
+BD --> MIXIN : registro guardado
+MIXIN --> VIEW : actualizado con éxito
+
+VIEW --> HOOK : consultorio actualizado con éxito
+HOOK -> HOOK : refresca la lista de consultorios
+HOOK --> GUI : operación exitosa
+GUI -> GUI : cierra el panel lateral
+GUI --> Administrador : aviso — "Consultorio actualizado correctamente."
+
+== 3. Intento fallido de eliminar un consultorio con horarios activos ==
+
+Administrador -> GUI : hace clic en Eliminar en la fila id=42
+GUI -> GUI : registra el id a eliminar
+GUI --> Administrador : pide confirmación — "¿Estás seguro? Si tiene horarios de prestador activos no se podrá eliminar."
+
+Administrador -> GUI : confirma la eliminación
+GUI -> HOOK : solicita eliminar el consultorio id=42
+HOOK -> VIEW : solicita eliminar el consultorio
+
+VIEW -> MODEL : verifica si el consultorio tiene horarios activos vinculados
+MODEL -> BD : busca horarios de prestador activos para este consultorio
+BD --> MODEL : encontró horarios activos
+MODEL --> HORARIO : dependencias detectadas
+
+MODEL -> VIEW : rechaza la operación — tiene horarios de prestador activos
+
+note right of VIEW
+  La auditoría no se registra
+  porque la operación fue
+  rechazada antes de ejecutarse.
+end note
+
+VIEW --> HOOK : responde con error
+HOOK -> GUI : muestra el mensaje de error
+GUI --> Administrador : aviso — "No se puede eliminar: tiene horarios de prestador activos."
+
+note over BD
+  El consultorio id=42 permanece sin cambios.
+  La base de datos no fue modificada.
+end note
+
+@enduml

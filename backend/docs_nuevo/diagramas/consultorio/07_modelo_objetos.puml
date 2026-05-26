@@ -1,0 +1,65 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
+
+class "ConsultorioPage" <<boundary>> {
+  +seleccionado
+  +modo
+  +confirmId
+  --
+  +abrirCrear()
+  +abrirEditar()
+  +confirmarEliminacion()
+}
+
+class "ConsultorioViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  --
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "Consultorio" <<entity>> {
+  +id : AutoField
+  +nro_consultorio : CharField
+  +descripcion : CharField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+}
+
+class "HorarioPrestador" <<entity>> {
+  +id : AutoField
+  +consultorio : ForeignKey
+  +is_deleted : BooleanField
+}
+
+Administrador --> ConsultorioPage
+Recepcionista --> ConsultorioPage
+
+ConsultorioPage --> ConsultorioViewSet
+
+ConsultorioViewSet --> Consultorio
+
+Consultorio "1" --> "0..*" HorarioPrestador : horarios
+
+@enduml

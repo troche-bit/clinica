@@ -1,0 +1,162 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor RECEP as "Recepcionista"
+
+boundary "PacienteResponsablePage.jsx" as GUI
+boundary "ResponsableForm.jsx" as FORM
+boundary "BuscadorPersona.jsx" as BUSC
+boundary "FormResponsable.jsx" as FRESP
+control "useResponsables.js" as HOOK
+control "PacienteResponsableViewSet" as RESPVIEW
+control "PersonaViewSet" as PVIEW
+control "PacienteViewSet" as PACVIEW
+control "AuditoriaMixin" as MIXIN
+
+entity "Persona" as PERSONA
+entity "PacienteResponsable" as RESP
+entity "Paciente" as PAC
+database "PostgreSQL" as BD
+
+== 1. Recepcionista crea responsable — persona no existia ==
+
+RECEP -> GUI : hace clic en "Nuevo responsable"
+GUI -> GUI : abre modal en modo crear
+GUI --> RECEP : Modal modo crear
+
+RECEP -> FORM : ingresa nro_documento="2000001"
+FORM -> BUSC : inicia búsqueda
+BUSC -> PVIEW : solicita persona con documento=2000001
+PVIEW -> BD : consulta si existe la persona
+BD --> PVIEW : sin resultados — persona no existe
+PVIEW --> BUSC : persona no encontrada, tampoco es responsable
+
+BUSC --> FORM : modo = 'crear_todo'
+FORM --> RECEP : badge azul "Documento no encontrado"\nFormPersona (todos los campos editables)\nFormResponsable (ocupacion, grupo_sanguineo, es_contacto_emergencia)
+
+== 2. Crea Persona y PacienteResponsable en modo crear_todo ==
+
+RECEP -> FORM : completa datos de Persona\n(razon_social:'Carlos Lopez', tipo_documento,\ntelefono, ciudad, fecha_nacimiento)
+RECEP -> FRESP : completa datos del Responsable\n(ocupacion:'Contador', grupo_sanguineo:'O+',\nes_contacto_emergencia: activado)
+RECEP -> FORM : hace clic en Guardar (o F10)
+
+FORM -> PVIEW : envía datos de la nueva Persona
+PVIEW -> MIXIN : delega la creación
+MIXIN -> PERSONA : guarda con usuario creador
+PERSONA -> BD : inserta registro de persona
+BD --> PERSONA : id=50
+MIXIN -> BD : registra en auditoría (Persona — creado)
+BD --> MIXIN : OK
+PVIEW --> FORM : creada con éxito — id: 50
+
+FORM -> RESPVIEW : envía datos del nuevo Responsable\n(persona=50, ocupacion='Contador',\ngrupo_sanguineo='O+', es_contacto_emergencia=True)
+RESPVIEW -> MIXIN : delega la creación
+MIXIN -> RESP : guarda con usuario creador
+RESP -> BD : inserta registro de responsable
+BD --> RESP : id=10
+MIXIN -> BD : registra en auditoría (PacienteResponsable — creado)
+BD --> MIXIN : OK
+RESPVIEW --> FORM : creado con éxito — id: 10
+
+FORM -> HOOK : refresca la lista de responsables
+FORM --> GUI : notifica éxito
+GUI -> GUI : muestra mensaje "Responsable guardado correctamente."
+GUI -> GUI : cierra modal
+GUI --> RECEP : notificación de éxito — responsable creado
+
+== 3. Responsable queda vinculado a paciente existente ==
+
+note over PAC, BD
+  La vinculación se realiza desde la gestión de Pacientes.
+  El paciente existente id=7 se actualiza con responsable_id=10.
+  El campo responsable en Paciente acepta null (opcional).
+end note
+
+RECEP -> PACVIEW : actualiza paciente=7 asignando responsable=10
+PACVIEW -> MIXIN : delega la actualización
+MIXIN -> PAC : guarda con usuario modificador
+PAC -> BD : actualiza paciente con responsable_id=10
+BD --> PAC : OK
+MIXIN -> BD : registra en auditoría (Paciente — editado)
+BD --> MIXIN : OK
+PACVIEW --> RECEP : actualización exitosa
+
+== 4. Intento de eliminar el responsable — falla por paciente activo ==
+
+RECEP -> GUI : hace clic en eliminar en la fila "Carlos Lopez"
+GUI --> RECEP : ConfirmDialog "Si tiene pacientes activos vinculados\nno se podra eliminar."
+RECEP -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar responsable id=10
+HOOK -> RESPVIEW : solicita eliminar responsable id=10
+
+RESPVIEW -> RESP : verifica y ejecuta la eliminación
+RESP -> PAC : verifica si existen pacientes activos vinculados
+PAC -> BD : verifica si existe algún paciente activo\ncon responsable_id=10
+BD --> PAC : existe al menos un paciente activo vinculado
+PAC --> RESP : tiene pacientes vinculados = sí
+
+RESP -> RESPVIEW : rechaza la operación\n"tiene 1 paciente(s) vinculado(s) activo(s)"
+RESPVIEW --> HOOK : responde con error
+HOOK -> GUI : muestra error (extraerMensajeError)
+GUI --> RECEP : notificación de error — responsable sin cambios
+
+== 5. Recepcionista desvincula el paciente del responsable ==
+
+note over PAC, BD
+  La desvinculación se realiza desde la gestión de Pacientes.
+  El paciente id=7 se actualiza con responsable=null.
+  El responsable queda sin pacientes activos vinculados.
+end note
+
+RECEP -> PACVIEW : actualiza paciente=7 asignando responsable=null
+PACVIEW -> MIXIN : delega la actualización
+MIXIN -> PAC : guarda con usuario modificador
+PAC -> BD : actualiza paciente con responsable_id=null
+BD --> PAC : OK
+MIXIN -> BD : registra en auditoría (Paciente — editado)
+BD --> MIXIN : OK
+PACVIEW --> RECEP : actualización exitosa
+
+== 6. Eliminacion exitosa del responsable ==
+
+RECEP -> GUI : hace clic en eliminar en la fila "Carlos Lopez"
+GUI --> RECEP : ConfirmDialog
+RECEP -> GUI : confirma la eliminación
+
+GUI -> HOOK : solicita eliminar responsable id=10
+HOOK -> RESPVIEW : solicita eliminar responsable id=10
+
+RESPVIEW -> RESP : verifica y ejecuta la eliminación
+RESP -> PAC : verifica si existen pacientes activos vinculados
+PAC -> BD : verifica si existe algún paciente activo\ncon responsable_id=10
+BD --> PAC : no existe ningún paciente activo vinculado
+PAC --> RESP : tiene pacientes vinculados = no
+
+RESPVIEW -> MIXIN : delega el borrado lógico
+MIXIN -> RESP : marca como eliminado con usuario modificador
+RESP -> BD : actualiza responsable marcando como eliminado
+BD --> RESP : OK
+MIXIN -> BD : registra en auditoría (PacienteResponsable — eliminado)
+BD --> MIXIN : OK
+
+RESPVIEW --> HOOK : eliminado con éxito
+HOOK -> HOOK : refresca la lista de responsables
+HOOK -> GUI : muestra mensaje "Responsable eliminado correctamente."
+GUI -> GUI : cierra modal
+GUI --> RECEP : la fila desaparece — notificación de éxito
+
+note over PERSONA, BD
+  PacienteResponsable id=10 queda marcado como eliminado.
+  Persona id=50 (Carlos Lopez) permanece en la base de datos activa.
+  La Persona no puede eliminarse — rechaza la operación con MethodNotAllowed.
+  La Persona puede reutilizarse: una nueva alta como Responsable
+  para nro_documento='2000001' creara un nuevo PacienteResponsable
+  vinculado a la misma Persona existente.
+end note
+
+@enduml

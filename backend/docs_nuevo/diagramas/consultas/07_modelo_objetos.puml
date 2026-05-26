@@ -1,0 +1,124 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Médico" <<actor>> {
+  + iniciar consulta
+  + completar formulario clínico
+  + finalizar consulta
+  + ver historia clínica
+  + subir documentos
+}
+
+class "Recepcionista" <<actor>> {
+  + ver monitor del día
+  + ver estadísticas
+}
+
+class "ConsultasPage" <<boundary>> {
+  + mostrar monitor del día
+  + mostrar vista del médico
+  + abrir panel de consulta activa
+  + mostrar estadísticas (4 tarjetas)
+  + mostrar tabla de turnos
+}
+
+class "ModalHistoriaClinica" <<boundary>> {
+  + buscar consultas del paciente
+  + mostrar historial por médico
+  + mostrar documentos por consulta
+}
+
+class "PanelDocumentos" <<boundary>> {
+  + seleccionar archivo
+  + seleccionar tipo de documento
+  + subir documento
+  + listar documentos de la consulta
+}
+
+class "ConsultaViewSet" <<control>> {
+  + list()
+  + create()
+  + retrieve()
+  + partial_update()
+  + destroy()
+  + iniciar()
+  + finalizar()
+  + stats_hoy()
+  + historia_clinica()
+  + perform_destroy()
+}
+
+class "AgendaViewSet" <<control>> {
+  + list()
+  + asignar()
+  + cambiar_estado()
+}
+
+class "DocumentoDigPacienteViewSet" <<control>> {
+  + create()
+  + destroy()
+}
+
+class "Consulta" <<entity>> {
+  + id
+  + agenda: FK Agenda
+  + estado
+  + motivo_consulta
+  + diagnostico
+  + tratamiento
+  + indicaciones
+  + evento_clinico: FK EventoClinico
+  + proxima_cita
+  + hora_desde
+  + hora_hasta
+  + is_deleted
+  + id_usu_creator
+  + id_usu_modificator
+}
+
+class "Agenda" <<entity>> {
+  + id
+  + paciente: FK Paciente
+  + horario_prestador: FK HorarioPrestador
+  + fecha
+  + estado
+  + is_deleted
+}
+
+class "DocumentoDigPaciente" <<entity>> {
+  + id
+  + consulta: FK Consulta
+  + tipo_doc_dig: FK TipoDocDigital
+  + archivo
+  + is_deleted
+}
+
+"Médico" --> "ConsultasPage"
+"Recepcionista" --> "ConsultasPage"
+
+"ConsultasPage" --> "ModalHistoriaClinica"
+"ConsultasPage" --> "PanelDocumentos"
+
+"ConsultasPage" --> "ConsultaViewSet"
+"ConsultasPage" --> "AgendaViewSet"
+"ModalHistoriaClinica" --> "ConsultaViewSet"
+"PanelDocumentos" --> "DocumentoDigPacienteViewSet"
+
+"ConsultaViewSet" --> "Consulta"
+"AgendaViewSet" --> "Agenda"
+"DocumentoDigPacienteViewSet" --> "DocumentoDigPaciente"
+
+"Consulta" "1" --> "1" "Agenda" : agenda (FK)
+"DocumentoDigPaciente" "0..*" --> "1" "Consulta" : consulta (FK)
+
+@enduml
