@@ -1,0 +1,130 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
+
+class "UbicacionesPage" <<boundary>> {
+  +lst_paises
+  +lst_departamentos
+  +lst_ciudades
+  +txt_buscar
+  +txt_descripcion
+  +btn_agregar
+  +btn_editar
+  +btn_eliminar
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  --
+  +seleccionarPais()
+  +seleccionarDepto()
+  +crearRegistro()
+  +actualizarRegistro()
+  +eliminarRegistro()
+}
+
+class "PaisViewSet" <<control>> {
+  +queryset : Pais.activos
+  +search_fields : [descripcion]
+  +ordering_fields : [descripcion]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "DepartamentoViewSet" <<control>> {
+  +queryset : Departamento.activos
+  +search_fields : [descripcion]
+  +filtro_pais : pais_id
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +get_queryset()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "CiudadViewSet" <<control>> {
+  +queryset : Ciudad.activos
+  +search_fields : [descripcion]
+  +filtro_departamento : departamento_id
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +get_queryset()
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "Pais" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "Departamento" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +pais : ForeignKey
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "Ciudad" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +departamento : ForeignKey
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+Administrador  --> UbicacionesPage
+Recepcionista  --> UbicacionesPage
+
+UbicacionesPage --> PaisViewSet
+UbicacionesPage --> DepartamentoViewSet
+UbicacionesPage --> CiudadViewSet
+
+PaisViewSet        --> Pais
+DepartamentoViewSet --> Departamento
+CiudadViewSet      --> Ciudad
+
+Pais        "1" --> "0..*" Departamento : departamentos
+Departamento "1" --> "0..*" Ciudad       : ciudades
+
+@enduml
