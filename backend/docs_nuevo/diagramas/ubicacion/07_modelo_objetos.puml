@@ -1,0 +1,113 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+skinparam actor {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+
+left to right direction
+
+actor "Administrador" as ADMIN
+actor "Recepcionista" as RECEP
+
+class "UbicacionesPage" <<boundary>> {
+  +paisSeleccionado
+  +deptoSeleccionado
+  --
+  +seleccionarPais()
+  +seleccionarDepto()
+  +agregarRegistro()
+  +editarRegistro()
+  +confirmarEliminacion()
+}
+
+class "PaisViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  --
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "DepartamentoViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  +get_queryset()
+  --
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "CiudadViewSet" <<control>> {
+  +get_permissions()
+  +get_serializer_class()
+  +get_queryset()
+  --
+  +list()
+  +create()
+  +update()
+  +destroy()
+  +eliminados()
+  +perform_destroy()
+}
+
+class "Pais" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "Departamento" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +pais : ForeignKey
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "Ciudad" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +departamento : ForeignKey
+  +is_deleted : BooleanField
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+ADMIN --> UbicacionesPage
+RECEP --> UbicacionesPage
+
+UbicacionesPage --> PaisViewSet
+UbicacionesPage --> DepartamentoViewSet
+UbicacionesPage --> CiudadViewSet
+
+PaisViewSet --> Pais
+DepartamentoViewSet --> Departamento
+CiudadViewSet --> Ciudad
+
+Pais "1" --> "0..*" Departamento : departamentos
+Departamento "1" --> "0..*" Ciudad : ciudades
+
+@enduml
