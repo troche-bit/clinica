@@ -11,119 +11,107 @@ skinparam class {
   ArrowColor #000000
 }
 
-class "Recepcionista" <<actor>> {
-  + ver lista de próximas citas
-  + filtrar por período y médico
-  + enviar notificación manual
-  + ver historial de notificaciones
-}
-
-class "Médico" <<actor>> {
-  + registrar próxima cita al finalizar consulta
-}
-
-class "Sistema (Cron)" <<actor>> {
-  + ejecutar envío automático de recordatorios
-  + verificar deduplicación
-}
+class "Recepcionista" <<actor>>
+class "Medico" <<actor>>
+class "Sistema Cron" <<actor>>
 
 class "RecordatoriosPage" <<boundary>> {
-  + mostrar lista filtrada por período
-  + mostrar panel de detalle del paciente
-  + mostrar historial expandido por fila
-  + abrir modal de notificación
-  + mostrar estado del recordatorio
+  +seleccionado
+  +periodo
+  +expandedRow
+  --
+  +verProximasCitas()
+  +abrirDetalle()
+  +enviarNotificacion()
+  +verHistorial()
 }
 
 class "ModalNotificacion" <<boundary>> {
-  + seleccionar canal de envío
-  + ingresar destinatario
-  + personalizar mensaje
-  + confirmar envío
+  +canal
+  +destinatario
+  +mensaje
+  --
+  +confirmarEnvio()
+  +cancelar()
 }
 
 class "RecordatorioViewSet" <<control>> {
-  + proximas_citas()
-  + stats()
-  + notificar()
+  +get_permissions()
+  --
+  +proximas_citas()
+  +stats()
+  +notificar()
 }
 
 class "ConsultaViewSet" <<control>> {
-  + partial_update()
-  + finalizar()
+  --
+  +partial_update()
+  +finalizar()
 }
 
-class "enviar_notificacion" <<control>> {
-  + construir contexto
-  + renderizar plantilla
-  + invocar Resend API
-  + actualizar estado
+class "ServicioNotificacion" <<control>> {
+  --
+  +build_contexto()
+  +renderizar()
+  +enviar_email()
 }
 
-class "enviar_recordatorios" <<control>> {
-  + verificar configuración
-  + calcular fecha objetivo
-  + buscar consultas con proxima_cita
-  + deduplicar por [consulta+tipo+canal+estado]
-  + crear y enviar notificaciones automáticas
-}
-
-class "Resend API" <<control>> {
-  + enviar email
+class "CronRecordatorios" <<control>> {
+  --
+  +handle()
+  +deduplicar()
 }
 
 class "Consulta" <<entity>> {
-  + id
-  + proxima_cita
-  + estado
-  + is_deleted
+  +id : AutoField
+  +proxima_cita : DateField
+  +estado : CharField
+  +is_deleted : BooleanField
 }
 
 class "Notificacion" <<entity>> {
-  + id
-  + paciente: FK Paciente
-  + consulta: FK Consulta
-  + tipo
-  + canal
-  + estado
-  + destinatario
-  + fecha_envio
-  + id_usu_creator
-  + is_deleted
+  +id : AutoField
+  +paciente : ForeignKey
+  +consulta : ForeignKey
+  +tipo : CharField
+  +canal : CharField
+  +estado : CharField
+  +destinatario : CharField
+  +fecha_envio : DateTimeField
+  +id_usu_creator : ForeignKey
+  +is_deleted : BooleanField
 }
 
 class "ConfiguracionNotificacion" <<entity>> {
-  + habilitado
-  + auto_recordatorio
-  + horas_anticipacion
+  +habilitado : BooleanField
+  +auto_recordatorio : BooleanField
+  +horas_anticipacion : IntegerField
+  +email_remitente : CharField
 }
 
 class "PlantillaNotificacion" <<entity>> {
-  + tipo
-  + asunto
-  + cuerpo
-  + activa
+  +tipo : CharField
+  +asunto : CharField
+  +cuerpo : TextField
+  +activa : BooleanField
 }
 
-"Recepcionista" --> "RecordatoriosPage"
-"Médico" --> "ConsultaViewSet"
-"Sistema (Cron)" --> "enviar_recordatorios"
+Recepcionista  --> RecordatoriosPage
+Medico         --> RecordatoriosPage
+"Sistema Cron" --> CronRecordatorios
 
-"RecordatoriosPage" --> "ModalNotificacion"
-"RecordatoriosPage" --> "RecordatorioViewSet"
-"RecordatoriosPage" --> "ConsultaViewSet"
-"ModalNotificacion" --> "RecordatorioViewSet"
+RecordatoriosPage --> RecordatorioViewSet
+RecordatoriosPage --> ModalNotificacion
+ModalNotificacion --> RecordatorioViewSet
+CronRecordatorios --> ServicioNotificacion
 
-"RecordatorioViewSet" --> "enviar_notificacion"
-"enviar_recordatorios" --> "enviar_notificacion"
-"enviar_notificacion" --> "Resend API"
+RecordatorioViewSet --> Consulta
+RecordatorioViewSet --> Notificacion
+ServicioNotificacion --> Notificacion
+ServicioNotificacion --> ConfiguracionNotificacion
+ServicioNotificacion --> PlantillaNotificacion
+ConsultaViewSet     --> Consulta
 
-"RecordatorioViewSet" --> "Consulta"
-"RecordatorioViewSet" --> "Notificacion"
-"enviar_recordatorios" --> "ConfiguracionNotificacion"
-"enviar_notificacion" --> "PlantillaNotificacion"
-"enviar_notificacion" --> "Notificacion"
-
-"Notificacion" "0..*" --> "1" "Consulta" : consulta (FK)
+Consulta "1" --> "0..*" Notificacion : notificaciones
 
 @enduml

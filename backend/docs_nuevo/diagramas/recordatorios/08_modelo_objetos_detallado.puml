@@ -12,8 +12,8 @@ skinparam class {
 }
 
 class "Recepcionista" <<actor>>
-class "Médico" <<actor>>
-class "Sistema (Cron)" <<actor>>
+class "Medico" <<actor>>
+class "Sistema Cron" <<actor>>
 
 class "RecordatoriosPage" <<boundary>> {
   +sel_periodo
@@ -31,10 +31,9 @@ class "RecordatoriosPage" <<boundary>> {
   +btn_indicaciones
   +historial_expandido
   --
-  +cargarProximasCitas()
-  +filtrar()
-  +expandirFila()
-  +abrirPanelDetalle()
+  +verProximasCitas()
+  +abrirDetalle()
+  +expandirHistorial()
 }
 
 class "ModalNotificacion" <<boundary>> {
@@ -50,8 +49,6 @@ class "ModalNotificacion" <<boundary>> {
 
 class "RecordatorioViewSet" <<control>> {
   +filtros : [dias, medico, estado, busqueda]
-  +deduplicacion : [consulta+tipo+canal+estado='enviado']
-  +auto_refresh : on demand
   --
   +get_permissions()
   +proximas_citas()
@@ -60,40 +57,38 @@ class "RecordatorioViewSet" <<control>> {
 }
 
 class "ConsultaViewSet" <<control>> {
-  +get_permissions()
+  +queryset : Consulta.activos
   --
   +partial_update()
   +finalizar()
 }
 
-class "enviar_notificacion" <<control>> {
-  +construirContexto()
-  +renderizarPlantilla()
-  +invocarResend()
-  +actualizarEstado()
+class "ServicioNotificacion" <<control>> {
+  +resend_api_key : settings
+  --
+  +build_contexto()
+  +renderizar_plantilla()
+  +enviar_email()
+  +registrar_auditoria()
 }
 
-class "enviar_recordatorios" <<control>> {
-  +verificarConfiguracion()
-  +calcularFechaObjetivo()
-  +buscarConsultasPendientes()
+class "CronRecordatorios" <<control>> {
+  +horas_anticipacion : config
+  --
+  +handle()
+  +proxima_cita_objetivo()
   +deduplicar()
-  +crearYEnviar()
-}
-
-class "Resend API" <<control>> {
-  +send(to, subject, html) : response
+  +enviar_automatico()
 }
 
 class "Consulta" <<entity>> {
   +id : AutoField
-  +agenda : ForeignKey
   +proxima_cita : DateField
   +estado : CharField
+  +diagnostico : TextField
+  +indicaciones : TextField
   +is_deleted : BooleanField
   +fecha_creacion : DateTimeField
-  +id_usu_creator : ForeignKey
-  +id_usu_modificator : ForeignKey
 }
 
 class "Notificacion" <<entity>> {
@@ -103,7 +98,8 @@ class "Notificacion" <<entity>> {
   +tipo : CharField
   +canal : CharField
   +estado : CharField
-  +destinatario : EmailField
+  +destinatario : CharField
+  +mensaje : TextField
   +fecha_envio : DateTimeField
   +id_usu_creator : ForeignKey
   +is_deleted : BooleanField
@@ -113,6 +109,8 @@ class "ConfiguracionNotificacion" <<entity>> {
   +habilitado : BooleanField
   +auto_recordatorio : BooleanField
   +horas_anticipacion : IntegerField
+  +horas_anticipacion_2 : IntegerField
+  +email_remitente : CharField
 }
 
 class "PlantillaNotificacion" <<entity>> {
@@ -120,27 +118,25 @@ class "PlantillaNotificacion" <<entity>> {
   +asunto : CharField
   +cuerpo : TextField
   +activa : BooleanField
+  +is_deleted : BooleanField
 }
 
-"Recepcionista" --> "RecordatoriosPage"
-"Médico" --> "ConsultaViewSet"
-"Sistema (Cron)" --> "enviar_recordatorios"
+Recepcionista  --> RecordatoriosPage
+Medico         --> RecordatoriosPage
+"Sistema Cron" --> CronRecordatorios
 
-"RecordatoriosPage" --> "ModalNotificacion"
-"RecordatoriosPage" --> "RecordatorioViewSet"
-"RecordatoriosPage" --> "ConsultaViewSet"
-"ModalNotificacion" --> "RecordatorioViewSet"
+RecordatoriosPage --> RecordatorioViewSet
+RecordatoriosPage --> ModalNotificacion
+ModalNotificacion --> RecordatorioViewSet
+CronRecordatorios --> ServicioNotificacion
 
-"RecordatorioViewSet" --> "enviar_notificacion"
-"enviar_recordatorios" --> "enviar_notificacion"
-"enviar_notificacion" --> "Resend API"
+RecordatorioViewSet --> Consulta
+RecordatorioViewSet --> Notificacion
+ServicioNotificacion --> Notificacion
+ServicioNotificacion --> ConfiguracionNotificacion
+ServicioNotificacion --> PlantillaNotificacion
+ConsultaViewSet     --> Consulta
 
-"RecordatorioViewSet" --> "Consulta"
-"RecordatorioViewSet" --> "Notificacion"
-"enviar_recordatorios" --> "ConfiguracionNotificacion"
-"enviar_notificacion" --> "PlantillaNotificacion"
-"enviar_notificacion" --> "Notificacion"
-
-"Notificacion" "0..*" --> "1" "Consulta" : consulta (FK)
+Consulta "1" --> "0..*" Notificacion : notificaciones
 
 @enduml
