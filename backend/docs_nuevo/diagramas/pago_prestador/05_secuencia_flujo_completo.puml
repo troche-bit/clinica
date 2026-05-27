@@ -1,0 +1,149 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "PagoPrestadorPage.jsx" as GUI
+control "usePagoPrestador.js" as HOOK
+control "PagoPrestadorViewSet" as VIEW
+entity "PagoPrestador" as PP
+entity "PagoPrestadorDetCobranza" as DET
+entity "Agenda" as AG
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Apertura del modulo ==
+
+ADMIN -> GUI : abre PagoPrestadorPage
+GUI -> HOOK : usePagoPrestadores()
+HOOK -> VIEW : GET /api/pago-prestador/
+VIEW --> HOOK : lista paginada de pagos (is_deleted=False)
+HOOK --> GUI : renderiza tabla con columnas:\n#, Medico, Nro., Fecha, Horas, Monto/h, Total, Estado
+
+== Busqueda y filtros ==
+
+ADMIN -> GUI : escribe nombre en buscador (debounce 300ms)
+GUI -> HOOK : usePagoPrestadores({ search: 'Garcia' })
+HOOK -> VIEW : GET /api/pago-prestador/?search=Garcia
+VIEW --> HOOK : resultados filtrados
+HOOK --> GUI : tabla actualizada
+
+ADMIN -> GUI : selecciona filtro de estado o rango de fechas
+GUI -> HOOK : usePagoPrestadores({ estado, fecha_desde, fecha_hasta })
+HOOK -> VIEW : GET /api/pago-prestador/?estado=pendiente&...
+VIEW --> HOOK : resultados filtrados
+HOOK --> GUI : tabla actualizada
+
+== Nuevo pago — apertura modal ==
+
+ADMIN -> GUI : click "Nuevo pago" (o tecla Insert)
+GUI --> ADMIN : abre ModalNuevoPago
+
+GUI -> HOOK : useMedicosConPendientes()
+HOOK -> VIEW : GET /api/pago-prestador/medicos-con-pendientes/
+VIEW -> AG : Agenda.objects.filter(\n  pagado_prestador=False, is_deleted=False)\n  .values('persona_rrhh').distinct()
+AG --> VIEW : lista de PersonaRRHH con bloques pendientes
+VIEW --> HOOK : [{ id, nombre, documento, cant_bloques }]
+HOOK --> GUI : dropdown de medicos habilitado
+
+== Seleccion de medico y carga de bloques ==
+
+ADMIN -> GUI : selecciona medico "Garcia, Juan"
+GUI -> HOOK : useBloquesPendientes(persona_rrhh=5)
+HOOK -> VIEW : GET /api/pago-prestador/bloques-pendientes/?persona_rrhh=5
+VIEW -> AG : filtra turnos realizados no pagados\nagrupados por (horario, fecha)
+AG --> VIEW : bloques con fecha, hora_desde, hora_hasta,\nespecialidad, horas, agenda_ids
+VIEW --> HOOK : [{ key, fecha, hora_desde, hora_hasta,\n  especialidad, horas, agenda_ids }]
+HOOK --> GUI : tabla de bloques con checkboxes
+
+ADMIN -> GUI : selecciona bloques del 01/05 al 10/05
+ADMIN -> GUI : ingresa monto_hora = 150000
+
+GUI -> GUI : total_hora = suma horas seleccionadas = 24h\nmonto_total = 24 * 150000 = 3.600.000
+
+== Numero de comprobante ==
+
+ADMIN -> GUI : deja nro_comprobante en blanco
+note over GUI : si vacio, el backend autocalcula MAX + 1
+
+alt ADMIN ingresa un numero manualmente
+  ADMIN -> GUI : escribe nro_comprobante = 42 (debounce 300ms)
+  GUI -> HOOK : useValidarNumero(42)
+  HOOK -> VIEW : GET /api/pago-prestador/validar-numero/?nro=42
+  VIEW -> PP : verifica unicidad entre activos (is_deleted=False)
+  VIEW --> HOOK : { libre: true }
+  HOOK --> GUI : indicador verde "Disponible"
+end
+
+== Forma de pago ==
+
+ADMIN -> GUI : selecciona Efectivo + Caja Chica + monto=3600000
+GUI -> GUI : totalDetalle=3.600.000 vs montoTotal=3.600.000
+GUI --> ADMIN : indicador verde "Pago completo"
+
+== Guardar pago (F10 o boton Guardar) ==
+
+ADMIN -> GUI : click "Guardar" (o tecla F10)
+GUI -> GUI : validar() — persona_rrhh, bloques, monto_hora,\nforma_pago, cta, totales coherentes
+GUI -> HOOK : useCrearPago.mutateAsync(payload)
+HOOK -> VIEW : POST /api/pago-prestador/\n{ persona_rrhh: 5, fecha_pago: '2026-05-26',\n  nro_comprobante: null, monto_hora: 150000,\n  bloques: [101,102,...], detalle: [...] }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+VIEW -> PP : calcula total_hora=24, monto_total=3600000\nverifica nro_comprobante unico (autoincrementa si null)
+VIEW -> PP : PagoPrestador.objects.create(\n  persona_rrhh=5, nro_comprobante=42,\n  monto_hora=150000, total_hora=24,\n  monto_total=3600000, saldo=0, estado='pagado')
+PP --> BD : INSERT pago_prestador — id=7
+
+VIEW -> AG : Agenda.objects.filter(id__in=[101,102,...])\n  .update(pagado_prestador=True, pago_prestador=7)
+AG --> BD : UPDATE agenda SET pagado_prestador=True,\npago_prestador_id=7
+
+VIEW -> DET : PagoPrestadorDetCobranza.objects.create(\n  pago_prestador=7, forma_pago=1, cta=2,\n  monto=3600000, voucher='')
+DET --> BD : INSERT pago_prestador_det_cobranza — id=12
+
+VIEW -> MOV : MovimientoCajaBanco.objects.create(\n  cta=2, monto_egreso=3600000, ppdc_id=12)
+MOV --> BD : INSERT movimiento_caja_banco
+
+VIEW -> AUDIT : registrar CREAR en auditoria
+AUDIT --> BD : INSERT auditoria_registro
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['pago-prestador'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : onSuccess
+GUI --> ADMIN : modal se cierra\nfila nueva aparece en la tabla
+
+== Recibo PDF por fila ==
+
+ADMIN -> GUI : click icono impresora en la fila
+GUI -> VIEW : GET /api/pago-prestador/7/recibo-pdf/\n(apiClient blob)
+VIEW -> PP : fetch pago con select_related
+VIEW -> AG : Agenda.objects.filter(pago_prestador=7)\nagrupados en bloques (fecha, horario, especialidad)
+VIEW -> DET : PagoPrestadorDetCobranza activos del pago
+VIEW -> VIEW : render_to_string('informes/recibo_prestador.html', contexto)
+VIEW -> VIEW : weasyprint.HTML(string=html).write_pdf()
+VIEW --> GUI : application/pdf — inline; filename="recibo_0000042.pdf"
+GUI --> ADMIN : PDF del recibo abierto en nueva pestana
+
+== Reporte general (lista PDF / Excel) ==
+
+ADMIN -> GUI : click boton "PDF" o "Excel" en toolbar
+GUI -> VIEW : GET /api/pago-prestador/reporte-pdf/\n(con filtros activos como query params)
+VIEW -> VIEW : _qs_con_filtros(request)\n_filtros_str(request)
+VIEW -> VIEW : construye filas con nro, medico, nro_comprobante,\nfecha_pago, total_hora, monto_hora, monto_total, estado
+VIEW -> VIEW : render_to_string('informes/pago_prestador_lista.html', contexto)
+VIEW -> VIEW : weasyprint / openpyxl segun accion
+VIEW --> GUI : PDF o XLSX descargado
+GUI --> ADMIN : archivo abierto o descargado
+
+@enduml

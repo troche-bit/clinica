@@ -1,0 +1,87 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+skinparam classArrowColor #000000
+skinparam classAttributeFontSize 11
+skinparam classHeaderBackgroundColor #ffffff
+
+class CuentaMcb {
+  descripcion : CharField(150)
+  saldo : Decimal (anotado)
+  total_movimientos : Integer (anotado)
+  is_deleted : BooleanField
+}
+
+class MovimientoCajaBanco {
+  fecha : DateField
+  nro_comprobante : CharField(50, nullable)
+  monto_ingreso : Decimal
+  monto_egreso : Decimal
+  vuelto : Decimal
+  vfdc_id : IntegerField (nullable)
+  vrc_id : IntegerField (nullable)
+  ppdc_id : IntegerField (nullable)
+  tipo : property (ingreso/egreso/sin_movimiento)
+  is_deleted : BooleanField
+}
+
+class VentaFactDetCobranza {
+  monto : Decimal
+  nro_comprobante : CharField
+}
+
+class ValorRecibidoCob {
+  monto : Decimal
+  nro_comprobante : CharField
+}
+
+class PagoPrestadorDetCobranza {
+  monto : Decimal
+  voucher : CharField
+}
+
+CuentaMcb "1" <-- "N" MovimientoCajaBanco : cta
+MovimientoCajaBanco "N" ..> "1" VentaFactDetCobranza : vfdc_id
+MovimientoCajaBanco "N" ..> "1" ValorRecibidoCob : vrc_id
+MovimientoCajaBanco "N" ..> "1" PagoPrestadorDetCobranza : ppdc_id
+
+note bottom of CuentaMcb
+  saldo = SUM(monto_ingreso) - SUM(monto_egreso)
+  de movimientos activos (is_deleted=False).
+  Anotado en get_queryset con Coalesce.
+  No se puede eliminar si tiene
+  movimientos activos.
+end note
+
+note right of MovimientoCajaBanco
+  Los tres IDs son IntegerField (no FK real).
+  Si cualquiera esta seteado, el movimiento
+  fue generado por otro modulo y NO puede
+  editarse ni eliminarse desde este modulo.
+  Solo los movimientos con los tres IDs
+  en NULL son gestionables desde caja.
+  vuelto solo lo setean modulos externos.
+end note
+
+note bottom of VentaFactDetCobranza
+  Generado por Facturacion/Ventas.
+  Identifica cada cobro de la factura.
+end note
+
+note bottom of ValorRecibidoCob
+  Generado por Cobranzas.
+  Identifica cada valor recibido.
+end note
+
+note bottom of PagoPrestadorDetCobranza
+  Generado por Pago a Prestadores.
+  Identifica cada forma de pago del egreso.
+end note
+
+@enduml

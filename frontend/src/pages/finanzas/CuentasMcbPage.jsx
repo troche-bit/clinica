@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Landmark, ArrowLeft, Plus, Search, Pencil, Trash2, X, TrendingUp, TrendingDown } from 'lucide-react'
 import { useCuentasMcb, useCreateCuenta, useUpdateCuenta, useDeleteCuenta } from '../../hooks/finanzas/useCuentasMcb'
 import { useMovimientos, useCreateMovimiento, useUpdateMovimiento, useDeleteMovimiento } from '../../hooks/finanzas/useMovimientos'
-import Modal from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
+import { useAuth } from '../../context/AuthContext'
 
 function formatGuarani(valor) {
   if (valor === null || valor === undefined) return '₲ 0'
@@ -70,32 +70,31 @@ function PanelCuenta({ modo, item, onGuardar, onCancelar, guardando }) {
   )
 }
 
-const MOV_VACIO = { fecha: hoy(), voucher: '', monto_ingreso: '', monto_egreso: '', vuelto: '' }
+const MOV_VACIO = { tipo: 'ingreso', fecha: hoy(), nro_comprobante: '', monto: '' }
 
 function PanelMovimiento({ modo, item, ctaActual, onGuardar, onCancelar, guardando }) {
+  const tipoInicial  = item && Number(item.monto_egreso) > 0 ? 'egreso' : 'ingreso'
+  const montoInicial = item ? (tipoInicial === 'ingreso' ? item.monto_ingreso : item.monto_egreso) : ''
+
   const [form, setForm] = useState(
     modo === 'crear'
       ? MOV_VACIO
       : {
-          fecha:          item?.fecha          || hoy(),
-          voucher:        item?.voucher        || '',
-          monto_ingreso:  item?.monto_ingreso  ?? '',
-          monto_egreso:   item?.monto_egreso   ?? '',
-          vuelto:         item?.vuelto         ?? '',
+          tipo:            tipoInicial,
+          fecha:           item?.fecha            || hoy(),
+          nro_comprobante: item?.nro_comprobante  || '',
+          monto:           montoInicial ?? '',
         }
   )
   const [errores, setErrores] = useState({})
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const soloNumero = (v) => v.replace(/[^\d.]/g, '')
+  const set        = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const soloNumero = v => v.replace(/[^\d.]/g, '')
 
   const validar = () => {
     const e = {}
     if (!form.fecha) e.fecha = 'La fecha es requerida.'
-    const ing = Number(form.monto_ingreso) || 0
-    const egr = Number(form.monto_egreso)  || 0
-    if (ing === 0 && egr === 0) e.montos = 'Debe ingresar monto de ingreso o egreso.'
-    if (ing > 0 && egr > 0)    e.montos = 'Solo puede tener ingreso o egreso, no ambos.'
+    if (!(Number(form.monto) > 0)) e.monto = 'El monto debe ser mayor a cero.'
     setErrores(e)
     return Object.keys(e).length === 0
   }
@@ -103,12 +102,11 @@ function PanelMovimiento({ modo, item, ctaActual, onGuardar, onCancelar, guardan
   const handleSubmit = () => {
     if (!validar()) return
     onGuardar({
-      cta:           ctaActual.id,
-      fecha:         form.fecha,
-      voucher:       form.voucher || null,
-      monto_ingreso: Number(form.monto_ingreso) || 0,
-      monto_egreso:  Number(form.monto_egreso)  || 0,
-      vuelto:        Number(form.vuelto)         || 0,
+      cta:             ctaActual.id,
+      fecha:           form.fecha,
+      nro_comprobante: form.nro_comprobante || null,
+      monto_ingreso:   form.tipo === 'ingreso' ? Number(form.monto) || 0 : 0,
+      monto_egreso:    form.tipo === 'egreso'  ? Number(form.monto) || 0 : 0,
     })
   }
 
@@ -123,55 +121,56 @@ function PanelMovimiento({ modo, item, ctaActual, onGuardar, onCancelar, guardan
       </div>
 
       <div className="cta-form-group">
+        <label className="cta-label">Tipo *</label>
+        <div className="cta-tipo-toggle">
+          <button
+            type="button"
+            className={`cta-tipo-btn ingreso-btn ${form.tipo === 'ingreso' ? 'active' : ''}`}
+            onClick={() => set('tipo', 'ingreso')}
+          >
+            <TrendingUp size={13} /> Ingreso
+          </button>
+          <button
+            type="button"
+            className={`cta-tipo-btn egreso-btn ${form.tipo === 'egreso' ? 'active' : ''}`}
+            onClick={() => set('tipo', 'egreso')}
+          >
+            <TrendingDown size={13} /> Egreso
+          </button>
+        </div>
+      </div>
+
+      <div className="cta-form-group">
+        <label className="cta-label">Monto *</label>
+        <input
+          className={`cta-input cta-mono ${errores.monto ? 'cta-input-error' : ''}`}
+          placeholder="0"
+          value={form.monto}
+          onChange={e => set('monto', soloNumero(e.target.value))}
+          autoFocus
+        />
+        {errores.monto && <span className="cta-error-msg">{errores.monto}</span>}
+      </div>
+
+      <div className="cta-form-group">
         <label className="cta-label">Fecha *</label>
         <input
           type="date"
           className={`cta-input ${errores.fecha ? 'cta-input-error' : ''}`}
           value={form.fecha}
           onChange={e => set('fecha', e.target.value)}
+          max="2099-12-31"
         />
         {errores.fecha && <span className="cta-error-msg">{errores.fecha}</span>}
       </div>
 
       <div className="cta-form-group">
-        <label className="cta-label">Voucher / Referencia</label>
+        <label className="cta-label">Nro. Comprobante</label>
         <input
           className="cta-input"
-          placeholder="Nro. voucher o referencia (opcional)"
-          value={form.voucher}
-          onChange={e => set('voucher', e.target.value)}
-        />
-      </div>
-
-      <div className="cta-grid-2">
-        <div className="cta-form-group">
-          <label className="cta-label">Monto ingreso</label>
-          <input
-            className={`cta-input cta-mono ${errores.montos ? 'cta-input-error' : ''}`}
-            placeholder="0"
-            value={form.monto_ingreso}
-            onChange={e => set('monto_ingreso', soloNumero(e.target.value))}
-          />
-        </div>
-        <div className="cta-form-group">
-          <label className="cta-label">Monto egreso</label>
-          <input
-            className={`cta-input cta-mono ${errores.montos ? 'cta-input-error' : ''}`}
-            placeholder="0"
-            value={form.monto_egreso}
-            onChange={e => set('monto_egreso', soloNumero(e.target.value))}
-          />
-        </div>
-      </div>
-      {errores.montos && <span className="cta-error-msg">{errores.montos}</span>}
-
-      <div className="cta-form-group">
-        <label className="cta-label">Vuelto</label>
-        <input
-          className="cta-input cta-mono"
-          placeholder="0"
-          value={form.vuelto}
-          onChange={e => set('vuelto', soloNumero(e.target.value))}
+          placeholder="Número de comprobante (opcional)"
+          value={form.nro_comprobante}
+          onChange={e => set('nro_comprobante', e.target.value)}
         />
       </div>
 
@@ -187,39 +186,9 @@ function PanelMovimiento({ modo, item, ctaActual, onGuardar, onCancelar, guardan
   )
 }
 
-function VistaCuentas({ onSeleccionar, onNuevaCuenta }) {
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch]           = useState('')
-  const { data, isLoading } = useCuentasMcb({ search })
-  const cuentas = data?.results ?? data ?? []
-
-  const handleBuscar = (e) => {
-    e.preventDefault()
-    setSearch(searchInput)
-  }
-
+function VistaCuentas({ cuentas, isLoading, onSeleccionar }) {
   return (
     <div className="cta-vista">
-      <div className="cta-toolbar">
-        <form className="cta-search-form" onSubmit={handleBuscar}>
-          <div className="cta-search-wrap" style={{ flex: 1 }}>
-            <Search size={14} color="#9ca3af" />
-            <input
-              className="cta-search-input"
-              placeholder="Buscar cuenta…"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="cta-btn-buscar">
-            <Search size={13} /> Buscar
-          </button>
-        </form>
-        <button className="cta-btn-primario" onClick={onNuevaCuenta}>
-          <Plus size={15} /> Nueva cuenta
-        </button>
-      </div>
-
       {isLoading ? (
         <div className="cta-loading">Cargando cuentas…</div>
       ) : cuentas.length === 0 ? (
@@ -231,7 +200,7 @@ function VistaCuentas({ onSeleccionar, onNuevaCuenta }) {
       ) : (
         <div className="cta-cards-grid">
           {cuentas.map(c => {
-            const saldo = Number(c.saldo ?? 0)
+            const saldo    = Number(c.saldo ?? 0)
             const positivo = saldo >= 0
             return (
               <div key={c.id} className="cta-card" onClick={() => onSeleccionar(c)}>
@@ -256,13 +225,13 @@ function VistaCuentas({ onSeleccionar, onNuevaCuenta }) {
   )
 }
 
-function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }) {
+function VistaMovimientos({ cuenta, esAdmin, puedeEditar }) {
   const [filtros,      setFiltros]      = useState({ search: '', tipo: '', fecha_desde: '', fecha_hasta: '' })
-  const [searchInput,  setSearchInput]  = useState('')
   const [panelModo,    setPanelModo]    = useState(null)
   const [seleccionado, setSeleccionado] = useState(null)
   const [guardando,    setGuardando]    = useState(false)
   const [confirmMov,   setConfirmMov]   = useState(null)
+  const searchDebounce                  = useRef(null)
 
   const { toast, showToast } = useToast()
 
@@ -274,9 +243,10 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
 
   const cerrarPanel = () => { setPanelModo(null); setSeleccionado(null) }
 
-  const handleBuscar = (e) => {
-    e.preventDefault()
-    setFiltros(f => ({ ...f, search: searchInput }))
+  const handleSearchChange = e => {
+    const val = e.target.value
+    clearTimeout(searchDebounce.current)
+    searchDebounce.current = setTimeout(() => setFiltros(f => ({ ...f, search: val })), 300)
   }
 
   const handleGuardar = async (form) => {
@@ -309,65 +279,20 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
     }
   }
 
-  const saldo    = Number(cuenta.saldo ?? 0)
-  const positivo = saldo >= 0
-
   return (
     <>
       <div className="cta-vista cta-vista-drill">
-        <div className="cta-drill-topbar">
-          <button className="cta-btn-volver" onClick={onVolver}>
-            <ArrowLeft size={15} /> Cuentas
-          </button>
-          <span className="cta-breadcrumb">
-            <span className="cta-bc-sep">/</span>
-            {cuenta.descripcion}
-          </span>
-        </div>
-
-        <div className="cta-cuenta-bar">
-          <div className="cta-cuenta-bar-left">
-            <div className="cta-cuenta-bar-icon">
-              <Landmark size={18} color="#1a3a5c" />
-            </div>
-            <div>
-              <div className="cta-cuenta-bar-nombre">{cuenta.descripcion}</div>
-              <div className="cta-cuenta-bar-sub">
-                <span className="cta-saldo-valor" style={{ color: positivo ? '#166534' : '#991b1b' }}>
-                  Saldo: {formatGuarani(saldo)}
-                </span>
-                <span style={{ color: '#d1d5db' }}>·</span>
-                <span>{cuenta.total_movimientos ?? 0} movimientos</span>
-              </div>
-            </div>
-          </div>
-          <div className="cta-cuenta-bar-actions">
-            <button className="cta-btn-icon-edit" onClick={onEditarCuenta} title="Editar cuenta">
-              <Pencil size={14} />
-            </button>
-            <button className="cta-btn-icon-del" onClick={onEliminarCuenta} title="Eliminar cuenta">
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-
         <div className="cta-drill-body">
           <div className="cta-tabla-wrap">
             <div className="cta-drill-toolbar">
-              <form className="cta-search-form" onSubmit={handleBuscar}>
-                <div className="cta-search-wrap" style={{ flex: 1 }}>
-                  <Search size={13} color="#9ca3af" />
-                  <input
-                    className="cta-search-input"
-                    placeholder="Buscar voucher…"
-                    value={searchInput}
-                    onChange={e => setSearchInput(e.target.value)}
-                  />
-                </div>
-                <button type="submit" className="cta-btn-buscar">
-                  <Search size={13} /> Buscar
-                </button>
-              </form>
+              <div className="cta-search-wrap cta-mov-search">
+                <Search size={13} color="#9ca3af" />
+                <input
+                  className="cta-search-input"
+                  placeholder="Buscar comprobante…"
+                  onChange={handleSearchChange}
+                />
+              </div>
 
               <select
                 className="cta-filtro-select"
@@ -385,6 +310,7 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
                 value={filtros.fecha_desde}
                 onChange={e => setFiltros(f => ({ ...f, fecha_desde: e.target.value }))}
                 title="Desde"
+                max="2099-12-31"
               />
               <input
                 type="date"
@@ -392,14 +318,17 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
                 value={filtros.fecha_hasta}
                 onChange={e => setFiltros(f => ({ ...f, fecha_hasta: e.target.value }))}
                 title="Hasta"
+                max="2099-12-31"
               />
 
-              <button
-                className="cta-btn-primario"
-                onClick={() => { setSeleccionado(null); setPanelModo('crear') }}
-              >
-                <Plus size={14} /> Nuevo movimiento
-              </button>
+              {puedeEditar && (
+                <button
+                  className="cta-btn-primario"
+                  onClick={() => { setSeleccionado(null); setPanelModo('crear') }}
+                >
+                  <Plus size={14} /> Nuevo
+                </button>
+              )}
             </div>
 
             {isLoading ? (
@@ -413,12 +342,11 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
                 <thead>
                   <tr>
                     <th className="cta-th">Fecha</th>
-                    <th className="cta-th">Voucher</th>
+                    <th className="cta-th cta-th-comp">Nro. Comprobante</th>
                     <th className="cta-th" style={{ textAlign: 'right' }}>Ingreso</th>
                     <th className="cta-th" style={{ textAlign: 'right' }}>Egreso</th>
-                    <th className="cta-th" style={{ textAlign: 'right' }}>Vuelto</th>
                     <th className="cta-th">Tipo</th>
-                    <th className="cta-th" style={{ width: 72 }}></th>
+                    {(puedeEditar || esAdmin) && <th className="cta-th" style={{ width: 72 }}></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -428,37 +356,42 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
                       className={`cta-tr ${seleccionado?.id === m.id ? 'active' : ''}`}
                     >
                       <td className="cta-td">{formatFecha(m.fecha)}</td>
-                      <td className="cta-td cta-mono">{m.voucher || <span style={{ color: '#d1d5db' }}>—</span>}</td>
+                      <td className="cta-td cta-mono cta-td-comp">
+                        {m.nro_comprobante || <span style={{ color: '#d1d5db' }}>—</span>}
+                      </td>
                       <td className="cta-td cta-mono cta-ingreso">
                         {Number(m.monto_ingreso) > 0 ? formatGuarani(m.monto_ingreso) : ''}
                       </td>
                       <td className="cta-td cta-mono cta-egreso">
                         {Number(m.monto_egreso) > 0 ? formatGuarani(m.monto_egreso) : ''}
                       </td>
-                      <td className="cta-td cta-mono" style={{ textAlign: 'right', color: '#6b7280' }}>
-                        {Number(m.vuelto) > 0 ? formatGuarani(m.vuelto) : ''}
-                      </td>
                       <td className="cta-td">
                         {m.tipo === 'ingreso' && <span className="cta-badge-tipo green">Ingreso</span>}
                         {m.tipo === 'egreso'  && <span className="cta-badge-tipo red">Egreso</span>}
                         {m.tipo === 'sin_movimiento' && <span className="cta-badge-tipo gray">—</span>}
                       </td>
-                      <td className="cta-td cta-td-acciones">
-                        <button
-                          className="cta-row-btn"
-                          title="Editar"
-                          onClick={() => { setSeleccionado(m); setPanelModo('editar') }}
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          className="cta-row-btn danger"
-                          title="Eliminar"
-                          onClick={() => setConfirmMov(m)}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
+                      {(puedeEditar || esAdmin) && (
+                        <td className="cta-td cta-td-acciones">
+                          {puedeEditar && !m.vfdc_id && !m.vrc_id && !m.ppdc_id && (
+                            <button
+                              className="cta-row-btn"
+                              title="Editar"
+                              onClick={() => { setSeleccionado(m); setPanelModo('editar') }}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          {esAdmin && (
+                            <button
+                              className="cta-row-btn danger"
+                              title="Eliminar"
+                              onClick={() => setConfirmMov(m)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -494,7 +427,7 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
       <ConfirmDialog
         isOpen={!!confirmMov}
         title="Eliminar movimiento"
-        description={`¿Eliminar el movimiento del ${confirmMov ? formatFecha(confirmMov.fecha) : ''}? Esta acción no se puede deshacer.`}
+        description={`¿Eliminar el movimiento del ${confirmMov ? formatFecha(confirmMov.fecha) : ''}? No se puede eliminar si fue generado por ventas, cobranzas o pagos a prestadores.`}
         onConfirm={handleEliminarConfirmado}
         onCancel={() => setConfirmMov(null)}
         loading={eliminarMov.isPending}
@@ -504,15 +437,30 @@ function VistaMovimientos({ cuenta, onVolver, onEditarCuenta, onEliminarCuenta }
 }
 
 export default function CuentasMcbPage() {
-  const [ctaActual,   setCtaActual]   = useState(null)
-  const [panelCuenta, setPanelCuenta] = useState(null)
-  const [guardando,   setGuardando]   = useState(false)
-  const [confirmCta,  setConfirmCta]  = useState(false)
+  const [ctaActual,     setCtaActual]     = useState(null)
+  const [panelCuenta,   setPanelCuenta]   = useState(null)
+  const [guardando,     setGuardando]     = useState(false)
+  const [confirmCta,    setConfirmCta]    = useState(false)
+  const [cuentasSearch, setCuentasSearch] = useState('')
+  const searchDebounce = useRef(null)
 
   const { toast, showToast } = useToast()
-  const crearCuenta    = useCreateCuenta()
+  const { user } = useAuth()
+  const esAdmin     = user?.rol === 'admin'
+  const puedeEditar = esAdmin || user?.rol === 'recepcionista'
+
+  const { data: cuentasData, isLoading: cuentasLoading } = useCuentasMcb({ search: cuentasSearch })
+  const cuentas = cuentasData?.results ?? cuentasData ?? []
+
+  const crearCuenta      = useCreateCuenta()
   const actualizarCuenta = useUpdateCuenta()
-  const eliminarCuenta = useDeleteCuenta()
+  const eliminarCuenta   = useDeleteCuenta()
+
+  const handleCuentasSearch = e => {
+    const val = e.target.value
+    clearTimeout(searchDebounce.current)
+    searchDebounce.current = setTimeout(() => setCuentasSearch(val), 300)
+  }
 
   const handleGuardarCuenta = async (form) => {
     setGuardando(true)
@@ -546,37 +494,52 @@ export default function CuentasMcbPage() {
     }
   }
 
+  const saldo    = Number(ctaActual?.saldo ?? 0)
+  const positivo = saldo >= 0
+
   return (
     <>
       <style>{`
         .cta-page { display: flex; flex-direction: column; height: 100%; }
 
         .cta-header {
-          display: flex; align-items: center;
-          padding: 20px 24px 0;
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 16px; padding: 20px 24px 16px; flex-wrap: wrap;
         }
+        .cta-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .cta-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .cta-header-icon {
-          width: 36px; height: 36px; background: #dbeafe;
+          width: 36px; height: 36px; background: #dbeafe; flex-shrink: 0;
           border-radius: 10px; display: flex; align-items: center; justify-content: center;
-          margin-right: 12px;
         }
-        .cta-header-title { font-size: 20px; font-weight: 600; color: #111827; }
-        .cta-header-sub   { font-size: 13px; color: #9ca3af; }
+        .cta-header-title {
+          font-size: 20px; font-weight: 600; color: #111827;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .cta-header-sub {
+          font-size: 13px; color: #9ca3af;
+          display: flex; align-items: center; gap: 6px;
+        }
+        .cta-saldo-header {
+          display: inline-flex; align-items: center; gap: 4px;
+          font-weight: 700; font-family: 'Courier New', monospace;
+        }
 
-        .cta-vista {
-          flex: 1; display: flex; flex-direction: column;
-          overflow: hidden; padding: 14px 24px 24px;
+        .cta-btn-volver {
+          display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+          border: 1.5px solid #1a3a5c; background: #fff; cursor: pointer;
+          font-size: 13px; color: #1a3a5c; font-weight: 600;
+          font-family: 'DM Sans', sans-serif; padding: 7px 14px;
+          border-radius: 8px; transition: background 0.15s, color 0.15s;
+          white-space: nowrap;
         }
-        .cta-vista-drill { gap: 0; }
+        .cta-btn-volver:hover { background: #1a3a5c; color: #fff; }
 
-        .cta-toolbar {
-          display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
-        }
         .cta-search-wrap {
-          flex: 1; max-width: 320px;
           display: flex; align-items: center; gap: 8px;
           border: 1px solid #e5e7eb; border-radius: 8px;
           padding: 7px 12px; background: #fff;
+          min-width: 180px; max-width: 280px; flex: 1 1 200px;
         }
         .cta-search-input {
           flex: 1; border: none; outline: none;
@@ -585,20 +548,27 @@ export default function CuentasMcbPage() {
         }
         .cta-search-input::placeholder { color: #9ca3af; }
 
+        .cta-vista {
+          flex: 1; display: flex; flex-direction: column;
+          overflow: hidden; padding: 0 24px 24px;
+        }
+        .cta-vista-drill { }
+
         .cta-cards-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          grid-template-columns: repeat(4, 1fr);
           gap: 12px; overflow-y: auto;
         }
         .cta-card {
           display: flex; align-items: center; gap: 14px;
           background: #fff; border: 1px solid #e8edf2; border-radius: 12px;
           padding: 16px 14px; cursor: pointer;
-          transition: border-color 0.15s, box-shadow 0.15s;
+          transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
         }
         .cta-card:hover {
           border-color: #bfdbfe;
-          box-shadow: 0 2px 8px rgba(26,58,92,0.07);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+          transform: translateY(-2px);
         }
         .cta-card-icon {
           width: 44px; height: 44px; background: #eff6ff;
@@ -616,48 +586,8 @@ export default function CuentasMcbPage() {
           font-family: 'DM Mono', 'Courier New', monospace;
         }
         .cta-card-count { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-        .cta-card-arrow { font-size: 18px; color: #9ca3af; flex-shrink: 0; }
-
-        .cta-drill-topbar {
-          display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-        }
-        .cta-btn-volver {
-          display: inline-flex; align-items: center; gap: 5px;
-          border: none; background: none; cursor: pointer;
-          font-size: 13px; color: #1a3a5c; font-weight: 500;
-          font-family: 'DM Sans', sans-serif; padding: 4px 8px;
-          border-radius: 6px; transition: background 0.12s;
-        }
-        .cta-btn-volver:hover { background: #eff6ff; }
-        .cta-breadcrumb { font-size: 13px; color: #374151; }
-        .cta-bc-sep { color: #d1d5db; margin-right: 8px; }
-
-        .cta-cuenta-bar {
-          display: flex; align-items: center; justify-content: space-between;
-          background: #fff; border: 1px solid #e8edf2; border-radius: 10px;
-          padding: 12px 16px; margin-bottom: 14px;
-        }
-        .cta-cuenta-bar-left { display: flex; align-items: center; gap: 12px; }
-        .cta-cuenta-bar-icon {
-          width: 38px; height: 38px; background: #eff6ff;
-          border-radius: 9px; display: flex; align-items: center; justify-content: center;
-        }
-        .cta-cuenta-bar-nombre { font-size: 15px; font-weight: 600; color: #111827; }
-        .cta-cuenta-bar-sub {
-          display: flex; align-items: center; gap: 8px;
-          font-size: 12.5px; color: #6b7280; margin-top: 1px;
-        }
-        .cta-saldo-valor { font-weight: 700; font-family: 'Courier New', monospace; }
-        .cta-cuenta-bar-actions { display: flex; gap: 6px; }
-        .cta-btn-icon-edit, .cta-btn-icon-del {
-          width: 30px; height: 30px; border-radius: 7px; border: 1px solid;
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: background 0.12s;
-        }
-        .cta-btn-icon-edit { border-color: #bfdbfe; background: #fff; color: #1a3a5c; }
-        .cta-btn-icon-edit:hover { background: #eff6ff; }
-        .cta-btn-icon-del  { border-color: #fecaca; background: #fff; color: #dc2626; }
-        .cta-btn-icon-del:hover  { background: #fef2f2; }
+        .cta-card-arrow { font-size: 18px; color: #9ca3af; flex-shrink: 0; transition: color 0.2s; }
+        .cta-card:hover .cta-card-arrow { color: #1a3a5c; }
 
         .cta-drill-body { flex: 1; display: flex; gap: 14px; overflow: hidden; }
 
@@ -665,15 +595,8 @@ export default function CuentasMcbPage() {
           display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
           padding: 10px 12px; border-bottom: 1px solid #f3f4f6;
         }
-        .cta-search-form { display: flex; gap: 8px; flex: 1; min-width: 200px; }
-        .cta-btn-buscar {
-          display: flex; align-items: center; gap: 4px;
-          padding: 7px 12px; border-radius: 7px; border: none;
-          background: #1a3a5c; color: #fff;
-          font-size: 12.5px; font-family: 'DM Sans', sans-serif;
-          font-weight: 500; cursor: pointer;
-        }
-        .cta-btn-buscar:hover { background: #15304d; }
+        .cta-mov-search { flex: 0 1 240px; min-width: 0; max-width: 240px; }
+
         .cta-filtro-select, .cta-filtro-date {
           border: 1px solid #e5e7eb; border-radius: 7px;
           padding: 7px 8px; font-size: 12.5px;
@@ -762,7 +685,20 @@ export default function CuentasMcbPage() {
           background: #f8fafc; border: 1px solid #e8edf2; border-radius: 8px;
           padding: 8px 10px; font-size: 13px; color: #374151;
         }
-        .cta-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .cta-tipo-toggle {
+          display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
+        }
+        .cta-tipo-btn {
+          flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+          padding: 9px 10px; border: none; background: #fff;
+          font-size: 13px; font-family: 'DM Sans', sans-serif; color: #6b7280;
+          cursor: pointer; transition: background 0.15s, color 0.15s; font-weight: 500;
+        }
+        .cta-tipo-btn + .cta-tipo-btn { border-left: 1px solid #e5e7eb; }
+        .cta-tipo-btn.ingreso-btn.active { background: #dcfce7; color: #166534; }
+        .cta-tipo-btn.egreso-btn.active  { background: #fee2e2; color: #991b1b; }
+        .cta-tipo-btn:not(.active):hover { background: #f9fafb; }
 
         .cta-panel-acciones {
           display: flex; gap: 10px; justify-content: flex-end;
@@ -786,6 +722,16 @@ export default function CuentasMcbPage() {
         }
         .cta-btn-secundario:hover { background: #f9fafb; }
 
+        .cta-btn-icon-edit, .cta-btn-icon-del {
+          width: 32px; height: 32px; border-radius: 8px; border: 1px solid;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: background 0.12s;
+        }
+        .cta-btn-icon-edit { border-color: #bfdbfe; background: #fff; color: #1a3a5c; }
+        .cta-btn-icon-edit:hover { background: #eff6ff; }
+        .cta-btn-icon-del  { border-color: #fecaca; background: #fff; color: #dc2626; }
+        .cta-btn-icon-del:hover  { background: #fef2f2; }
+
         .cta-empty {
           display: flex; flex-direction: column; align-items: center;
           justify-content: center; gap: 8px;
@@ -797,51 +743,128 @@ export default function CuentasMcbPage() {
         .cta-panel-overlay {
           position: fixed; inset: 0; z-index: 100;
           display: flex; align-items: flex-start; justify-content: flex-end;
-        }
-        .cta-panel-backdrop {
-          position: absolute; inset: 0; background: rgba(0,0,0,0.15);
+          pointer-events: none;
         }
         .cta-panel-overlay .cta-panel {
-          position: relative; z-index: 1;
-          height: 100%; border-radius: 0; width: 340px;
-          border-left: 1px solid #e8edf2;
+          pointer-events: auto;
+          height: 100%; border-radius: 0;
+          width: 340px; border-left: 1px solid #e8edf2;
           border-top: none; border-bottom: none; border-right: none;
+          box-shadow: -4px 0 20px rgba(0,0,0,0.08);
+        }
+
+        @media (max-width: 1200px) {
+          .cta-cards-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 1024px) {
+          .cta-cards-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 767px) {
+          .cta-cards-grid { grid-template-columns: 1fr; }
+          .cta-header { padding: 16px 16px 12px; }
+          .cta-vista  { padding: 0 16px 16px; }
+
+          .cta-panel-overlay { pointer-events: auto; }
+          .cta-panel-overlay .cta-panel { width: 100%; border-left: none; box-shadow: none; }
+
+          .cta-tabla-wrap { overflow-x: auto; }
+          .cta-th-comp, .cta-td-comp { display: none; }
+
+          .cta-drill-body .cta-panel {
+            position: fixed; inset: 0; z-index: 50;
+            width: 100% !important; border-radius: 0; border: none;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+          }
+
+          .cta-mov-search { flex: 1 1 0; max-width: none; }
+          .cta-header-right .cta-search-wrap { min-width: 0; flex: 1; }
         }
       `}</style>
 
       <div className="cta-page">
         <div className="cta-header">
-          <div className="cta-header-icon">
-            <Landmark size={18} color="#1a3a5c" />
-          </div>
-          <div>
-            <div className="cta-header-title">Cuentas Caja/Banco</div>
-            <div className="cta-header-sub">
-              {ctaActual
-                ? `Movimientos de "${ctaActual.descripcion}"`
-                : 'Gestión de cuentas de caja y banco'}
-            </div>
-          </div>
+          {!ctaActual ? (
+            <>
+              <div className="cta-header-left">
+                <div className="cta-header-icon">
+                  <Landmark size={18} color="#1a3a5c" />
+                </div>
+                <div>
+                  <div className="cta-header-title">Cuentas Caja/Banco</div>
+                  <div className="cta-header-sub">Gestión de cuentas de caja y banco</div>
+                </div>
+              </div>
+              <div className="cta-header-right">
+                <div className="cta-search-wrap">
+                  <Search size={14} color="#9ca3af" />
+                  <input
+                    className="cta-search-input"
+                    placeholder="Buscar cuenta…"
+                    onChange={handleCuentasSearch}
+                  />
+                </div>
+                {esAdmin && (
+                  <button className="cta-btn-primario" onClick={() => setPanelCuenta('crear')}>
+                    <Plus size={15} /> Nueva cuenta
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="cta-header-left">
+                <button
+                  className="cta-btn-volver"
+                  onClick={() => { setCtaActual(null); setPanelCuenta(null) }}
+                >
+                  <ArrowLeft size={15} /> Cuentas
+                </button>
+                <div className="cta-header-icon">
+                  <Landmark size={18} color="#1a3a5c" />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="cta-header-title">{ctaActual.descripcion}</div>
+                  <div className="cta-header-sub">
+                    <span className="cta-saldo-header" style={{ color: positivo ? '#166534' : '#991b1b' }}>
+                      {positivo ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {formatGuarani(saldo)}
+                    </span>
+                    <span style={{ color: '#d1d5db' }}>·</span>
+                    <span>{ctaActual.total_movimientos ?? 0} movimientos</span>
+                  </div>
+                </div>
+              </div>
+              {esAdmin && (
+                <div className="cta-header-right">
+                  <button className="cta-btn-icon-edit" onClick={() => setPanelCuenta('editar')} title="Editar cuenta">
+                    <Pencil size={14} />
+                  </button>
+                  <button className="cta-btn-icon-del" onClick={() => setConfirmCta(true)} title="Eliminar cuenta">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {!ctaActual ? (
           <VistaCuentas
+            cuentas={cuentas}
+            isLoading={cuentasLoading}
             onSeleccionar={c => { setCtaActual(c); setPanelCuenta(null) }}
-            onNuevaCuenta={() => setPanelCuenta('crear')}
           />
         ) : (
           <VistaMovimientos
             cuenta={ctaActual}
-            onVolver={() => { setCtaActual(null); setPanelCuenta(null) }}
-            onEditarCuenta={() => setPanelCuenta('editar')}
-            onEliminarCuenta={() => setConfirmCta(true)}
+            esAdmin={esAdmin}
+            puedeEditar={puedeEditar}
           />
         )}
       </div>
 
       {panelCuenta && (
         <div className="cta-panel-overlay">
-          <div className="cta-panel-backdrop" onClick={() => setPanelCuenta(null)} />
           <div className="cta-panel">
             <div className="cta-panel-header">
               <div className="cta-panel-titulo">

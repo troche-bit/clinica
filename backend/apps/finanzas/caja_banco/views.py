@@ -62,7 +62,7 @@ class CuentaMcbViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
 class MovimientoCajaBancoViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields   = ['voucher']
+    search_fields   = ['nro_comprobante']
     ordering_fields = ['fecha', 'monto_ingreso', 'monto_egreso']
     ordering        = ['-fecha', '-fecha_creacion']
 

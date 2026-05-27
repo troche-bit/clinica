@@ -1,0 +1,123 @@
+@startuml 02_secuencia_registrar_cobranza
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "CobranzasPage.jsx" as GUI
+control "useCobranzas.js" as HOOK
+control "CobranzaViewSet" as VIEW
+entity "Cobranza" as COB
+entity "CobranzaDet" as DET
+entity "ValorRecibidoCob" as VRC
+entity "CtaCobrar" as CTA
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Carga inicial ==
+
+ADMIN -> GUI : abre modulo Cobranzas
+GUI -> HOOK : useCobranzas()
+HOOK -> VIEW : GET /api/cobranzas/
+VIEW --> HOOK : lista de cobranzas paginada
+HOOK --> GUI : renderiza tabla
+
+ADMIN -> GUI : click "Nueva cobranza" (o Insert)
+GUI --> ADMIN : abre modal de registro
+
+== Seleccion de cliente ==
+
+note over GUI : debounce 300ms en el buscador de clientes
+GUI -> HOOK : useClientesConPendientes(search)
+HOOK -> VIEW : GET /api/cobranzas/clientes-con-pendientes/?search=X
+VIEW -> CTA : Persona.filter(\n  facturas__cuotas__saldo__gt=0,\n  facturas__cuotas__is_deleted=False,\n  is_deleted=False).distinct()
+CTA --> VIEW : lista de Persona con saldo pendiente
+VIEW --> HOOK : [{ id, razon_social, nro_documento }]
+HOOK --> GUI : dropdown con clientes habilitados
+
+ADMIN -> GUI : selecciona cliente "Gonzalez, Maria"
+
+== Carga de cuotas pendientes ==
+
+GUI -> HOOK : useCuotasPendientes(persona_id)
+HOOK -> VIEW : GET /api/cobranzas/cuotas-pendientes/?persona=ID
+VIEW -> CTA : CtaCobrar.filter(\n  saldo__gt=0, is_deleted=False,\n  vfc__persona_id=ID, vfc__is_deleted=False)\n  .select_related('vfc__timbrado')
+CTA --> VIEW : cuotas con factura_nro, saldo, vencimiento
+VIEW --> HOOK : [{ id, factura_nro, nro_cuota, cant_cuota,\n  saldo, fecha_vencimiento, estado }]
+HOOK --> GUI : tabla de cuotas con checkboxes
+
+ADMIN -> GUI : selecciona cuotas e ingresa montos a pagar
+GUI -> GUI : totalCobrar = suma de montos seleccionados
+
+== Numero de comprobante ==
+
+GUI -> HOOK : useSiguienteNumeroCob()
+HOOK -> VIEW : GET /api/cobranzas/siguiente-numero/
+VIEW -> COB : MAX(comprobante_nro, is_deleted=False) + 1
+VIEW --> HOOK : { siguiente: 42 }
+HOOK --> GUI : muestra "0000042" (readOnly)
+
+== Valores recibidos ==
+
+ADMIN -> GUI : tab "Valores recibidos"
+ADMIN -> GUI : selecciona Efectivo + Caja Chica + monto=100000
+ADMIN -> GUI : agrega fila, selecciona Tarjeta + POS + monto=80000
+GUI -> GUI : totalRecibido = 180.000\nvuelto = max(0, 180.000 - 150.000) = 30.000
+GUI --> ADMIN : indicador "Vuelto: 30.000"
+
+== Guardar (F10 o boton Guardar) ==
+
+ADMIN -> GUI : click "Guardar" (o F10)
+GUI -> GUI : validar() — persona, fecha, cuotas, montos, valores
+GUI -> HOOK : useCreateCobranza.mutateAsync(payload)
+HOOK -> VIEW : POST /api/cobranzas/\n{ fecha, persona: ID,\n  detalle: [{ cta_cobrar_id, monto_pagado }],\n  valores_recibidos: [\n    { forma_pago_id: 1, cta_id: 2, monto: 100000 },\n    { forma_pago_id: 3, cta_id: 4, monto: 80000 }\n  ] }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+
+VIEW -> COB : Cobranza.objects.create(\n  persona=ID, comprobante_nro=42,\n  monto=150000, vuelto=30000)
+COB --> BD : INSERT cobranza — id=8
+
+loop por cada cuota del detalle
+  VIEW -> CTA : CtaCobrar.select_for_update().get(id=X)
+  VIEW -> DET : CobranzaDet.objects.create(\n  cobranza=8, cta_cobrar=X,\n  monto_total=saldo_anterior, monto_pagado=M)
+  DET --> BD : INSERT cobranza_det
+  VIEW -> CTA : cta.saldo -= monto_pagado\nsi saldo<=0: cta.estado='pagado'\ncta.save()
+  CTA --> BD : UPDATE cta_cobrar SET saldo, estado
+end
+
+note over VIEW : Distribucion FIFO de ingresos\nhasta cubrir monto_total=150.000
+
+loop por cada valor recibido
+  VIEW -> VRC : ValorRecibidoCob.objects.create(\n  cobranza=8, forma_pago, cta, monto=real)
+  VRC --> BD : INSERT valor_recibido_cob — id=M
+
+  note over VIEW : ingreso = min(monto_val, saldo_pendiente)\nSolo crea movimiento si ingreso > 0
+
+  alt ingreso > 0
+    VIEW -> MOV : MovimientoCajaBanco.objects.create(\n  cta=cta, monto_ingreso=ingreso,\n  vrc_id=M)
+    MOV --> BD : INSERT movimiento_caja_banco
+    VIEW -> VIEW : saldo_pendiente -= ingreso
+  end
+end
+
+VIEW -> AUDIT : registrar CREAR en auditoria
+AUDIT --> BD : INSERT auditoria_registro
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created — CobranzaDetalleSerializer
+HOOK -> HOOK : invalidateQueries(['cobranzas'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])\ninvalidateQueries(['facturas'])\ninvalidateQueries(['cuotas-pendientes'])
+HOOK --> GUI : onSuccess
+GUI --> ADMIN : modal se cierra\nfila nueva aparece en la tabla
+
+@enduml

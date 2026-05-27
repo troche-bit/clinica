@@ -16,8 +16,8 @@ import { extraerMensajeError } from '../../utils/errores'
 const PERMISOS = {
   admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'usuarios', 'mantenimiento', 'auditoria'],
   recepcionista:     ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'mantenimiento', 'informes'],
-  medico:            ['pacientes', 'agenda', 'consultas', 'informes'],
-  secretaria_medico: ['pacientes', 'agenda', 'consultas', 'informes'],
+  medico:            ['pacientes', 'agenda', 'consultas'],
+  secretaria_medico: ['pacientes', 'agenda', 'consultas'],
 }
 
 const MENU = [

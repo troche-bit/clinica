@@ -37,6 +37,7 @@ export function useCreatePagoPrestador() {
     mutationFn: (data) => apiClient.post(BASE, data).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos-prestador'] })
+      queryClient.invalidateQueries({ queryKey: ['medicos-con-pendientes'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })
       queryClient.invalidateQueries({ queryKey: ['agenda'] })
@@ -50,6 +51,7 @@ export function useDeletePagoPrestador() {
     mutationFn: (id) => apiClient.delete(`${BASE}${id}/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos-prestador'] })
+      queryClient.invalidateQueries({ queryKey: ['medicos-con-pendientes'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })
       queryClient.invalidateQueries({ queryKey: ['agenda'] })
@@ -62,6 +64,32 @@ export function useSiguienteNumeroPago() {
     queryKey: ['pago-prestador-siguiente'],
     queryFn: async () => {
       const { data } = await apiClient.get(`${BASE}siguiente-numero/`)
+      return data
+    },
+    staleTime: 0,
+  })
+}
+
+export function useValidarNroComprobante(nro) {
+  return useQuery({
+    queryKey: ['pago-prestador-validar-nro', nro],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`${BASE}validar-numero/`, { params: { nro } })
+      return data
+    },
+    enabled: !!nro && Number.isInteger(nro) && nro >= 1,
+    staleTime: 0,
+    retry: false,
+  })
+}
+
+export function useMedicosConPendientes(q) {
+  return useQuery({
+    queryKey: ['medicos-con-pendientes', q],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`${BASE}medicos-con-pendientes/`, {
+        params: q ? { search: q } : {},
+      })
       return data
     },
     staleTime: 0,

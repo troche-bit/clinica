@@ -1,0 +1,114 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+skinparam classArrowColor #000000
+skinparam classAttributeFontSize 11
+skinparam classHeaderBackgroundColor #ffffff
+
+class Timbrado {
+  nro_timbrado
+  punto_sucursal
+  punto_expedicion
+  nro_desde
+  nro_hasta
+  inicio_vigencia
+  fin_vigencia
+}
+
+class Persona {
+  razon_social
+  nro_documento
+}
+
+class ProductoServicio {
+  descripcion
+  impuesto
+  activo
+}
+
+class CuentaMcb {
+  descripcion
+  saldo
+}
+
+class FormaPago {
+  descripcion
+  tipo
+}
+
+class VentaFactCab {
+  fecha : DateField
+  establecimiento : CharField(3)
+  expedicion : CharField(3)
+  nro_comprobante : IntegerField
+  condicion_vta : BooleanField
+  observacion : TextField
+  grav_5 : Decimal
+  grav_10 : Decimal
+  iva_5 : Decimal
+  iva_10 : Decimal
+  total_gravada : Decimal
+  total_iva : Decimal
+  monto_total : Decimal
+  vuelto : Decimal
+  is_deleted : BooleanField
+}
+
+class VentaFactDet {
+  cantidad : Decimal
+  monto : Decimal
+  impuesto : CharField
+  exento : Decimal
+  sub_gra_5 : Decimal
+  sub_gra_10 : Decimal
+  sub_iva_5 : Decimal
+  sub_iva_10 : Decimal
+}
+
+class VentaFactDetCobranza {
+  monto : Decimal
+  voucher : CharField
+  nro_comprobante : CharField
+}
+
+class CtaCobrar {
+  nro_cuota : IntegerField
+  cant_cuota : IntegerField
+  monto_total : Decimal
+  monto_cuota : Decimal
+  saldo : Decimal
+  fecha_vencimiento : DateField
+  estado : CharField
+}
+
+class MovimientoCajaBanco {
+  monto_ingreso : Decimal
+  fecha : DateField
+  vfdc_id : IntegerField
+}
+
+VentaFactCab "N" --> "1" Timbrado : timbrado
+VentaFactCab "N" --> "1" Persona : persona
+VentaFactDet "1..*" --> "1" VentaFactCab : cabecera
+VentaFactDet "N" --> "1" ProductoServicio : producto
+VentaFactDetCobranza "1..*" --> "1" VentaFactCab : cabecera
+VentaFactDetCobranza "N" --> "1" FormaPago : forma_pago
+VentaFactDetCobranza "N" --> "1" CuentaMcb : cuenta
+CtaCobrar "1..*" --> "1" VentaFactCab : cabecera
+CtaCobrar "N" --> "1" Persona : persona
+MovimientoCajaBanco "N" ..> "1" VentaFactDetCobranza : vfdc_id
+
+note bottom of VentaFactCab
+  Factura paraguaya SET.
+  Contado genera MovimientoCajaBanco.
+  Credito genera CtaCobrar.
+  Transaccion atomica en ambos casos.
+end note
+
+@enduml

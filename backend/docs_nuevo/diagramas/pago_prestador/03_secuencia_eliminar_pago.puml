@@ -1,0 +1,73 @@
+@startuml 03_secuencia_eliminar_pago
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "PagoPrestadorPage.jsx" as GUI
+control "ConfirmDialog.jsx" as CONFIRM
+control "usePagoPrestador.js" as HOOK
+control "PagoPrestadorViewSet" as VIEW
+entity "PagoPrestador" as PP
+entity "PagoPrestadorDetCobranza" as DET
+entity "Agenda" as AG
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Inicio del flujo ==
+
+ADMIN -> GUI : click icono eliminar en la fila
+GUI -> CONFIRM : abre ConfirmDialog\n"Eliminar pago #N — Prestador?"
+CONFIRM --> ADMIN : muestra confirmacion
+
+alt ADMIN cancela
+  ADMIN -> CONFIRM : click Cancelar
+  CONFIRM --> GUI : cierra sin accion
+else ADMIN confirma
+  ADMIN -> CONFIRM : click Confirmar
+  CONFIRM --> GUI : onConfirm()
+
+  GUI -> HOOK : useEliminarPago.mutateAsync(id)
+  HOOK -> VIEW : DELETE /api/pago-prestador/{id}/
+
+  VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+
+  VIEW -> DET : obtiene IDs de PagoPrestadorDetCobranza\nfiltro: pago_prestador=instance, is_deleted=False
+  DET --> VIEW : [det_ids]
+
+  VIEW -> MOV : MovimientoCajaBanco.objects\n  .filter(ppdc_id__in=det_ids, is_deleted=False)\n  .update(is_deleted=True, fecha_eliminacion=now)
+  MOV --> BD : UPDATE movimiento_caja_banco SET is_deleted=True
+
+  VIEW -> AG : Agenda.objects\n  .filter(pago_prestador=instance, is_deleted=False)\n  .update(pagado_prestador=False, pago_prestador=None)
+  AG --> BD : UPDATE agenda SET pagado_prestador=False,\npago_prestador_id=NULL
+
+  VIEW -> DET : PagoPrestadorDetCobranza.objects\n  .filter(pago_prestador=instance, is_deleted=False)\n  .update(is_deleted=True, fecha_eliminacion=now)
+  DET --> BD : UPDATE pago_prestador_det_cobranza SET is_deleted=True
+
+  VIEW -> AUDIT : registrar ELIMINAR en auditoria
+  AUDIT --> BD : INSERT auditoria_registro
+  VIEW -> PP : PagoPrestador — borrado logico\n(is_deleted=True, fecha_eliminacion=now)
+  PP --> BD : UPDATE pago_prestador SET is_deleted=True
+
+  VIEW -> BD : COMMIT
+
+  VIEW --> HOOK : 204 No Content
+  HOOK -> HOOK : invalidateQueries(['pago-prestador'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+  HOOK --> GUI : onSuccess
+  GUI --> ADMIN : fila desaparece de la tabla
+
+  note over AG : Los turnos regresan al estado\n"realizados no pagados" y vuelven\na aparecer en bloques-pendientes
+end
+
+@enduml

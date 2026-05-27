@@ -1,0 +1,145 @@
+@startuml
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor white
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceArrowThickness 1
+skinparam sequenceMessageAlign center
+skinparam sequenceLifeLineBorderColor black
+skinparam sequenceParticipantBorderColor black
+skinparam sequenceParticipantBackgroundColor white
+skinparam sequenceActorBorderColor black
+
+actor ADMIN
+actor RECEPCIONISTA
+
+boundary "TimbradoPage.jsx" as GUI
+boundary "FacturacionPage.jsx" as FACT_GUI
+
+control "useTimbrado.js" as HOOK
+control "TimbradoViewSet" as TIM_VIEW
+control "VentaFactCabViewSet" as FACT_VIEW
+
+entity "Timbrado" as MODEL
+entity "VentaFactCab" as FACTURA
+
+database "PostgreSQL" as BD
+
+== Paso 1: Admin crea nuevo timbrado ==
+
+ADMIN -> GUI : Click "Nuevo timbrado"
+
+GUI --> ADMIN : Mostrar formulario\nToggle Talonario activo
+
+ADMIN -> GUI : Completa datos del timbrado
+
+GUI -> GUI : esDuplicado() = false
+
+GUI -> HOOK : mutateAsync(form)
+
+HOOK -> TIM_VIEW : POST /api/timbrado/
+
+TIM_VIEW -> TIM_VIEW : Validaciones\n- fin > inicio\n- rango válido\n- unicidad OK
+
+TIM_VIEW -> MODEL : save()
+
+MODEL -> BD : INSERT INTO timbrado
+
+BD --> TIM_VIEW : id = 1
+
+TIM_VIEW -> BD : INSERT auditoria_registro
+
+TIM_VIEW --> HOOK : 201 Created
+
+HOOK -> HOOK : invalidateQueries(['timbrado'])
+
+GUI --> ADMIN : Toast OK\n"Timbrado creado correctamente"
+
+== Paso 2: Frontend calcula vigencia ==
+
+HOOK -> TIM_VIEW : GET /api/timbrado/
+
+TIM_VIEW -> BD : SELECT timbrados activos
+
+BD --> TIM_VIEW : timbrado id = 1
+
+TIM_VIEW -> TIM_VIEW : Calcular dias_restantes = 226
+
+TIM_VIEW --> HOOK : vigente = true\n226 días restantes
+
+HOOK --> GUI : data
+
+GUI -> GUI : progresoBarra()\nColor verde
+
+GUI --> ADMIN : Badge "Vigente"\nBarra verde
+
+== Paso 3: Recepcionista emite factura ==
+
+RECEPCIONISTA -> FACT_GUI : Nueva factura\n001-001-0000001
+
+FACT_GUI -> FACT_VIEW : POST validar-timbrado
+
+FACT_VIEW -> BD : Buscar timbrado válido
+
+BD --> FACT_VIEW : timbrado id = 1
+
+FACT_VIEW --> FACT_GUI : 200 OK\nTimbrado válido
+
+FACT_GUI -> FACT_VIEW : GET siguiente-numero
+
+FACT_VIEW -> BD : MAX(nro_factura)
+
+BD --> FACT_VIEW : siguiente = 1
+
+FACT_VIEW --> FACT_GUI : siguiente = 1
+
+FACT_GUI -> FACT_VIEW : POST /api/facturacion/
+
+FACT_VIEW -> BD : INSERT ventafactcab
+
+BD --> FACT_VIEW : factura creada
+
+FACT_VIEW --> RECEPCIONISTA : Factura emitida
+
+== Paso 4: Actualización del panel ==
+
+HOOK -> TIM_VIEW : GET /api/timbrado/
+
+TIM_VIEW --> HOOK : proximo_numero = 2\nDisponibles = 998
+
+GUI --> ADMIN : Mostrar panel actualizado
+
+== Paso 5: Intento de eliminación ==
+
+ADMIN -> GUI : Click "Eliminar"
+
+GUI --> ADMIN : ConfirmDialog
+
+ADMIN -> GUI : Confirmar eliminación
+
+GUI -> HOOK : mutateAsync(delete)
+
+HOOK -> TIM_VIEW : DELETE /api/timbrado/1/
+
+TIM_VIEW -> TIM_VIEW : perform_destroy()
+
+TIM_VIEW -> BD : Verificar facturas asociadas
+
+BD --> TIM_VIEW : TRUE
+
+TIM_VIEW --> HOOK : 400 Bad Request\n"No se puede eliminar"
+
+HOOK --> GUI : onError
+
+GUI --> ADMIN : Toast error\nAcción bloqueada
+
+note over BD
+El timbrado permanece en BD.
+
+La factura conserva su
+referencia fiscal obligatoria
+según normativa SET Paraguay.
+end note
+@enduml

@@ -97,7 +97,7 @@ export function useBuscarPersonas(search) {
   return useQuery({
     queryKey: ['personas-buscar', search],
     queryFn: async () => {
-      const { data } = await apiClient.get('/persona/', { params: { search, page_size: 8 } })
+      const { data } = await apiClient.get('/persona/', { params: { search, page_size: 8, con_rol: 'true' } })
       return data
     },
     enabled: search?.length >= 2,

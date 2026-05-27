@@ -126,8 +126,8 @@ Cada grupo tiene un `id`; solo los grupos incluidos en el array del rol se muest
 |---|---|
 | `admin` | pacientes, agenda, consultas, facturacion, finanzas, rrhh, informes, usuarios, mantenimiento |
 | `recepcionista` | pacientes, agenda, consultas, facturacion, finanzas, mantenimiento, informes |
-| `medico` | pacientes, agenda, consultas, informes |
-| `secretaria_medico` | pacientes, agenda, consultas, informes |
+| `medico` | pacientes, agenda, consultas |
+| `secretaria_medico` | pacientes, agenda, consultas |
 
 Grupos relevantes para catálogos de configuración:
 - `mantenimiento` → Ubicaciones, **Consultorios**, **Especialidades**, Tipo doc. digitalizado

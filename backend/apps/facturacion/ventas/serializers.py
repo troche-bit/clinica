@@ -78,12 +78,29 @@ class VentaFactCabUpdateSerializer(serializers.ModelSerializer):
 
 
 class VentaFactCabDetalleSerializer(VentaFactCabListSerializer):
-    detalle  = VentaFactDetSerializer(many=True, read_only=True)
-    cobranza = VentaFactCobranzaSerializer(many=True, read_only=True)
-    cuotas   = CtaCobrarSerializer(many=True, read_only=True)
+    detalle     = serializers.SerializerMethodField()
+    cobranza    = serializers.SerializerMethodField()
+    cuotas      = serializers.SerializerMethodField()
+    cobros_nros = serializers.SerializerMethodField()
+
+    def get_detalle(self, obj):
+        return VentaFactDetSerializer(obj.detalle.filter(is_deleted=False), many=True).data
+
+    def get_cobranza(self, obj):
+        return VentaFactCobranzaSerializer(obj.cobranza.filter(is_deleted=False), many=True).data
+
+    def get_cuotas(self, obj):
+        return CtaCobrarSerializer(obj.cuotas.filter(is_deleted=False), many=True).data
+
+    def get_cobros_nros(self, obj):
+        from apps.finanzas.cobranzas.models import CobranzaDet
+        nros = list(CobranzaDet.objects.filter(
+            cta_cobrar__vfc=obj, is_deleted=False, cobranza__is_deleted=False
+        ).values_list('cobranza__comprobante_nro', flat=True).distinct())
+        return [n for n in nros if n is not None]
 
     class Meta(VentaFactCabListSerializer.Meta):
-        fields = VentaFactCabListSerializer.Meta.fields + ['detalle', 'cobranza', 'cuotas']
+        fields = VentaFactCabListSerializer.Meta.fields + ['detalle', 'cobranza', 'cuotas', 'cobros_nros']
 
 
 class DetalleInputSerializer(serializers.Serializer):

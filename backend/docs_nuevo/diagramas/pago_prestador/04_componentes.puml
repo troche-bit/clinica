@@ -1,0 +1,125 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam componentBorderColor #000000
+skinparam componentBackgroundColor #ffffff
+skinparam packageBorderColor #000000
+skinparam packageBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam arrowColor #000000
+skinparam noteBorderColor #000000
+skinparam noteBackgroundColor #ffffff
+
+package "Frontend" {
+  component "PagoPrestadorPage.jsx" as PAGE
+  note right of PAGE
+    Tabla pagos con filtros
+    Modal nuevo pago (Insert)
+    Modal ver detalle con PDF (F10 = guardar)
+    Boton recibo PDF por fila
+    Exportar lista PDF y Excel
+  end note
+
+  component "usePagoPrestador.js" as HOOK
+  note right of HOOK
+    usePagoPrestadores()
+    useCrearPago()
+    useEliminarPago()
+    useMedicosConPendientes()
+    useBloquesPendientes()
+    useValidarNumero()
+  end note
+
+  component "client.js" as CLIENT
+  note right of CLIENT
+    responseType blob
+    para recibo PDF
+    y reportes PDF/Excel
+  end note
+
+  component "ConfirmDialog.jsx" as CONFIRM
+  component "useAtajosTeclado.js" as ATAJOS
+  note right of ATAJOS
+    Insert: abre modal nuevo
+    F10: guarda formulario
+  end note
+}
+
+package "Backend" {
+  component "PagoPrestadorViewSet" as VIEW
+  note right of VIEW
+    /medicos-con-pendientes/
+    /bloques-pendientes/
+    /validar-numero/
+    /reporte-pdf/
+    /reporte-excel/
+    {id}/recibo-pdf/
+  end note
+
+  component "PagoPrestadorListSerializer" as LISTSER
+  component "PagoPrestadorSerializer" as WRSER
+  note right of WRSER
+    campos: persona_rrhh, fecha_pago,
+    nro_comprobante, monto_hora,
+    bloques (agenda_ids),
+    detalle (forma_pago, cta, monto, voucher)
+  end note
+
+  component "AuditoriaMixin" as AUDIT
+  note right of AUDIT
+    CREAR / ELIMINAR
+    Borrado logico completo
+  end note
+
+  component "WeasyPrint" as PDF
+  note right of PDF
+    recibo_prestador.html
+    pago_prestador_lista.html
+  end note
+
+  component "openpyxl" as XLS
+  note right of XLS
+    reporte Excel con cabeceras
+    estilizadas y filas alternas
+  end note
+}
+
+package "Base de Datos" {
+  database "pago_prestador" as TPP
+  database "pago_prestador_det_cobranza" as TDET
+  database "movimiento_caja_banco\n(monto_egreso / ppdc_id)" as TMOV
+  database "agenda\n(pagado_prestador / pago_prestador_id)" as TAG
+  database "persona_rrhh\n(referenciado, no modificado)" as TRRHH
+}
+
+PAGE --> HOOK : usa
+PAGE --> CONFIRM : usa
+PAGE --> ATAJOS : usa
+HOOK --> CLIENT : axios
+CLIENT --> VIEW : HTTP
+
+VIEW --> LISTSER : list / retrieve
+VIEW --> WRSER : create
+VIEW --> PDF : recibo-pdf / reporte-pdf
+VIEW --> XLS : reporte-excel
+AUDIT --> VIEW : herencia
+
+VIEW --> TPP : transaccion atomica
+VIEW --> TDET : transaccion atomica
+VIEW --> TMOV : egreso por cada detalle cobranza
+VIEW --> TAG : marca/desmarca pagado_prestador
+VIEW --> TRRHH : FK solo lectura
+
+note as N1
+  Borrado logico en cascada:
+  MovimientoCajaBanco → DetCobranza
+  → Agenda (revertir) → PagoPrestador
+  Todo dentro de @transaction.atomic
+end note
+
+@enduml

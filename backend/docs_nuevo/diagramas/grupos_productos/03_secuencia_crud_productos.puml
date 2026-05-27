@@ -1,0 +1,103 @@
+@startuml 03_secuencia_crud_productos
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "GruposPage.jsx\nVista 2" as GUI
+control "useProductos.js" as HOOK
+control "ProductoServicioViewSet" as VIEW
+entity "ProductoServicio" as MODEL
+entity "Grupo" as GRUPO
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar productos del grupo ==
+
+ADMIN -> GUI : Llegó desde Vista 1 (click en card)
+GUI -> HOOK : useProductos(grupo.id, { search })
+HOOK -> VIEW : GET /api/productos/?grupo=ID&search=
+VIEW -> MODEL : get_queryset()\nfilter(is_deleted=False)\nselect_related('grupo')\nfilter(grupo_id=ID)
+MODEL -> BD : SELECT producto_servicio\nJOIN grupo_producto\nWHERE grupo_id=ID AND is_deleted=False
+BD --> MODEL : filas con grupo join
+MODEL --> VIEW : queryset
+VIEW --> HOOK : ProductoServicioListSerializer (many=True)\n[id, descripcion, grupo, grupo_nombre,\nimpuesto, impuesto_display, activo]
+HOOK --> GUI : React Query cachea ['productos', grupoId, filters]
+GUI -> GUI : Renderiza tabla con zebra striping\nbadge IVA según tipo\nbuscador y botón a la derecha del toolbar
+
+== Flujo 2: Crear producto ==
+
+ADMIN -> GUI : Click "Nuevo producto"
+GUI -> GUI : Abre panel lateral derecho\nGrupo asignado = contexto actual (readonly)\ndescripcion, impuesto, activo
+ADMIN -> GUI : Completa descripcion e impuesto
+ADMIN -> GUI : Click "Agregar producto"
+GUI -> HOOK : useCreateProducto.mutateAsync(form)
+note right of HOOK : form incluye:\n{ descripcion, impuesto, activo,\n  grupo: grupoActual.id }
+HOOK -> VIEW : POST /api/productos/\n{descripcion, grupo, impuesto, activo}
+VIEW -> VIEW : ProductoServicioSerializer.validate()\ncase-insensitive por grupo\nis_deleted=False
+VIEW -> VIEW : perform_create()\n→ AuditoriaMixin
+VIEW -> MODEL : save(id_usu_creator=request.user)
+MODEL -> BD : INSERT producto_servicio
+BD --> MODEL : OK, nuevo id
+VIEW -> BD : INSERT auditoria_registro (CREAR)
+BD --> VIEW : OK
+VIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['productos'])\ninvalidateQueries(['grupos'])\n(actualiza total_productos en Vista 1)
+HOOK --> GUI : cerrarPanel()
+GUI -> GUI : Nueva fila aparece en la tabla
+
+== Flujo 3: Editar producto ==
+
+ADMIN -> GUI : Click ícono editar en fila
+GUI -> GUI : Abre panel con datos precargados\nGrupo asignado sigue readonly
+ADMIN -> GUI : Modifica descripcion, impuesto o activo
+ADMIN -> GUI : Click "Guardar cambios"
+GUI -> HOOK : useUpdateProducto.mutateAsync({ id, ...form })
+HOOK -> VIEW : PATCH /api/productos/{id}/\n{descripcion?, impuesto?, activo?}
+VIEW -> VIEW : ProductoServicioSerializer.validate()\nexcluye instancia actual del unique check
+VIEW -> VIEW : perform_update()\n→ AuditoriaMixin\n(registra datos_antes vs datos_despues)
+VIEW -> MODEL : save(id_usu_modificator=request.user)
+MODEL -> BD : UPDATE producto_servicio
+BD --> MODEL : OK
+VIEW -> BD : INSERT auditoria_registro (EDITAR)
+BD --> VIEW : OK
+VIEW --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['productos'])
+HOOK --> GUI : cerrarPanel()
+
+== Flujo 4: Borrado lógico con validación ==
+
+ADMIN -> GUI : Click ícono eliminar en fila
+GUI -> GUI : ConfirmDialog:\n"¿Eliminar? No se puede eliminar\nsi tiene facturas emitidas vinculadas."
+ADMIN -> GUI : Confirma eliminación
+GUI -> HOOK : useDeleteProducto.mutateAsync(id)
+HOOK -> VIEW : DELETE /api/productos/{id}/
+VIEW -> VIEW : perform_destroy(instance)
+VIEW -> BD : SELECT venta_fact_det\nWHERE prs_id=id AND is_deleted=False
+alt tiene facturas emitidas
+    BD --> VIEW : filas encontradas
+    VIEW --> HOOK : 400 ValidationError\n"No se puede eliminar: el producto\ntiene facturas emitidas vinculadas."
+    HOOK --> GUI : showToast(error, 'error')
+else sin facturas emitidas
+    BD --> VIEW : vacío
+    VIEW -> VIEW : super().perform_destroy()\n→ AuditoriaMixin
+    VIEW -> MODEL : is_deleted=True\nfecha_eliminacion=now()\nid_usu_modificator=request.user
+    MODEL -> BD : UPDATE producto_servicio
+    BD --> MODEL : OK
+    VIEW -> BD : INSERT auditoria_registro (ELIMINAR)
+    BD --> VIEW : OK
+    VIEW --> HOOK : 204 No Content
+    HOOK -> HOOK : invalidateQueries(['productos'])\ninvalidateQueries(['grupos'])
+    HOOK --> GUI : showToast('Producto eliminado.', 'success')
+end
+
+@enduml

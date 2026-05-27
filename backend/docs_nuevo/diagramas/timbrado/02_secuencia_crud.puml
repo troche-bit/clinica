@@ -1,0 +1,85 @@
+@startuml 02_secuencia_crud
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "TimbradoPage.jsx" as GUI
+control "useTimbrado.js" as HOOK
+control "TimbradoViewSet" as VIEW
+entity "Timbrado" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar con filtro vigente ==
+
+ADMIN -> GUI : abre página / cambia filtro
+GUI -> HOOK : useTimbrados({ vigente: "true"|"false" })
+HOOK -> VIEW : GET /api/timbrado/?vigente=true|false
+VIEW -> BD : Timbrado.objects.filter(is_deleted=False)\n[+ filtro inicio_vigencia__lte/fin_vigencia__gte]
+BD --> VIEW : queryset
+VIEW --> HOOK : TimbradoListSerializer\n(vigente, tipo, dias_restantes,\ntotal_comprobantes calculados)
+HOOK --> GUI : data.results
+GUI -> GUI : progresoBarra()\n  pct = (hoy - inicio) / (fin - inicio)\n  color: verde >180d / amarillo ≥60d / rojo <60d
+GUI --> ADMIN : tabla con barra de progreso\n+ panel lateral con detalle al click
+
+== Flujo 2: Crear timbrado ==
+
+ADMIN -> GUI : click "Nuevo timbrado"
+GUI --> ADMIN : PanelForm (toggle Talonario/Autoimpresor)
+ADMIN -> GUI : completa campos y "Crear timbrado"
+GUI -> GUI : esDuplicado() — validación frontend\n  mismos campos combinados en cache local
+alt duplicado detectado en frontend
+  GUI --> ADMIN : toast error "Ya existe un timbrado\nactivo con el mismo número..."
+else no duplicado
+  GUI -> HOOK : useCreateTimbrado.mutateAsync(form)
+  HOOK -> VIEW : POST /api/timbrado/\n{ nro_timbrado, autoimpresor, inicio_vigencia,\n  fin_vigencia, punto_sucursal, punto_expedicion,\n  nro_desde, nro_hasta, nro_habilitacion }
+  VIEW -> VIEW : TimbradoSerializer.validate()\n  - fin_vigencia > inicio_vigencia\n  - nro_hasta > nro_desde\n  - nro_habilitacion si autoimpresor\n  - unicidad combinada en BD
+  VIEW -> MODEL : save() → full_clean() → super().save()
+  MODEL -> BD : INSERT INTO timbrado
+  BD --> VIEW : instancia creada
+  VIEW --> HOOK : 201 Created
+  HOOK -> HOOK : invalidateQueries(['timbrado'])
+  HOOK --> GUI : onSuccess
+  GUI --> ADMIN : toast "Timbrado creado correctamente"
+end
+
+== Flujo 3: Editar timbrado ==
+
+ADMIN -> GUI : click fila → PanelVer → "Editar"
+GUI --> ADMIN : PanelForm con datos actuales
+ADMIN -> GUI : modifica campos y "Guardar cambios"
+GUI -> GUI : esDuplicado(..., excludeId) — excluye el propio registro
+GUI -> HOOK : useUpdateTimbrado.mutateAsync({ id, ...form })
+HOOK -> VIEW : PATCH /api/timbrado/{id}/
+VIEW -> VIEW : TimbradoSerializer.validate()\n  excluye self.instance.pk de unicidad
+VIEW -> MODEL : save() → full_clean() → super().save()
+MODEL -> BD : UPDATE timbrado SET ...
+BD --> VIEW : instancia actualizada
+VIEW --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['timbrado'])
+HOOK --> GUI : onSuccess
+GUI --> ADMIN : toast "Timbrado actualizado correctamente"
+
+== Flujo 4: Validar timbrado en facturación ==
+
+ADMIN -> VIEW : POST /api/facturacion/validar-timbrado/\n{ establecimiento, expedicion, numero }
+VIEW -> BD : Timbrado.objects.filter(\n  is_deleted=False,\n  punto_sucursal=establecimiento,\n  punto_expedicion=expedicion,\n  nro_desde__lte=numero,\n  nro_hasta__gte=numero,\n  inicio_vigencia__lte=hoy,\n  fin_vigencia__gte=hoy\n)
+alt timbrado vigente encontrado
+  BD --> VIEW : timbrado
+  VIEW --> ADMIN : 200 { timbrado_id, nro_timbrado, ... }
+else no encontrado
+  BD --> VIEW : vacío
+  VIEW --> ADMIN : 400 "No hay timbrado vigente para ese punto de emisión"
+end
+
+@enduml

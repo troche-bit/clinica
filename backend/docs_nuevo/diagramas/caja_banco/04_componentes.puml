@@ -1,0 +1,151 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam componentBorderColor #000000
+skinparam componentBackgroundColor #ffffff
+skinparam packageBorderColor #000000
+skinparam packageBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam arrowColor #000000
+skinparam noteBorderColor #000000
+skinparam noteBackgroundColor #ffffff
+
+package "Frontend" {
+  component "CuentasMcbPage.jsx" as PAGE
+  note right of PAGE
+    Grilla de cards de cuentas (4-3-2-1 cols)
+    Drill-down: seleccionar cuenta → ver movimientos
+    Panel lateral overlay para crear/editar
+    Buscador con debounce 300ms
+    ConfirmDialog en eliminacion de cuenta y movimiento
+    Columna Nro. Comprobante oculta en mobile
+  end note
+
+  component "useCuentasMcb.js" as HOOK
+  note right of HOOK
+    useCuentasMcb(search)
+    useCreateCuenta()
+    useUpdateCuenta()
+    useDeleteCuenta()
+    useMovimientos(cta_id, search)
+    useCreateMovimiento()
+    useUpdateMovimiento()
+    useDeleteMovimiento()
+  end note
+
+  component "client.js" as CLIENT
+
+  component "ConfirmDialog.jsx" as CONFIRM
+}
+
+package "Backend" {
+  component "CuentaMcbViewSet" as VCUENTA
+  note right of VCUENTA
+    /api/cuentas-mcb/
+    /eliminados/
+    Permisos CUD: IsAdminRole
+    saldo anotado en get_queryset
+    con Coalesce(SUM, 0)
+  end note
+
+  component "MovimientoCajaBancoViewSet" as VMOV
+  note right of VMOV
+    /api/movimientos-caja/
+    /eliminados/
+    ?cta=ID  filtro requerido
+    ?search=  busca nro_comprobante
+    Permisos create/update: IsAdminOrRecepcionista
+    Permisos destroy: IsAdminRole
+    perform_destroy bloquea movimientos externos
+  end note
+
+  component "CuentaMcbListSerializer" as LSCUENTA
+  note right of LSCUENTA
+    Campos: id, descripcion,
+    saldo (anotado), total_movimientos
+  end note
+
+  component "CuentaMcbSerializer" as WCUENTA
+  note right of WCUENTA
+    Escritura: solo descripcion.
+    validate_descripcion():
+    unicidad case-insensitive (is_deleted=False),
+    excluye instancia en PATCH.
+  end note
+
+  component "MovimientoCajaBancoListSerializer" as LSMOV
+  note right of LSMOV
+    Campos: id, fecha, nro_comprobante,
+    monto_ingreso, monto_egreso, vuelto,
+    vfdc_id, vrc_id, ppdc_id, tipo (property)
+  end note
+
+  component "MovimientoCajaBancoSerializer" as WMOV
+  note right of WMOV
+    Escritura: cta, fecha, nro_comprobante,
+    monto_ingreso, monto_egreso.
+    SIN campo vuelto (solo lo setean modulos externos).
+    validate(): bloquea edicion de movimientos externos
+    (vfdc_id / vrc_id / ppdc_id != None).
+    Requiere exactamente uno de ingreso o egreso > 0.
+  end note
+
+  component "AuditoriaMixin" as AUDIT
+  note right of AUDIT
+    CREAR / EDITAR / ELIMINAR
+    Borrado logico completo
+    Registro en auditoria_registro
+  end note
+}
+
+package "Base de Datos" {
+  database "cuenta_mcb\n(saldo anotado, no almacenado)" as TCUENTA
+  database "movimiento_caja_banco\n(vfdc_id / vrc_id / ppdc_id)" as TMOV
+  database "venta_fact_det_cobranza\n(origen: Facturacion/Ventas)" as TVFDC
+  database "valor_recibido_cob\n(origen: Cobranzas)" as TVRC
+  database "pago_prestador_det_cobranza\n(origen: Pago a Prestadores)" as TPPDC
+}
+
+PAGE --> HOOK : usa
+PAGE --> CONFIRM : usa
+HOOK --> CLIENT : axios
+CLIENT --> VCUENTA : HTTP /api/cuentas-mcb/
+CLIENT --> VMOV : HTTP /api/movimientos-caja/
+
+VCUENTA --> LSCUENTA : list / retrieve
+VCUENTA --> WCUENTA : create / update
+VMOV --> LSMOV : list / retrieve
+VMOV --> WMOV : create / update
+
+AUDIT --> VCUENTA : herencia
+AUDIT --> VMOV : herencia
+
+VCUENTA --> TCUENTA : CRUD con borrado logico
+VMOV --> TMOV : CRUD con borrado logico
+TMOV ..> TVFDC : vfdc_id (IntegerField, no FK)
+TMOV ..> TVRC : vrc_id (IntegerField, no FK)
+TMOV ..> TPPDC : ppdc_id (IntegerField, no FK)
+
+note as N1
+  Movimientos con cualquier ID externo seteado
+  (vfdc_id / vrc_id / ppdc_id) son de solo lectura
+  en este modulo: no se pueden editar ni eliminar.
+  Solo los movimientos con los tres IDs en NULL
+  fueron registrados directamente desde caja.
+end note
+
+note as N2
+  El campo vuelto existe en la tabla para
+  movimientos generados por Cobranzas.
+  No se expone en el write serializer
+  ni en el formulario de caja directa.
+  El saldo de la cuenta se calcula anotado:
+  SUM(monto_ingreso) - SUM(monto_egreso).
+end note
+
+@enduml

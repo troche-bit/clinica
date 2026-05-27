@@ -1,7 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Max
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -19,6 +19,7 @@ from apps.facturacion.configuracion.timbrado.models import Timbrado
 from apps.stock.productos.models import ProductoServicio
 from apps.forma_pago.models import FormaPago
 from apps.finanzas.caja_banco.models import CuentaMcb, MovimientoCajaBanco
+from apps.finanzas.cobranzas.models import CobranzaDet
 from apps.administracion.persona.models import Persona
 from apps.finanzas.estadocuenta.models import CtaCobrar
 
@@ -39,7 +40,9 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     ordering           = ['-fecha', '-fecha_creacion']
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve', 'validar_timbrado', 'siguiente_numero'):
+        if self.action == 'pdf':
+            return [AllowAny()]
+        if self.action in ('list', 'retrieve', 'validar_timbrado', 'siguiente_numero', 'reporte_pdf', 'reporte_excel'):
             return [IsAuthenticated()]
         if self.action == 'destroy':
             return [IsAuthenticated(), IsAdminRole()]
@@ -148,6 +151,7 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             )
 
         if data['condicion_vta']:
+            monto_pendiente = totales['monto_total']
             for cobr in data.get('cobranza', []):
                 try:
                     fp  = FormaPago.objects.get(pk=cobr['forma_pago'])
@@ -165,16 +169,19 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                     id_usu_creator  = request.user,
                 )
 
-                MovimientoCajaBanco.objects.create(
-                    cta            = cta,
-                    fecha          = data['fecha'],
-                    voucher        = cobr.get('voucher', '') or None,
-                    monto_ingreso  = cobr['monto'],
-                    monto_egreso   = Decimal('0'),
-                    vuelto         = Decimal('0'),
-                    vfdc_id        = det_cobr.id,
-                    id_usu_creator = request.user,
-                )
+                monto_mov = min(Decimal(str(cobr['monto'])), monto_pendiente)
+                if monto_mov > 0:
+                    MovimientoCajaBanco.objects.create(
+                        cta             = cta,
+                        fecha           = data['fecha'],
+                        nro_comprobante = cobr.get('nro_comprobante', '') or None,
+                        monto_ingreso   = monto_mov,
+                        monto_egreso    = Decimal('0'),
+                        vuelto          = Decimal('0'),
+                        vfdc_id         = det_cobr.id,
+                        id_usu_creator  = request.user,
+                    )
+                    monto_pendiente -= monto_mov
         else:
             cfg  = data['cuotas']
             cant = cfg['cant_cuota']
@@ -199,21 +206,221 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         out = VentaFactCabDetalleSerializer(cab)
         return Response(out.data, status=201)
 
+    @transaction.atomic
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
+
+        if 'detalle' in request.data:
+            return self._full_update(request, instance)
+
         ser = VentaFactCabUpdateSerializer(instance, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         self.perform_update(ser)
         instance.refresh_from_db()
         return Response(VentaFactCabDetalleSerializer(instance).data)
 
-    def perform_destroy(self, instance):
-        cobr_ids = list(instance.cobranza.filter(is_deleted=False).values_list('id', flat=True))
-        if MovimientoCajaBanco.objects.filter(vfdc_id__in=cobr_ids, is_deleted=False).exists():
-            raise ValidationError('No se puede eliminar: tiene movimientos de caja vinculados.')
+    def _full_update(self, request, instance):
+        # Permite cambiar condicion_vta en edición; si no viene en el request, mantiene la original
+        raw_cond = request.data.get('condicion_vta', instance.condicion_vta)
+        if isinstance(raw_cond, str):
+            nueva_condicion = raw_cond.lower() in ('true', '1')
+        else:
+            nueva_condicion = bool(raw_cond)
+
+        # Si la condición original era crédito, bloquear si hay cobros registrados en el módulo de cobranzas
+        if not instance.condicion_vta:
+            cobros_qs = CobranzaDet.objects.filter(
+                cta_cobrar__vfc=instance, is_deleted=False, cobranza__is_deleted=False
+            )
+            if cobros_qs.exists():
+                nros = list(cobros_qs.values_list('cobranza__comprobante_nro', flat=True).distinct())
+                nros_str = ', '.join(str(n) for n in nros if n is not None)
+                raise ValidationError({
+                    'detail': f'No se puede editar: el comprobante tiene cobros registrados (Cobranza N° {nros_str}). Elimine la cobranza para poder modificarlo.'
+                })
+
+            tiene_pagos = (
+                instance.cuotas.filter(is_deleted=False, estado='pagado').exists()
+                or instance.cuotas.filter(is_deleted=False).exclude(saldo=models.F('monto_cuota')).exists()
+            )
+            if tiene_pagos:
+                raise ValidationError({'detail': 'No se puede editar: ya existen cuotas cobradas en este comprobante.'})
+
+        # Determinar establecimiento, expedición y timbrado (pueden cambiar en edición)
+        estab      = request.data.get('establecimiento', instance.establecimiento)
+        expedicion = request.data.get('expedicion',     instance.expedicion)
+
+        if estab != instance.establecimiento or expedicion != instance.expedicion:
+            hoy = timezone.localtime().date()
+            timbrado = Timbrado.objects.filter(
+                punto_sucursal=estab,
+                punto_expedicion=expedicion,
+                inicio_vigencia__lte=hoy,
+                fin_vigencia__gte=hoy,
+                is_deleted=False,
+            ).order_by('-inicio_vigencia').first()
+            if not timbrado:
+                raise ValidationError({'establecimiento': f'No hay timbrado vigente para {estab}-{expedicion}.'})
+        else:
+            timbrado = instance.timbrado
+
+        # Validar nro_comprobante
+        raw_nro = request.data.get('nro_comprobante')
+        if raw_nro is not None:
+            try:
+                nuevo_nro = int(raw_nro)
+            except (ValueError, TypeError):
+                raise ValidationError({'nro_comprobante': 'Número de comprobante inválido.'})
+        else:
+            nuevo_nro = instance.nro_comprobante
+
+        if nuevo_nro != instance.nro_comprobante or timbrado.id != instance.timbrado_id:
+            if not (timbrado.nro_desde <= nuevo_nro <= timbrado.nro_hasta):
+                raise ValidationError({
+                    'nro_comprobante': f'Número fuera del rango del timbrado ({timbrado.nro_desde}–{timbrado.nro_hasta}).'
+                })
+            if VentaFactCab.objects.filter(
+                timbrado=timbrado, nro_comprobante=nuevo_nro, is_deleted=False
+            ).exclude(pk=instance.pk).exists():
+                raise ValidationError({'nro_comprobante': 'Este número de comprobante ya está en uso.'})
+
+        ser = VentaFactCreateSerializer(data={
+            'fecha':           request.data.get('fecha'),
+            'condicion_vta':   nueva_condicion,
+            'persona':         request.data.get('persona'),
+            'timbrado':        timbrado.id,
+            'observacion':     request.data.get('observacion', ''),
+            'nro_comprobante': nuevo_nro,
+            'detalle':         request.data.get('detalle', []),
+            'cobranza':        request.data.get('cobranza', []),
+            'cuotas':          request.data.get('cuotas'),
+        })
+        ser.is_valid(raise_exception=True)
+        data = ser.validated_data
 
         now  = timezone.now()
-        user = self.request.user
+        user = request.user
+
+        cobr_ids = list(instance.cobranza.filter(is_deleted=False).values_list('id', flat=True))
+        MovimientoCajaBanco.objects.filter(vfdc_id__in=cobr_ids, is_deleted=False).update(
+            is_deleted=True, fecha_eliminacion=now, id_usu_modificator=user
+        )
+        instance.detalle.filter(is_deleted=False).update(
+            is_deleted=True, fecha_eliminacion=now, id_usu_modificator=user
+        )
+        instance.cobranza.filter(is_deleted=False).update(
+            is_deleted=True, fecha_eliminacion=now, id_usu_modificator=user
+        )
+        instance.cuotas.filter(is_deleted=False).update(
+            is_deleted=True, fecha_eliminacion=now, id_usu_modificator=user
+        )
+
+        items_data = []
+        for det in data['detalle']:
+            try:
+                prod = ProductoServicio.objects.get(pk=det['prs'], is_deleted=False, activo=True)
+            except ProductoServicio.DoesNotExist:
+                raise ValidationError({'detalle': f'Producto ID {det["prs"]} no encontrado o inactivo.'})
+            calcs = calcular_item(det['monto'], prod.impuesto)
+            items_data.append({
+                'prod': prod, 'cantidad': det['cantidad'], 'monto': det['monto'],
+                'impuesto': prod.impuesto, 'calcs': calcs,
+            })
+
+        totales = calcular_totales([it['calcs'] for it in items_data])
+
+        vuelto = Decimal('0')
+        if nueva_condicion and data.get('cobranza'):
+            total_cobrado = sum(Decimal(str(c['monto'])) for c in data['cobranza'])
+            vuelto = max(Decimal('0'), total_cobrado - totales['monto_total'])
+
+        try:
+            persona = Persona.objects.get(pk=data['persona'], is_deleted=False)
+        except Persona.DoesNotExist:
+            raise ValidationError({'persona': 'Persona no encontrada.'})
+
+        instance.fecha           = data['fecha']
+        instance.persona         = persona
+        instance.observacion     = data.get('observacion', '')
+        instance.condicion_vta   = nueva_condicion
+        instance.nro_comprobante = nuevo_nro
+        instance.establecimiento = estab
+        instance.expedicion      = expedicion
+        instance.timbrado        = timbrado
+        instance.vuelto          = vuelto
+        for k, v in totales.items():
+            setattr(instance, k, v)
+        instance.id_usu_modificator = user
+        instance.save()
+
+        for it in items_data:
+            VentaFactDet.objects.create(
+                vfc=instance, prs=it['prod'], cantidad=it['cantidad'],
+                monto=it['monto'], impuesto=it['impuesto'],
+                id_usu_creator=user, **it['calcs'],
+            )
+
+        if nueva_condicion:
+            monto_pendiente = totales['monto_total']
+            for cobr in data.get('cobranza', []):
+                try:
+                    fp  = FormaPago.objects.get(pk=cobr['forma_pago'])
+                    cta = CuentaMcb.objects.get(pk=cobr['cta'], is_deleted=False)
+                except (FormaPago.DoesNotExist, CuentaMcb.DoesNotExist) as e:
+                    raise ValidationError({'cobranza': str(e)})
+                det_cobr = VentaFactDetCobranza.objects.create(
+                    vfc=instance, forma_pago=fp, cta=cta,
+                    monto=cobr['monto'], voucher=cobr.get('voucher', ''),
+                    nro_comprobante=cobr.get('nro_comprobante', ''),
+                    id_usu_creator=user,
+                )
+                monto_mov = min(Decimal(str(cobr['monto'])), monto_pendiente)
+                if monto_mov > 0:
+                    MovimientoCajaBanco.objects.create(
+                        cta=cta, fecha=data['fecha'],
+                        nro_comprobante=cobr.get('nro_comprobante', '') or None,
+                        monto_ingreso=monto_mov, monto_egreso=Decimal('0'),
+                        vuelto=Decimal('0'), vfdc_id=det_cobr.id,
+                        id_usu_creator=user,
+                    )
+                    monto_pendiente -= monto_mov
+        else:
+            cfg  = data['cuotas']
+            cant = cfg['cant_cuota']
+            dias = cfg['dias_entre_cuotas']
+            mt   = totales['monto_total']
+            mc   = (mt / cant).quantize(Decimal('0.01'))
+            for i in range(1, cant + 1):
+                fecha_venc = data['fecha'] + timedelta(days=dias * i)
+                CtaCobrar.objects.create(
+                    vfc=instance, nro_cuota=i, cant_cuota=cant,
+                    monto_total=mt, monto_cuota=mc, saldo=mc,
+                    fecha_vencimiento=fecha_venc, estado='pendiente',
+                    id_usu_creator=user,
+                )
+
+        instance.refresh_from_db()
+        return Response(VentaFactCabDetalleSerializer(instance).data)
+
+    def perform_destroy(self, instance):
+        if not instance.condicion_vta:
+            cobros_qs = CobranzaDet.objects.filter(
+                cta_cobrar__vfc=instance, is_deleted=False, cobranza__is_deleted=False
+            )
+            if cobros_qs.exists():
+                nros = list(cobros_qs.values_list('cobranza__comprobante_nro', flat=True).distinct())
+                nros_str = ', '.join(str(n) for n in nros if n is not None)
+                raise ValidationError({
+                    'detail': f'No se puede eliminar: el comprobante tiene cobros registrados (Cobranza N° {nros_str}). Elimine la cobranza primero.'
+                })
+
+        now      = timezone.now()
+        user     = self.request.user
+        cobr_ids = list(instance.cobranza.filter(is_deleted=False).values_list('id', flat=True))
+
+        MovimientoCajaBanco.objects.filter(vfdc_id__in=cobr_ids, is_deleted=False).update(
+            is_deleted=True, fecha_eliminacion=now, id_usu_modificator=user
+        )
         instance.detalle.filter(is_deleted=False).update(
             is_deleted=True, fecha_eliminacion=now, id_usu_modificator=user
         )
@@ -341,12 +548,19 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         MIN_FILAS    = 8
         filas_vacias = range(max(0, MIN_FILAS - len(detalle)))
 
+        sub_10     = (factura.grav_10 or Decimal('0')) + (factura.iva_10 or Decimal('0'))
+        sub_5      = (factura.grav_5  or Decimal('0')) + (factura.iva_5  or Decimal('0'))
+        sub_exenta = (factura.monto_total or Decimal('0')) - (factura.total_gravada or Decimal('0')) - (factura.total_iva or Decimal('0'))
+
         contexto = {
             'factura':        factura,
             'detalle':        detalle,
             'nro_formateado': nro_formateado,
             'condicion':      'Contado' if factura.condicion_vta else 'Crédito',
             'filas_vacias':   filas_vacias,
+            'sub_10':         sub_10,
+            'sub_5':          sub_5,
+            'sub_exenta':     sub_exenta,
         }
 
         html = render_to_string('informes/factura_print.html', contexto, request=request)
@@ -359,4 +573,129 @@ class VentaFactCabViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="factura_{nro_formateado}.pdf"'
+        return response
+
+    def _qs_con_filtros(self, request):
+        from django.db.models import Q
+        qs          = VentaFactCab.objects.filter(is_deleted=False).select_related('persona', 'timbrado')
+        search      = request.query_params.get('search', '').strip()
+        fecha_desde = request.query_params.get('fecha_desde', '').strip()
+        fecha_hasta = request.query_params.get('fecha_hasta', '').strip()
+        condicion   = request.query_params.get('condicion_vta', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(persona__razon_social__icontains=search) |
+                Q(persona__nro_documento__icontains=search) |
+                Q(nro_comprobante__icontains=search)
+            )
+        if fecha_desde:
+            qs = qs.filter(fecha__gte=fecha_desde)
+        if fecha_hasta:
+            qs = qs.filter(fecha__lte=fecha_hasta)
+        if condicion in ('true', 'false'):
+            qs = qs.filter(condicion_vta=condicion == 'true')
+        return qs.order_by('-fecha', '-fecha_creacion')
+
+    def _filtros_str(self, request):
+        partes      = []
+        search      = request.query_params.get('search', '').strip()
+        fecha_desde = request.query_params.get('fecha_desde', '').strip()
+        fecha_hasta = request.query_params.get('fecha_hasta', '').strip()
+        condicion   = request.query_params.get('condicion_vta', '').strip()
+        if search:
+            partes.append(f'Búsqueda: {search}')
+        if fecha_desde:
+            partes.append(f'Desde: {fecha_desde}')
+        if fecha_hasta:
+            partes.append(f'Hasta: {fecha_hasta}')
+        if condicion == 'true':
+            partes.append('Condición: Contado')
+        elif condicion == 'false':
+            partes.append('Condición: Crédito')
+        return ' · '.join(partes) if partes else ''
+
+    @action(detail=False, methods=['get'], url_path='reporte-pdf')
+    def reporte_pdf(self, request):
+        qs    = self._qs_con_filtros(request)
+        filas = []
+        for i, f in enumerate(qs, 1):
+            estab = f.establecimiento or str(f.timbrado.punto_sucursal).zfill(3)
+            expd  = f.expedicion or str(f.timbrado.punto_expedicion).zfill(3)
+            filas.append({
+                'nro':        i,
+                'comprobante': f'{estab}-{expd}-{str(f.nro_comprobante).zfill(7)}',
+                'fecha':      f.fecha,
+                'cliente':    f.persona.razon_social,
+                'documento':  f.persona.nro_documento,
+                'condicion':  'Contado' if f.condicion_vta else 'Crédito',
+                'monto_total': f.monto_total or Decimal('0'),
+            })
+        contexto = {
+            'filas':       filas,
+            'total':       len(filas),
+            'fecha':       timezone.localtime().date(),
+            'filtros_str': self._filtros_str(request),
+        }
+        html = render_to_string('informes/factura_lista.html', contexto, request=request)
+        try:
+            import weasyprint
+            pdf_bytes = weasyprint.HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+        except Exception as e:
+            return HttpResponse(f'Error generando PDF: {e}', status=500)
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="facturas.pdf"'
+        return response
+
+    @action(detail=False, methods=['get'], url_path='reporte-excel')
+    def reporte_excel(self, request):
+        from io import BytesIO
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+
+        qs       = self._qs_con_filtros(request)
+        wb       = openpyxl.Workbook()
+        ws       = wb.active
+        ws.title = 'Facturas'
+
+        headers     = ['#', 'Nro. Comprobante', 'Fecha', 'Cliente', 'Documento', 'Condición', 'Total (Gs.)']
+        header_fill = PatternFill(start_color='1A3A5C', end_color='1A3A5C', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True, size=10)
+        for col, h in enumerate(headers, 1):
+            cell            = ws.cell(row=1, column=col, value=h)
+            cell.fill       = header_fill
+            cell.font       = header_font
+            cell.alignment  = Alignment(horizontal='center')
+
+        fill_par = PatternFill(start_color='F8FAFC', end_color='F8FAFC', fill_type='solid')
+        for i, f in enumerate(qs, 1):
+            estab = f.establecimiento or str(f.timbrado.punto_sucursal).zfill(3)
+            expd  = f.expedicion or str(f.timbrado.punto_expedicion).zfill(3)
+            comp  = f'{estab}-{expd}-{str(f.nro_comprobante).zfill(7)}'
+            fila  = [
+                i, comp, f.fecha, f.persona.razon_social, f.persona.nro_documento,
+                'Contado' if f.condicion_vta else 'Crédito',
+                int(f.monto_total or 0),
+            ]
+            for col, val in enumerate(fila, 1):
+                cell = ws.cell(row=i + 1, column=col, value=val)
+                if i % 2 == 0:
+                    cell.fill = fill_par
+
+        ws.column_dimensions['A'].width = 6
+        ws.column_dimensions['B'].width = 18
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 32
+        ws.column_dimensions['E'].width = 16
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 16
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        fecha_str = timezone.localtime().strftime('%Y%m%d')
+        response  = HttpResponse(
+            buf.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="facturas_{fecha_str}.xlsx"'
         return response

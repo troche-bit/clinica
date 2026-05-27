@@ -1,0 +1,82 @@
+@startuml 02_secuencia_crud_grupos
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "GruposPage.jsx\nVista 1" as GUI
+control "useGrupos.js" as HOOK
+control "GrupoViewSet" as VIEW
+entity "Grupo" as MODEL
+database "PostgreSQL" as BD
+
+== Flujo 1: Listar grupos ==
+
+ADMIN -> GUI : Navega a /stock/grupos
+GUI -> HOOK : useGrupos({ search, activo })
+HOOK -> VIEW : GET /api/grupos/?search=&activo=
+VIEW -> MODEL : get_queryset()
+MODEL -> BD : SELECT grupo_producto WHERE is_deleted=False\nANNOTATE total_productos\n(productos activos, not is_deleted)
+BD --> MODEL : registros con conteo anotado
+MODEL --> VIEW : queryset anotado
+VIEW --> HOOK : GrupoListSerializer (many=True)\n[id, descripcion, activo, total_productos]
+HOOK --> GUI : React Query cachea resultado
+GUI -> GUI : Renderiza grid de cards\ncada card muestra total_productos
+
+== Flujo 2: Crear grupo ==
+
+ADMIN -> GUI : Click "Nuevo grupo"
+GUI -> GUI : Abre panel lateral overlay\n(sin oscurecer fondo)
+ADMIN -> GUI : Completa descripcion, activo=True
+ADMIN -> GUI : Click "Crear grupo"
+GUI -> HOOK : useCreateGrupo.mutateAsync(form)
+HOOK -> VIEW : POST /api/grupos/\n{descripcion, activo}
+VIEW -> VIEW : GrupoSerializer.validate_descripcion()\ncase-insensitive, is_deleted=False
+VIEW -> VIEW : perform_create()\n→ AuditoriaMixin
+VIEW -> MODEL : save(id_usu_creator=request.user)
+MODEL -> BD : INSERT grupo_producto
+BD --> MODEL : OK, nuevo id
+VIEW -> BD : INSERT auditoria_registro\n(CREAR, datos_despues)
+BD --> VIEW : OK
+VIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['grupos'])
+HOOK --> GUI : onSuccess
+GUI -> GUI : Nueva card aparece en el grid
+
+== Flujo 3: Editar grupo ==
+
+ADMIN -> GUI : Click editar en header del grupo\n(botón con borde, hover relleno)
+GUI -> GUI : Abre panel overlay con\ndatos actuales precargados
+ADMIN -> GUI : Modifica descripcion o activo
+ADMIN -> GUI : Click "Guardar cambios"
+GUI -> HOOK : useUpdateGrupo.mutateAsync({ id, ...form })
+HOOK -> VIEW : PATCH /api/grupos/{id}/\n{descripcion?, activo?}
+VIEW -> VIEW : GrupoSerializer.validate_descripcion()\nexcluye instancia actual
+VIEW -> VIEW : perform_update()\n→ AuditoriaMixin\n(datos_antes vs datos_despues)
+VIEW -> MODEL : save(id_usu_modificator=request.user)
+MODEL -> BD : UPDATE grupo_producto
+BD --> MODEL : OK
+VIEW -> BD : INSERT auditoria_registro\n(EDITAR, datos_antes, datos_despues)
+BD --> VIEW : OK
+VIEW --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['grupos'])
+HOOK --> GUI : setPanelGrupo(null)
+GUI -> GUI : Header actualiza nombre del grupo\n(setGrupoActual sincronizado)
+
+== Flujo 4: Click en card / Navegar a Vista 2 ==
+
+ADMIN -> GUI : Click en card de un grupo
+GUI -> GUI : setGrupoActual(grupo)\nCambia a VistaProductos
+GUI -> GUI : Header muestra:\n← Grupos | [ícono] | nombre del grupo\nbotones editar/eliminar a la derecha
+
+@enduml

@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { NavigationGuardProvider } from './hooks/useNavigationGuard'
 import PrivateRoute from './components/PrivateRoute'
 import Login from './pages/Login'
@@ -32,6 +32,14 @@ import CobranzasPage from './pages/finanzas/CobranzasPage'
 import PagoPrestadorPage from './pages/finanzas/PagoPrestadorPage'
 import UsuariosPage from './pages/administracion/UsuariosPage'
 import AuditoriaPage from './pages/administracion/AuditoriaPage'
+
+function HomeRedirect() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/login" replace />
+  if (user.rol === 'admin') return <Navigate to="/informes/dashboard/prestadores" replace />
+  if (user.rol === 'medico' || user.rol === 'secretaria_medico') return <Navigate to="/consultas" replace />
+  return <Navigate to="/consultas" replace />
+}
 
 export default function App() {
   return (
@@ -376,7 +384,7 @@ export default function App() {
           }
         />
 
-        <Route path="/" element={<Navigate to="/paciente" replace/>} />
+        <Route path="/" element={<HomeRedirect />} />
         <Route path="*" element={<div>Página no encontrada</div>} />
       </Routes>
     </AuthProvider>

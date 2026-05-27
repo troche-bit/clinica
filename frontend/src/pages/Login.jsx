@@ -9,6 +9,13 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  function rutaInicial(rol) {
+    if (rol === 'admin') return '/informes/dashboard/prestadores'
+    if (rol === 'recepcionista') return '/consultas'
+    if (rol === 'medico' || rol === 'secretaria_medico') return '/consultas'
+    return '/paciente'
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -16,8 +23,8 @@ export default function Login() {
     const username = e.target.username.value
     const password = e.target.password.value
     try {
-      await login(username, password)
-      navigate('/paciente')
+      const newUser = await login(username, password)
+      navigate(rutaInicial(newUser?.rol))
     } catch {
       setError('Credenciales incorrectas. Por favor, verificá tus datos.')
     } finally {

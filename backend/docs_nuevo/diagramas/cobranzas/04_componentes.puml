@@ -1,0 +1,148 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam componentBorderColor #000000
+skinparam componentBackgroundColor #ffffff
+skinparam packageBorderColor #000000
+skinparam packageBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam arrowColor #000000
+skinparam noteBorderColor #000000
+skinparam noteBackgroundColor #ffffff
+
+package "Frontend" {
+  component "CobranzasPage.jsx" as PAGE
+  note right of PAGE
+    Tabla cobranzas con filtros
+    Modal nueva cobranza (Insert)
+    Modal ver detalle con Recibo PDF (F10 = guardar)
+    Boton recibo PDF por fila
+    Exportar lista PDF y Excel
+  end note
+
+  component "useCobranzas.js" as HOOK
+  note right of HOOK
+    useCobranzas()
+    useCobranzaDetalle()
+    useCreateCobranza()
+    useDeleteCobranza()
+    useSiguienteNumeroCob()
+    useCuotasPendientes()
+    useClientesConPendientes()
+  end note
+
+  component "client.js" as CLIENT
+  note right of CLIENT
+    responseType blob
+    para recibo PDF
+    y reportes PDF/Excel
+  end note
+
+  component "ConfirmDialog.jsx" as CONFIRM
+  component "useAtajosTeclado.js" as ATAJOS
+  note right of ATAJOS
+    Insert: abre modal nueva cobranza
+    F10: guarda formulario activo
+  end note
+}
+
+package "Backend" {
+  component "CobranzaViewSet" as VIEW
+  note right of VIEW
+    /clientes-con-pendientes/
+    /cuotas-pendientes/
+    /siguiente-numero/
+    /eliminados/
+    /reporte-pdf/
+    /reporte-excel/
+    {id}/recibo-pdf/
+  end note
+
+  component "CobranzaListSerializer" as LISTSER
+  component "CobranzaDetalleSerializer" as DETSER
+  note right of DETSER
+    Extiende CobranzaListSerializer.
+    Incluye detalle (CobranzaDet)
+    y valores_recibidos (ValorRecibidoCob).
+  end note
+
+  component "CobranzaCreateSerializer" as CRSER
+  note right of CRSER
+    campos: fecha, persona,
+    detalle (cta_cobrar_id, monto_pagado),
+    valores_recibidos (forma_pago_id, cta_id,
+    monto, voucher, nro_comprobante)
+  end note
+
+  component "AuditoriaMixin" as AUDIT
+  note right of AUDIT
+    CREAR / ELIMINAR
+    Borrado logico completo
+  end note
+
+  component "WeasyPrint" as PDF
+  note right of PDF
+    recibo_cobranza.html
+    cobranza_lista.html
+  end note
+
+  component "openpyxl" as XLS
+  note right of XLS
+    reporte Excel con cabeceras
+    estilizadas y filas alternas
+  end note
+}
+
+package "Base de Datos" {
+  database "cobranza" as TCOB
+  database "cobranza_det\n(revierte saldo en delete)" as TDET
+  database "valor_recibido_cob\n(monto fisico recibido)" as TVRC
+  database "movimiento_caja_banco\n(monto_ingreso FIFO / vrc_id)" as TMOV
+  database "cta_cobrar\n(saldo y estado actualizados)" as TCTA
+  database "persona\n(referenciada, no modificada)" as TPER
+  database "venta_fact_cab\n(FK de cta_cobrar)" as TVFC
+}
+
+PAGE --> HOOK : usa
+PAGE --> CONFIRM : usa
+PAGE --> ATAJOS : usa
+HOOK --> CLIENT : axios
+CLIENT --> VIEW : HTTP
+
+VIEW --> LISTSER : list
+VIEW --> DETSER : retrieve / create response
+VIEW --> CRSER : create input
+VIEW --> PDF : recibo-pdf / reporte-pdf
+VIEW --> XLS : reporte-excel
+AUDIT --> VIEW : herencia
+
+VIEW --> TCOB : transaccion atomica
+VIEW --> TDET : transaccion atomica
+VIEW --> TVRC : todos los valores recibidos
+VIEW --> TMOV : ingreso FIFO hasta monto_total
+VIEW --> TCTA : descuenta / revierte saldo
+VIEW --> TPER : FK solo lectura
+VIEW --> TVFC : FK solo lectura via cta_cobrar
+
+note as N1
+  Borrado logico en cascada:
+  MovimientoCajaBanco → ValorRecibidoCob
+  → CobranzaDet (revierte CtaCobrar)
+  → Cobranza
+  Todo dentro de perform_destroy (@transaction)
+end note
+
+note as N2
+  Distribucion FIFO de ingresos:
+  ValorRecibidoCob guarda monto real.
+  MovimientoCajaBanco solo acumula
+  hasta monto_total de la cobranza.
+  El exceso (vuelto) no genera movimiento.
+end note
+
+@enduml

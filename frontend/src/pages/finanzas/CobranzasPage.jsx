@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Search, Trash2, Eye, X, AlertCircle } from 'lucide-react'
+import { Plus, Search, Trash2, Eye, X, AlertCircle, Banknote, Printer, FileText, FileSpreadsheet } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast from '../../components/ui/Toast'
@@ -9,12 +9,16 @@ import {
   useCreateCobranza,
   useDeleteCobranza,
   useSiguienteNumeroCob,
+  useValidarNroCobranza,
   useCuotasPendientes,
   useCobranzaDetalle,
+  useClientesConPendientes,
 } from '../../hooks/finanzas/useCobranzas'
-import { useBuscarPersonas, useFormaPago } from '../../hooks/facturacion/useFacturacion'
+import { useFormaPago } from '../../hooks/facturacion/useFacturacion'
 import { useCuentasMcb } from '../../hooks/finanzas/useCuentasMcb'
 import { extraerMensajeError } from '../../utils/errores'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
+import apiClient from '../../api/client'
 
 function hoy() {
   return new Date().toISOString().split('T')[0]
@@ -33,12 +37,12 @@ function esVencida(fechaStr) {
 }
 
 function BuscadorPersonaCob({ value, onChange, onSelect }) {
-  const [query, setQuery]         = useState('')
-  const [abierto, setAbierto]     = useState(false)
+  const [query, setQuery]             = useState('')
+  const [abierto, setAbierto]         = useState(false)
   const [highlighted, setHighlighted] = useState(0)
   const inputRef  = useRef(null)
   const timerRef  = useRef(null)
-  const [debouncedQ, setDebouncedQ] = useState('')
+  const [debouncedQ, setDebouncedQ]   = useState('')
 
   useEffect(() => {
     clearTimeout(timerRef.current)
@@ -46,8 +50,8 @@ function BuscadorPersonaCob({ value, onChange, onSelect }) {
     return () => clearTimeout(timerRef.current)
   }, [query])
 
-  const { data: personas } = useBuscarPersonas(debouncedQ)
-  const lista = personas?.results ?? personas ?? []
+  const { data: personas } = useClientesConPendientes(debouncedQ)
+  const lista = personas ?? []
 
   const handleSelect = (p) => {
     onSelect(p)
@@ -154,9 +158,9 @@ function FilaCuota({ cuota, seleccionada, monto, onToggle, onMonto, error }) {
 }
 
 function FilaValor({ val, formasPago, cuentas, onChange, onRemove }) {
-  const fp         = formasPago.find(f => f.id === parseInt(val.forma_pago)) || null
-  const esTarjeta  = fp?.tipo === 'tarjeta'
-  const esTransf   = fp?.tipo === 'transferencia'
+  const fp        = formasPago.find(f => f.id === parseInt(val.forma_pago)) || null
+  const esTarjeta = fp?.tipo === 'tarjeta'
+  const esTransf  = fp?.tipo === 'transferencia'
 
   return (
     <tr className="cob-vr-fila">
@@ -194,22 +198,34 @@ function FilaValor({ val, formasPago, cuentas, onChange, onRemove }) {
 const VALOR_INIT = () => ({ forma_pago: '', cta: '', monto: '', voucher: '', nro_comprobante: '' })
 
 function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
-  const [tab, setTab]           = useState(0)
-  const [persona, setPersona]   = useState(null)
-  const [fecha, setFecha]       = useState(hoy())
-  // detalle: map por cuota.id → { seleccionada, monto }
-  const [detalle, setDetalle]   = useState({})
-  const [erroresDet, setErroresDet] = useState({})
-  const [valores, setValores]   = useState([VALOR_INIT()])
-  const [errores, setErrores]   = useState({})
-  const [guardando, setGuardando] = useState(false)
+  const [tab, setTab]                   = useState(0)
+  const [persona, setPersona]           = useState(null)
+  const [fecha, setFecha]               = useState(hoy())
+  const [nroComprobante, setNroComp]    = useState('')
+  const [nroAValidar, setNroAValidar]   = useState('')
+  const [detalle, setDetalle]           = useState({})
+  const [erroresDet, setErroresDet]     = useState({})
+  const [valores, setValores]           = useState([VALOR_INIT()])
+  const [errores, setErrores]           = useState({})
+  const [guardando, setGuardando]       = useState(false)
+  const nroDebounceRef                  = useRef(null)
 
-  const { data: sigNro }                             = useSiguienteNumeroCob()
-  const { data: cuotas, isLoading: cargandoCuotas }  = useCuotasPendientes(persona?.id)
-  const { data: formasPago = [] }                    = useFormaPago()
-  const { data: cuentasMcb }                         = useCuentasMcb({})
-  const cuentas                                      = cuentasMcb?.results ?? cuentasMcb ?? []
-  const createCobranza                               = useCreateCobranza()
+  const { data: sigNro }                            = useSiguienteNumeroCob()
+  const { data: validacionNro }                     = useValidarNroCobranza(nroAValidar)
+  const { data: cuotas, isLoading: cargandoCuotas } = useCuotasPendientes(persona?.id)
+  const { data: formasPago = [] }                   = useFormaPago()
+  const { data: cuentasMcb }                        = useCuentasMcb({})
+  const cuentas                                     = cuentasMcb?.results ?? cuentasMcb ?? []
+  const createCobranza                              = useCreateCobranza()
+
+  useAtajosTeclado({
+    'F10': { fn: () => { if (!guardando) handleGuardar() }, soloFueraDeInputs: false },
+  })
+
+  useEffect(() => {
+    if (sigNro?.siguiente != null && nroComprobante === '')
+      setNroComp(String(sigNro.siguiente).padStart(7, '0'))
+  }, [sigNro])
 
   useEffect(() => { setDetalle({}) }, [persona])
 
@@ -235,9 +251,9 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
 
   const validar = () => {
     const e = {}
-    if (!persona)                          e.persona  = 'Seleccione un cliente.'
-    if (!fecha)                            e.fecha    = 'Ingrese la fecha.'
-    if (cuotasSeleccionadas.length === 0)  e.detalle  = 'Seleccione al menos una cuota con monto mayor a 0.'
+    if (!persona)                         e.persona = 'Seleccione un cliente.'
+    if (!fecha)                           e.fecha   = 'Ingrese la fecha.'
+    if (cuotasSeleccionadas.length === 0) e.detalle = 'Seleccione al menos una cuota con monto mayor a 0.'
 
     const errDet = {}
     cuotas?.forEach(c => {
@@ -255,7 +271,7 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
     }
 
     const valoresValidos = valores.filter(v => v.forma_pago && v.cta && parseFloat(v.monto || '0') > 0)
-    if (valoresValidos.length === 0) e.valores = 'Ingrese al menos un valor recibido completo.'
+    if (valoresValidos.length === 0)  e.valores       = 'Ingrese al menos un valor recibido completo.'
     if (totalRecibido < totalCobrar)  e.valores_monto = `Total recibido (${fmt(totalRecibido)}) menor al total a cobrar (${fmt(totalCobrar)}).`
 
     setErrores(e)
@@ -273,6 +289,7 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
     const payload = {
       fecha,
       persona: persona.id,
+      comprobante_nro: nroComprobante ? parseInt(nroComprobante, 10) : undefined,
       detalle: cuotasSeleccionadas.map(c => ({
         cta_cobrar_id:   c.id,
         monto_pagado:    parseFloat(detalle[c.id].monto),
@@ -325,8 +342,26 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
             </div>
             <div className="cob-form-group">
               <label className="cob-label">Nro. comprobante</label>
-              <input className="cob-input cob-mono" readOnly
-                value={sigNro?.siguiente ? String(sigNro.siguiente).padStart(7, '0') : '—'} />
+              <input
+                className={`cob-input cob-mono${validacionNro && !validacionNro.disponible ? ' cob-input-error' : ''}`}
+                value={nroComprobante}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 7)
+                  setNroComp(val)
+                  clearTimeout(nroDebounceRef.current)
+                  nroDebounceRef.current = setTimeout(() => setNroAValidar(val), 400)
+                }}
+                onBlur={() => {
+                  if (nroComprobante)
+                    setNroComp(nroComprobante.padStart(7, '0'))
+                }}
+                placeholder="0000001"
+              />
+              {nroAValidar && validacionNro && (
+                <span className={`cob-nro-hint${validacionNro.disponible ? ' cob-nro-ok' : ' cob-nro-err'}`}>
+                  {validacionNro.disponible ? 'Número disponible' : validacionNro.mensaje}
+                </span>
+              )}
             </div>
           </div>
 
@@ -453,8 +488,22 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
   )
 }
 
-function ModalVerCobranza({ id, onEliminar }) {
+function ModalVerCobranza({ id, onEliminar, onClose, showToast }) {
   const { data: cob, isLoading } = useCobranzaDetalle(id)
+  const [generandoPdf, setGenerandoPdf] = useState(false)
+
+  const handleReciboPdf = async () => {
+    setGenerandoPdf(true)
+    try {
+      const res = await apiClient.get(`/cobranzas/${id}/recibo-pdf/`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      showToast('No se pudo generar el recibo.', 'error')
+    } finally {
+      setGenerandoPdf(false)
+    }
+  }
 
   if (isLoading) return <div className="cob-loading-modal">Cargando...</div>
   if (!cob)      return null
@@ -550,22 +599,86 @@ function ModalVerCobranza({ id, onEliminar }) {
 
       <div className="cob-modal-footer">
         <button className="btn btn-danger" onClick={() => onEliminar(cob)}>Eliminar</button>
+        <button className="cob-btn-pdf" onClick={handleReciboPdf} disabled={generandoPdf}>
+          <Printer size={14} />
+          {generandoPdf ? 'Generando...' : 'Recibo PDF'}
+        </button>
+        <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
       </div>
     </div>
   )
 }
 
 export default function CobranzasPage() {
-  const { toast, showToast }        = useToast()
-  const [modalAbierto, setModalAbierto] = useState(false)
+  const { toast, showToast }                = useToast()
+  const [modalAbierto, setModalAbierto]     = useState(false)
   const [cobranzaViendo, setCobranzaViendo] = useState(null)
-  const [filtros, setFiltros]       = useState({ search: '', fecha_desde: '', fecha_hasta: '' })
-  const [confirmando, setConfirmando] = useState(null)
+  const [filtros, setFiltros]               = useState({ search: '', fecha_desde: '', fecha_hasta: '' })
+  const [confirmando, setConfirmando]       = useState(null)
+  const debounceRef                         = useRef(null)
+  const [generandoPdfLista,   setGenerandoPdfLista]   = useState(false)
+  const [generandoExcelLista, setGenerandoExcelLista] = useState(false)
+  const [generandoReciboId,   setGenerandoReciboId]   = useState(null)
+
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (!modalAbierto && !cobranzaViendo) setModalAbierto(true) } },
+  })
+
+  const _params = () => {
+    const p = {}
+    if (filtros.search)      p.search      = filtros.search
+    if (filtros.fecha_desde) p.fecha_desde = filtros.fecha_desde
+    if (filtros.fecha_hasta) p.fecha_hasta = filtros.fecha_hasta
+    return p
+  }
+
+  const handlePdfLista = async () => {
+    setGenerandoPdfLista(true)
+    try {
+      const res = await apiClient.get('/cobranzas/reporte-pdf/', { responseType: 'blob', params: _params() })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      showToast('No se pudo generar el listado PDF.', 'error')
+    } finally {
+      setGenerandoPdfLista(false)
+    }
+  }
+
+  const handleExcelLista = async () => {
+    setGenerandoExcelLista(true)
+    try {
+      const res  = await apiClient.get('/cobranzas/reporte-excel/', { responseType: 'blob', params: _params() })
+      const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const link = document.createElement('a')
+      link.href     = url
+      link.download = `cobranzas_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToast('No se pudo generar el listado Excel.', 'error')
+    } finally {
+      setGenerandoExcelLista(false)
+    }
+  }
+
+  const handleReciboFila = async (e, cob) => {
+    e.stopPropagation()
+    setGenerandoReciboId(cob.id)
+    try {
+      const res = await apiClient.get(`/cobranzas/${cob.id}/recibo-pdf/`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      showToast('No se pudo generar el recibo.', 'error')
+    } finally {
+      setGenerandoReciboId(null)
+    }
+  }
 
   const { data, isLoading } = useCobranzas(filtros)
   const deleteCobranza      = useDeleteCobranza()
-
-  const lista = data?.results ?? data ?? []
+  const lista               = data?.results ?? data ?? []
 
   const handleEliminar = (cob) => {
     setConfirmando(cob)
@@ -586,35 +699,56 @@ export default function CobranzasPage() {
   return (
     <>
       <style>{`
-        .cob-page { padding: 24px; max-width: 1200px; margin: 0 auto; }
+        .cob-page { display: flex; flex-direction: column; height: 100%; }
 
-        .cob-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px; }
-        .cob-filtro-group { display: flex; flex-direction: column; gap: 4px; }
-        .cob-filtro-label { font-size: 11px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
-        .cob-input-filtro { height: 36px; border: 1px solid #e5e7eb; border-radius: 7px; padding: 0 10px; font-size: 13px; background: #fff; outline: none; }
-        .cob-input-filtro:focus { border-color: #1a3a5c; }
-        .cob-btn-nuevo { margin-left: auto; height: 36px; display: flex; align-items: center; gap: 6px; }
+        /* ── Toolbar ── */
+        .cob-toolbar { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #f3f4f6; }
+        .cob-toolbar-icon { width: 34px; height: 34px; background: #e8f0fe; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #1a3a5c; flex-shrink: 0; align-self: center; }
+        .cob-toolbar-titles { order: 1; flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 1px; justify-content: center; }
+        .cob-toolbar-title { font-size: 15px; font-weight: 700; color: #1a3a5c; }
+        .cob-toolbar-subtitle { font-size: 11px; color: #9ca3af; }
+        .cob-search-wrap { order: 2; flex: 1 1 200px; max-width: 280px; position: relative; }
+        .cob-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+        .cob-search-input { width: 100%; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 10px 0 30px; font-size: 13px; outline: none; box-sizing: border-box; }
+        .cob-search-input:focus { border-color: #1a3a5c; }
+        .cob-filtros-wrap { order: 3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .cob-filtro-date { height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 8px; font-size: 13px; outline: none; color: #374151; }
+        .cob-filtro-date:focus { border-color: #1a3a5c; }
+        .cob-toolbar-right { order: 4; margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .cob-btn-report { height: 36px; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; color: #374151; cursor: pointer; font-weight: 500; transition: all .12s; flex-shrink: 0; }
+        .cob-btn-report:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .cob-btn-report:disabled { opacity: .6; cursor: default; }
+        .cob-btn-nuevo { height: 36px; display: flex; align-items: center; gap: 6px; background: #1a3a5c; color: #fff; border: none; border-radius: 8px; padding: 0 14px; font-size: 13px; font-weight: 500; cursor: pointer; flex-shrink: 0; }
+        .cob-btn-nuevo:hover { background: #15304d; }
+        @media (max-width: 600px) { .cob-search-wrap { order: 4; max-width: 100%; flex-basis: 100%; } .cob-toolbar-titles { display: none; } }
 
-        .cob-table-wrap { overflow-x: auto; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; }
+        /* ── Body y tabla ── */
+        .cob-body { flex: 1; overflow: hidden; padding: 14px 24px 24px; }
+        .cob-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; overflow-y: auto; }
+        .cob-table-wrap { overflow-x: auto; }
         .cob-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .cob-th { padding: 10px 14px; background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; }
+        .cob-th { padding: 10px 14px; background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
         .cob-th-right { text-align: right; }
         .cob-th-center { text-align: center; }
         .cob-td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
         .cob-td-right { text-align: right; }
         .cob-td-center { text-align: center; }
-        .cob-row { cursor: pointer; transition: background .12s; }
-        .cob-row:hover { background: #eff6ff; }
-        .cob-row:last-child td { border-bottom: none; }
-
-        .cob-monto-val { font-family: 'Courier New', monospace; font-weight: 600; color: #1a3a5c; }
+        .cob-td-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .cob-tr { cursor: pointer; }
+        .cob-tr:nth-child(even) .cob-td { background: #f9fafb; }
+        .cob-tr:hover .cob-td { background: #eff6ff !important; }
+        .cob-tr:last-child .cob-td { border-bottom: none; }
         .cob-mono { font-family: 'Courier New', monospace; font-size: 12px; }
+        .cob-monto-val { font-family: 'Courier New', monospace; font-weight: 600; color: #1a3a5c; }
 
         .cob-td-acciones { display: flex; gap: 4px; justify-content: center; }
-        .cob-row-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 5px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; }
-        .cob-row-btn:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
-        .cob-row-btn-eye:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a3a5c; }
+        .cob-row-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; transition: all .12s; }
+        .cob-row-btn:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a3a5c; }
+        .cob-row-btn.danger { border-color: #fecaca; color: #dc2626; }
+        .cob-row-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; }
+        .cob-row-btn:disabled { opacity: .5; cursor: default; }
 
+        /* ── Modal nuevo ── */
         .cob-modal { display: flex; flex-direction: column; min-height: 0; }
         .cob-tabs { display: flex; border-bottom: 2px solid #e8edf2; margin-bottom: 0; }
         .cob-tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: #6b7280; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; display: flex; align-items: center; gap: 8px; transition: all .15s; }
@@ -636,6 +770,9 @@ export default function CobranzasPage() {
         .cob-select:focus { border-color: #1a3a5c; }
         .cob-error { font-size: 11px; color: #dc2626; }
         .cob-error-inline { font-size: 10px; color: #dc2626; display: block; margin-top: 2px; }
+        .cob-nro-hint { font-size: 11px; }
+        .cob-nro-ok { color: #16a34a; }
+        .cob-nro-err { color: #dc2626; }
         .cob-monto-cell { display: flex; flex-direction: column; }
 
         .cob-buscador-wrap { position: relative; }
@@ -676,7 +813,11 @@ export default function CobranzasPage() {
         .cob-btn-remove:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 
         .cob-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 0 0; border-top: 1px solid #e8edf2; margin-top: auto; }
+        .cob-btn-pdf { height: 34px; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; color: #374151; cursor: pointer; }
+        .cob-btn-pdf:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .cob-btn-pdf:disabled { opacity: .6; cursor: default; }
 
+        /* ── Modal ver ── */
         .cob-ver { display: flex; flex-direction: column; gap: 20px; }
         .cob-ver-header { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e8edf2; }
         .cob-ver-campo { display: flex; flex-direction: column; gap: 4px; }
@@ -689,84 +830,95 @@ export default function CobranzasPage() {
       `}</style>
 
       <div className="cob-page">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Cobranzas</h1>
-            <p className="page-subtitle">Cobro de cuotas de facturas a crédito</p>
+        <div className="cob-toolbar">
+          <div className="cob-toolbar-icon"><Banknote size={18} /></div>
+          <div className="cob-toolbar-titles">
+            <span className="cob-toolbar-title">Cobranzas</span>
+            <span className="cob-toolbar-subtitle">Cobro de cuotas de facturas a crédito</span>
           </div>
-        </div>
-
-        <div className="cob-filtros">
-          <div className="cob-filtro-group">
-            <span className="cob-filtro-label">Buscar</span>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: 9, top: 11, color: '#9ca3af' }} />
-              <input className="cob-input-filtro" style={{ paddingLeft: 30, width: 220 }}
-                placeholder="Nombre o documento..."
-                value={filtros.search}
-                onChange={e => setFiltros(f => ({ ...f, search: e.target.value }))} />
-            </div>
+          <div className="cob-search-wrap">
+            <Search size={14} className="cob-search-icon" />
+            <input
+              className="cob-search-input"
+              placeholder="Nombre o documento..."
+              onChange={e => {
+                const val = e.target.value
+                clearTimeout(debounceRef.current)
+                debounceRef.current = setTimeout(() => setFiltros(f => ({ ...f, search: val })), 300)
+              }}
+            />
           </div>
-          <div className="cob-filtro-group">
-            <span className="cob-filtro-label">Desde</span>
-            <input type="date" className="cob-input-filtro"
+          <div className="cob-filtros-wrap">
+            <input type="date" className="cob-filtro-date"
               value={filtros.fecha_desde}
               onChange={e => setFiltros(f => ({ ...f, fecha_desde: e.target.value }))} />
-          </div>
-          <div className="cob-filtro-group">
-            <span className="cob-filtro-label">Hasta</span>
-            <input type="date" className="cob-input-filtro"
+            <input type="date" className="cob-filtro-date"
               value={filtros.fecha_hasta}
               onChange={e => setFiltros(f => ({ ...f, fecha_hasta: e.target.value }))} />
           </div>
-          <button className="btn btn-primary cob-btn-nuevo" onClick={() => setModalAbierto(true)}>
-            <Plus size={15} /> Nueva cobranza
-          </button>
+          <div className="cob-toolbar-right">
+            <button className="cob-btn-report" onClick={handlePdfLista} disabled={generandoPdfLista}>
+              <FileText size={14} />{generandoPdfLista ? 'Generando...' : 'PDF'}
+            </button>
+            <button className="cob-btn-report" onClick={handleExcelLista} disabled={generandoExcelLista}>
+              <FileSpreadsheet size={14} />{generandoExcelLista ? 'Generando...' : 'Excel'}
+            </button>
+            <button className="cob-btn-nuevo" onClick={() => setModalAbierto(true)}>
+              <Plus size={15} /> Nueva cobranza
+            </button>
+          </div>
         </div>
 
-        <div className="cob-table-wrap">
-          <table className="cob-table">
-            <thead>
-              <tr>
-                <th className="cob-th">Comprobante</th>
-                <th className="cob-th">Fecha</th>
-                <th className="cob-th">Cliente</th>
-                <th className="cob-th cob-th-right">Monto</th>
-                <th className="cob-th cob-th-right">Vuelto</th>
-                <th className="cob-th cob-th-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={6} className="cob-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Cargando...</td></tr>
-              ) : lista.length === 0 ? (
-                <tr><td colSpan={6} className="cob-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Sin registros</td></tr>
-              ) : lista.map(c => (
-                <tr key={c.id} className="cob-row" onClick={() => setCobranzaViendo(c.id)}>
-                  <td className="cob-td cob-mono">{String(c.comprobante_nro).padStart(7, '0')}</td>
-                  <td className="cob-td">{fmtFecha(c.fecha)}</td>
-                  <td className="cob-td">
-                    <div style={{ fontWeight: 500, color: '#111827' }}>{c.cliente_nombre}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'Courier New' }}>{c.cliente_documento}</div>
-                  </td>
-                  <td className="cob-td cob-td-right cob-monto-val">{fmt(c.monto)}</td>
-                  <td className="cob-td cob-td-right cob-mono">{fmt(c.vuelto)}</td>
-                  <td className="cob-td cob-td-center">
-                    <div className="cob-td-acciones" onClick={e => e.stopPropagation()}>
-                      <button className="cob-row-btn cob-row-btn-eye" title="Ver detalle"
-                        onClick={() => setCobranzaViendo(c.id)}>
-                        <Eye size={12} />
-                      </button>
-                      <button className="cob-row-btn" title="Eliminar"
-                        onClick={() => handleEliminar(c)}>
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
+        <div className="cob-body">
+          <div className="cob-tabla-wrap">
+            <table className="cob-table">
+              <thead>
+                <tr>
+                  <th className="cob-th">Comprobante</th>
+                  <th className="cob-th">Fecha</th>
+                  <th className="cob-th">Cliente</th>
+                  <th className="cob-th cob-th-right">Monto</th>
+                  <th className="cob-th cob-th-right">Vuelto</th>
+                  <th className="cob-th cob-th-center">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={6} className="cob-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Cargando...</td></tr>
+                ) : lista.length === 0 ? (
+                  <tr><td colSpan={6} className="cob-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Sin registros</td></tr>
+                ) : lista.map(c => (
+                  <tr key={c.id} className="cob-tr" onClick={() => setCobranzaViendo(c.id)}>
+                    <td className="cob-td cob-mono">{String(c.comprobante_nro).padStart(7, '0')}</td>
+                    <td className="cob-td">{fmtFecha(c.fecha)}</td>
+                    <td className="cob-td">
+                      <div style={{ fontWeight: 500, color: '#111827' }}>{c.cliente_nombre}</div>
+                      <div className="cob-td-hint cob-mono">{c.cliente_documento}</div>
+                    </td>
+                    <td className="cob-td cob-td-right cob-monto-val">{fmt(c.monto)}</td>
+                    <td className="cob-td cob-td-right cob-mono">{fmt(c.vuelto)}</td>
+                    <td className="cob-td cob-td-center">
+                      <div className="cob-td-acciones" onClick={e => e.stopPropagation()}>
+                        <button className="cob-row-btn" title="Ver detalle"
+                          onClick={() => setCobranzaViendo(c.id)}>
+                          <Eye size={12} />
+                        </button>
+                        <button className="cob-row-btn" title="Recibo PDF"
+                          disabled={generandoReciboId === c.id}
+                          onClick={e => handleReciboFila(e, c)}>
+                          {generandoReciboId === c.id ? '…' : <Printer size={12} />}
+                        </button>
+                        <button className="cob-row-btn danger" title="Eliminar"
+                          onClick={() => handleEliminar(c)}>
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -797,6 +949,8 @@ export default function CobranzasPage() {
           <ModalVerCobranza
             id={cobranzaViendo}
             onEliminar={handleEliminar}
+            onClose={() => setCobranzaViendo(null)}
+            showToast={showToast}
           />
         </Modal>
       )}

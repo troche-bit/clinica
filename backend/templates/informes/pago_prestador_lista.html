@@ -1,0 +1,89 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr        { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left   { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right  { display: table-cell; vertical-align: bottom; text-align: right; }
+.rpt-clinica    { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo     { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-meta       { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-filtros    { font-size: 8pt; color: #555; margin-bottom: 6pt; padding: 3pt 6pt;
+                  background: #f8fafc; border-left: 3px solid #1a3a5c; }
+
+.rpt-table th { background: #1a3a5c; color: #fff; font-size: 7.5pt; text-transform: uppercase;
+                letter-spacing: .04em; padding: 4pt 5pt; text-align: left; }
+.rpt-table td { font-size: 9pt; padding: 4pt 5pt; border-bottom: 1px solid #e8e8e8; vertical-align: middle; }
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+.col-nro        { width: 4%;  text-align: center; }
+.col-medico     { width: 27%; }
+.col-nro-comp   { width: 9%;  text-align: center; }
+.col-fecha      { width: 10%; text-align: center; }
+.col-horas      { width: 7%;  text-align: right; }
+.col-monto-hora { width: 12%; text-align: right; }
+.col-total      { width: 14%; text-align: right; font-weight: bold; }
+.col-estado     { width: 10%; text-align: center; }
+
+.rpt-footer { margin-top: 10pt; text-align: right; font-size: 7.5pt; color: #777;
+              border-top: 1px solid #ccc; padding-top: 5pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Pagos a Prestadores</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }}</div>
+      <div class="rpt-meta">Total: {{ total }} registro{{ total|pluralize:",s" }}</div>
+    </div>
+  </div>
+
+  {% if filtros_str %}
+  <div class="rpt-filtros">Filtros: {{ filtros_str }}</div>
+  {% endif %}
+
+  <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+    <thead>
+      <tr>
+        <th class="col-nro">#</th>
+        <th class="col-medico">Médico / Prestador</th>
+        <th class="col-nro-comp">Nro.</th>
+        <th class="col-fecha">Fecha pago</th>
+        <th class="col-horas">Horas</th>
+        <th class="col-monto-hora">Monto/hora</th>
+        <th class="col-total">Monto total</th>
+        <th class="col-estado">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td class="col-nro center">{{ f.nro }}</td>
+        <td class="col-medico">{{ f.medico }}</td>
+        <td class="col-nro-comp center mono">{{ f.nro_comprobante }}</td>
+        <td class="col-fecha center">{{ f.fecha_pago|date:"d/m/Y" }}</td>
+        <td class="col-horas right mono">{{ f.total_hora }}h</td>
+        <td class="col-monto-hora right mono">{{ f.monto_hora|gs }}</td>
+        <td class="col-total right mono">{{ f.monto_total|gs }}</td>
+        <td class="col-estado center">{{ f.estado }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" style="text-align:center; color:#888; padding:10pt;">Sin registros</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="rpt-footer">
+    Generado el {{ fecha|date:"d/m/Y" }} — Sistema de Gestión Clínica Lichi
+  </div>
+
+</div>
+{% endblock %}

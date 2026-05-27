@@ -1,0 +1,154 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam componentBackgroundColor #ffffff
+skinparam componentBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+skinparam arrowColor #000000
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam packageBorderColor #000000
+
+package "Frontend" {
+
+  component "GruposPage.jsx" as PAGE {
+  }
+  note right of PAGE
+    Vista 1: grid de cards de grupos
+    Vista 2: tabla de productos del grupo
+    Navegación por estado local (grupoActual)
+    Header unificado: título + controles
+    en la misma fila según vista activa
+  end note
+
+  component "useGrupos.js" as UGRP {
+  }
+  note right of UGRP
+    useGrupos(filters)
+    useCreateGrupo()
+    useUpdateGrupo()
+    useDeleteGrupo()
+  end note
+
+  component "useProductos.js" as UPROD {
+  }
+  note right of UPROD
+    useProductos(grupoId, filters)
+    useCreateProducto()
+    useUpdateProducto()
+    useDeleteProducto()
+  end note
+
+  component "FacturacionPage.jsx" as FAC {
+  }
+  note right of FAC
+    Consume useProductos
+    para autocomplete en
+    emisión de factura
+    (busqueda por descripcion)
+  end note
+
+  component "client.js" as CLI {
+  }
+  note right of CLI
+    Axios con JWT Bearer
+    interceptors 401/403
+  end note
+
+  component "ConfirmDialog.jsx" as CONF {
+  }
+  note right of CONF
+    Confirmación antes de
+    DELETE con mensaje de
+    dependencias del backend
+  end note
+
+}
+
+package "Backend" {
+
+  component "GrupoViewSet" as VGRP {
+  }
+  note right of VGRP
+    AuditoriaMixin
+    total_productos anotado
+    filtros: search, activo
+    /api/grupos/eliminados/
+    permisos tres niveles:
+    list/retrieve: autenticado
+    create/update: admin|recepc.
+    destroy/eliminados: admin
+  end note
+
+  component "ProductoServicioViewSet" as VPROD {
+  }
+  note right of VPROD
+    AuditoriaMixin
+    filtro grupo (query param)
+    select_related('grupo')
+    /api/productos/eliminados/
+    perform_destroy valida
+    VentaFactDet antes de borrar
+  end note
+
+  component "GrupoSerializer\nGrupoListSerializer" as SGRP {
+  }
+  note right of SGRP
+    List: total_productos (read_only)
+    Write: validate case-insensitive
+  end note
+
+  component "ProductoServicioSerializer\nProductoServicioListSerializer" as SPROD {
+  }
+  note right of SPROD
+    List: grupo_nombre, impuesto_display
+    Write: validate unique por grupo
+    case-insensitive por descripcion
+  end note
+
+  component "AuditoriaMixin" as AUDIT {
+  }
+  note right of AUDIT
+    perform_create: id_usu_creator
+    perform_update: id_usu_modificator
+    perform_destroy: borrado lógico
+    Registra en auditoria_registro
+  end note
+
+}
+
+package "Base de Datos" {
+  database "grupo_producto" as TGRP
+  database "producto_servicio\n(FK grupo_producto)" as TPROD
+  database "venta_fact_det\n(FK producto_servicio)" as TDET
+}
+
+PAGE --> UGRP : drill-down grupo→productos
+PAGE --> UPROD : grupo obligatorio en filtro
+FAC --> UPROD : autocomplete en facturación\nIVA calculado según impuesto
+PAGE --> CONF : confirmación eliminación
+
+UGRP --> CLI : HTTP
+UPROD --> CLI : HTTP
+CLI --> VGRP : /api/grupos/
+CLI --> VPROD : /api/productos/?grupo=ID
+
+VGRP --> SGRP : get_serializer_class()
+VPROD --> SPROD : get_serializer_class()
+VGRP --> AUDIT : hereda
+VPROD --> AUDIT : hereda
+
+AUDIT --> TGRP : is_deleted, auditoría
+AUDIT --> TPROD : is_deleted, auditoría
+
+VGRP --> TGRP : total_productos anotado\n(COUNT activos not deleted)
+VPROD --> TPROD : select_related grupo
+VPROD --> TDET : valida dependencias\nen perform_destroy
+
+TPROD --> TGRP : FK PROTECT
+TDET --> TPROD : FK PROTECT
+
+@enduml

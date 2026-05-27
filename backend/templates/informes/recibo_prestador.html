@@ -1,0 +1,182 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rec-wrap       { width: 100%; }
+
+/* Header */
+.rec-hdr        { display: table; width: 100%; border-bottom: 2px solid #000; padding-bottom: 6pt; margin-bottom: 6pt; }
+.rec-hdr-left   { display: table-cell; width: 55%; vertical-align: top; }
+.rec-hdr-right  { display: table-cell; width: 45%; vertical-align: top; text-align: right; }
+.rec-clinica-nombre { font-size: 13pt; font-weight: bold; text-transform: uppercase; }
+.rec-clinica-sub    { font-size: 8pt; color: #333; margin-top: 2pt; }
+.rec-tipo-box   { border: 1.5px solid #000; display: inline-block; padding: 5pt 10pt; text-align: center; min-width: 170pt; }
+.rec-tipo       { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .08em; }
+.rec-nro-wrap   { margin-top: 4pt; font-size: 8pt; color: #444; }
+.rec-nro        { font-family: 'Courier New', monospace; font-size: 14pt; font-weight: bold; }
+.rec-fecha      { margin-top: 4pt; font-size: 9pt; }
+
+/* Beneficiario */
+.rec-benef-box  { border: 1px solid #000; padding: 5pt 8pt; margin-bottom: 6pt; }
+.rec-benef-row  { display: table; width: 100%; }
+.rec-lbl        { display: table-cell; width: 65pt; font-weight: bold; font-size: 8.5pt; }
+.rec-val        { display: table-cell; border-bottom: 1px dotted #888; padding-bottom: 1pt; font-size: 9pt; }
+
+/* Sección */
+.rec-section-title { font-size: 8pt; font-weight: bold; text-transform: uppercase;
+                     letter-spacing: .06em; background: #e8e8e8; padding: 3pt 6pt;
+                     margin: 6pt 0 0 0; border: 1px solid #bbb; border-bottom: none; }
+
+/* Tabla detalle */
+.rec-table      { margin-bottom: 6pt; }
+.rec-table th   { background: #f0f0f0; font-size: 8pt; text-transform: uppercase;
+                  border: 1px solid #bbb; font-weight: bold; padding: 3pt 5pt; }
+.rec-table td   { border: 1px solid #ccc; font-size: 9pt; padding: 3pt 5pt; }
+
+/* Totales */
+.rec-totales    { display: table; margin-left: auto; min-width: 230pt;
+                  border: 1px solid #000; margin-bottom: 14pt; }
+.rec-tot-row    { display: table-row; }
+.rec-tot-lbl    { display: table-cell; font-size: 8.5pt; padding: 3pt 8pt;
+                  border-bottom: 1px dotted #ccc; }
+.rec-tot-val    { display: table-cell; text-align: right; font-size: 9pt;
+                  padding: 3pt 8pt; border-bottom: 1px dotted #ccc;
+                  font-family: 'Courier New', monospace; }
+.rec-tot-general .rec-tot-lbl,
+.rec-tot-general .rec-tot-val { background: #000; color: #fff; font-size: 10pt;
+                                 padding: 4pt 8pt; border-bottom: none; }
+.rec-estado-row .rec-tot-lbl,
+.rec-estado-row .rec-tot-val  { border-bottom: none; font-size: 9pt; }
+
+/* Firmas */
+.rec-firmas     { display: table; width: 100%; margin-top: 20pt; margin-bottom: 8pt; }
+.rec-firma-cell { display: table-cell; width: 50%; text-align: center; padding: 0 12pt; }
+.rec-firma-linea { border-top: 1px solid #000; padding-top: 3pt; font-size: 8pt; }
+
+/* Pie */
+.rec-pie        { text-align: center; font-size: 7pt; color: #555;
+                  border-top: 1px solid #ccc; padding-top: 5pt; margin-top: 8pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="rec-wrap">
+
+  <div class="rec-hdr">
+    <div class="rec-hdr-left">
+      <div class="rec-clinica-nombre">Clínica Lichi</div>
+      <div class="rec-clinica-sub">RUC: 80012345-6 &nbsp;|&nbsp; Asunción, Paraguay</div>
+      <div class="rec-clinica-sub" style="margin-top:2pt;">Tel: (021) 000-0000</div>
+    </div>
+    <div class="rec-hdr-right">
+      <div class="rec-tipo-box">
+        <div class="rec-tipo">Recibo de Dinero</div>
+        <div class="rec-nro-wrap">N° <span class="rec-nro">{{ nro_fmt }}</span></div>
+      </div>
+      <div class="rec-fecha"><span class="bold">Fecha:</span> {{ pago.fecha_pago|date:"d/m/Y" }}</div>
+    </div>
+  </div>
+
+  <div class="rec-benef-box">
+    <div class="rec-benef-row">
+      <span class="rec-lbl">Pagado a:</span>
+      <span class="rec-val bold upper">{{ pago.persona_rrhh.persona.razon_social }}</span>
+    </div>
+    <div class="rec-benef-row" style="margin-top:3pt;">
+      <span class="rec-lbl">CI / RUC:</span>
+      <span class="rec-val mono">{{ pago.persona_rrhh.persona.nro_documento }}</span>
+    </div>
+    <div class="rec-benef-row" style="margin-top:3pt;">
+      <span class="rec-lbl">Concepto:</span>
+      <span class="rec-val">Honorarios médicos por servicios de atención prestados en Clínica Lichi</span>
+    </div>
+  </div>
+
+  {% if bloques %}
+  <div class="rec-section-title">Detalle de servicios prestados</div>
+  <table class="rec-table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Horario</th>
+        <th>Especialidad</th>
+        <th class="right">Horas</th>
+        <th class="right">Monto Gs.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bloques %}
+      <tr>
+        <td>{{ b.fecha|date:"d/m/Y" }}</td>
+        <td class="mono center">{{ b.hora_desde }} → {{ b.hora_hasta }}</td>
+        <td>{{ b.especialidad|default:"—" }}</td>
+        <td class="right mono">{{ b.horas }}h</td>
+        <td class="right mono">{{ b.monto_bloque|gs }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <div class="rec-section-title">Forma de pago</div>
+  <table class="rec-table">
+    <thead>
+      <tr>
+        <th>Forma de pago</th>
+        <th>Cuenta</th>
+        <th class="right">Monto Gs.</th>
+        <th>Voucher</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in detalle %}
+      <tr>
+        <td>{{ d.forma_pago.descripcion }}</td>
+        <td>{{ d.cta.descripcion }}</td>
+        <td class="right mono">{{ d.monto|gs }}</td>
+        <td>{{ d.voucher|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="rec-totales">
+    <div class="rec-tot-row">
+      <span class="rec-tot-lbl">Total horas trabajadas:</span>
+      <span class="rec-tot-val">{{ pago.total_hora }} h</span>
+    </div>
+    <div class="rec-tot-row">
+      <span class="rec-tot-lbl">Monto por hora:</span>
+      <span class="rec-tot-val">Gs. {{ pago.monto_hora|gs }}</span>
+    </div>
+    <div class="rec-tot-row rec-tot-general">
+      <span class="rec-tot-lbl bold">TOTAL GENERAL:</span>
+      <span class="rec-tot-val">Gs. {{ pago.monto_total|gs }}</span>
+    </div>
+    {% if pago.saldo > 0 %}
+    <div class="rec-tot-row">
+      <span class="rec-tot-lbl">Saldo pendiente:</span>
+      <span class="rec-tot-val">Gs. {{ pago.saldo|gs }}</span>
+    </div>
+    {% endif %}
+    <div class="rec-tot-row rec-estado-row">
+      <span class="rec-tot-lbl">Estado:</span>
+      <span class="rec-tot-val bold">{{ pago.get_estado_display }}</span>
+    </div>
+  </div>
+
+  <div class="rec-firmas">
+    <div class="rec-firma-cell">
+      <div class="rec-firma-linea">Firma y sello de la empresa</div>
+    </div>
+    <div class="rec-firma-cell">
+      <div class="rec-firma-linea">Firma del prestador / Recibí conforme</div>
+    </div>
+  </div>
+
+  <div class="rec-pie">
+    Clínica Lichi &nbsp;·&nbsp; RUC: 80012345-6 &nbsp;·&nbsp; Asunción, Paraguay<br>
+    Documento válido como comprobante de pago a prestador de servicios médicos.
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+skinparam arrowColor #000000
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+
+abstract class BaseModel {
+  +id : BigAutoField
+  +fecha_creacion : DateTimeField
+  +fecha_modificacion : DateTimeField
+  +is_deleted : BooleanField
+  +fecha_eliminacion : DateTimeField
+  +id_usu_creator : FK(User)
+  +id_usu_modificator : FK(User)
+}
+
+class Timbrado {
+  +nro_timbrado : CharField(8)
+  +inicio_vigencia : DateField
+  +fin_vigencia : DateField
+  +punto_sucursal : CharField(3)
+  +punto_expedicion : CharField(3)
+  +nro_desde : PositiveIntegerField
+  +nro_hasta : PositiveIntegerField
+  +autoimpresor : BooleanField
+  +nro_habilitacion : CharField(50)
+  --
+  +vigente : bool  {calculado por fechas}
+  +tipo : str  {Talonario | Autoimpresor}
+  +dias_restantes : int  {calculado en serializer}
+  +total_comprobantes : int  {nro_hasta - nro_desde + 1}
+  --
+  +clean()
+  +save()
+  +__str__()
+}
+
+class VentaFactCab {
+  +timbrado : FK(Timbrado)
+  +nro_factura : IntegerField
+  +fecha : DateField
+  +...
+}
+
+note bottom of Timbrado
+  Timbrado es la autorización del SET Paraguay
+  para emitir facturas. Cada factura referencia
+  el timbrado vigente al momento de emisión.
+  UniqueConstraint activo sobre:
+  (nro_timbrado, inicio_vigencia, fin_vigencia,
+   punto_sucursal, punto_expedicion,
+   nro_desde, nro_hasta) WHERE is_deleted=False
+end note
+
+BaseModel <|-- Timbrado
+Timbrado "1" o-- "0..*" VentaFactCab : timbrado >
+
+@enduml

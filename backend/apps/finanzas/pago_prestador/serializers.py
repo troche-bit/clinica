@@ -18,7 +18,7 @@ class PagoPrestadorListSerializer(serializers.ModelSerializer):
     class Meta:
         model  = PagoPrestador
         fields = [
-            'id', 'fecha_pago', 'persona_rrhh', 'medico_nombre',
+            'id', 'nro_comprobante', 'fecha_pago', 'persona_rrhh', 'medico_nombre',
             'monto_hora', 'total_hora', 'monto_total', 'saldo',
             'estado', 'estado_display', 'fecha_creacion',
         ]
@@ -53,6 +53,7 @@ class ValorPagadoInputSerializer(serializers.Serializer):
 
 class PagoPrestadorCreateSerializer(serializers.Serializer):
     persona_rrhh_id = serializers.IntegerField()
+    nro_comprobante = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     fecha_pago      = serializers.DateField()
     monto_hora      = serializers.DecimalField(max_digits=18, decimal_places=2)
     bloques         = BloqueInputSerializer(many=True)

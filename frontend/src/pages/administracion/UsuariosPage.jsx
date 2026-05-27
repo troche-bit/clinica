@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Users, Plus, Search, Eye, EyeOff, Key, Edit2, X, Check } from 'lucide-react'
+import { Users, Plus, Search, Eye, EyeOff, Key, Edit2, X, Shield, UserX, UserCheck } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -190,7 +190,11 @@ function VistaDetalle({ usuario, onEditar, onResetear, onCambiarEstado }) {
         <div>
           <div className="usu-detalle-nombre">
             {usuario.nombre_completo}
-            {usuario.es_master && <span className="usu-master-badge">MASTER</span>}
+            {usuario.es_master && (
+              <span className="usu-master-badge">
+                <Shield size={10} />MASTER
+              </span>
+            )}
           </div>
           <div className="usu-detalle-username">@{usuario.username}</div>
           <span className={`badge ${ROL_COLOR[usuario.rol] || 'badge-gray'}`}>
@@ -240,7 +244,7 @@ function VistaDetalle({ usuario, onEditar, onResetear, onCambiarEstado }) {
             className={`btn ${usuario.activo ? 'btn-danger' : 'btn-secondary'}`}
             onClick={() => onCambiarEstado(usuario)}
           >
-            {usuario.activo ? <EyeOff size={14} /> : <Check size={14} />}
+            {usuario.activo ? <UserX size={14} /> : <UserCheck size={14} />}
             {usuario.activo ? 'Desactivar' : 'Activar'}
           </button>
         )}
@@ -466,11 +470,11 @@ function FormularioPassword({ usuario, onClose, onSaved }) {
 }
 
 export default function UsuariosPage() {
-  const [search,       setSearch]       = useState('')
-  const [rolFiltro,    setRolFiltro]    = useState('')
-  const [activoFiltro, setActivoFiltro] = useState('')
-  const [modo,         setModo]         = useState(null)
-  const [usuSel,       setUsuSel]       = useState(null)
+  const [search,        setSearch]        = useState('')
+  const [rolFiltro,     setRolFiltro]     = useState('')
+  const [activoFiltro,  setActivoFiltro]  = useState('')
+  const [modo,          setModo]          = useState(null)
+  const [usuSel,        setUsuSel]        = useState(null)
   const [confirmEstado, setConfirmEstado] = useState(null)
   const debounceRef = useRef(null)
   const { toast, showToast } = useToast()
@@ -478,10 +482,13 @@ export default function UsuariosPage() {
   const { data: usuarios = [], isLoading } = useUsuarios({ search, rol: rolFiltro, activo: activoFiltro })
   const cambiarEstado = useCambiarEstadoUsuario()
 
+  const filtrosActivos = [rolFiltro, activoFiltro].filter(Boolean).length
+  const limpiarFiltros = () => { setRolFiltro(''); setActivoFiltro('') }
+
   const cerrar = () => { setModo(null); setUsuSel(null) }
 
-  const handleVerDetalle = u  => { setUsuSel(u); setModo('ver') }
-  const handleNuevo      = () => { setUsuSel(null); setModo('crear') }
+  const handleVerDetalle = u      => { setUsuSel(u); setModo('ver') }
+  const handleNuevo      = ()     => { setUsuSel(null); setModo('crear') }
   const handleEditar     = (u, e) => { e?.stopPropagation(); setUsuSel(u); setModo('editar') }
   const handleResetear   = (u, e) => { e?.stopPropagation(); setUsuSel(u); setModo('resetear') }
 
@@ -518,40 +525,61 @@ export default function UsuariosPage() {
   return (
     <>
       <style>{`
-        .usu-page { padding: 24px; max-width: 1100px; margin: 0 auto; }
+        .usu-page { font-family: 'DM Sans', sans-serif; }
 
+        /* ── Modal mobile ── */
+        @media (max-width: 767px) {
+          .modal-backdrop { padding: 0 !important; align-items: flex-end !important; }
+          .modal-box { border-radius: 16px 16px 0 0 !important; max-height: 95dvh !important; max-width: 100% !important; }
+        }
+        @media (max-width: 479px) {
+          .modal-backdrop { align-items: stretch !important; }
+          .modal-box { border-radius: 0 !important; max-height: 100dvh !important; height: 100dvh !important; }
+        }
+
+        /* ── Toolbar ── */
         .usu-toolbar { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-        .usu-title-block { order: 1; display: flex; align-items: center; gap: 12px; flex: 1 1 160px; }
-        .usu-header-icon { width: 38px; height: 38px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .usu-title { font-size: 20px; font-weight: 600; color: #111827; font-family: 'DM Sans', sans-serif; }
-        .usu-subtitle { font-size: 13px; color: #6b7280; font-family: 'DM Sans', sans-serif; }
-        .usu-search-wrap { order: 2; position: relative; flex: 1 1 200px; max-width: 340px; }
-        .usu-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
-        .usu-search-input { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: #374151; background: #fff; box-sizing: border-box; }
-        .usu-search-input:focus { outline: none; border-color: #1a3a5c; }
-        .usu-filters { order: 3; display: flex; gap: 8px; flex-wrap: wrap; }
-        .usu-filter-select { padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: #374151; background: #fff; cursor: pointer; }
-        .usu-filter-select:focus { outline: none; border-color: #1a3a5c; }
-        .usu-toolbar-btn { order: 4; flex-shrink: 0; }
+        .usu-titles { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+        .usu-header-icon { width: 40px; height: 40px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .usu-title { font-size: 20px; font-weight: 600; color: #111827; line-height: 1.2; }
+        .usu-subtitle { font-size: 13px; color: #6b7280; margin-top: 1px; }
 
-        .usu-table-wrap { background: #fff; border-radius: 12px; border: 1px solid #e8edf2; overflow: hidden; overflow-x: auto; }
-        .usu-table { width: 100%; border-collapse: collapse; min-width: 560px; }
-        .usu-table thead { background: #f8fafc; }
-        .usu-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: .06em; font-family: 'DM Sans', sans-serif; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
-        .usu-table td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; font-family: 'DM Sans', sans-serif; vertical-align: middle; }
+        .usu-search-wrap { position: relative; flex: 1 1 180px; min-width: 140px; }
+        .usu-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+        .usu-search-input { width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827; background: #fff; box-sizing: border-box; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+        .usu-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
+        .usu-search-input::placeholder { color: #d1d5db; }
+
+        .usu-filters { display: flex; gap: 8px; flex-shrink: 0; }
+        .usu-filter-select { padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 9px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: #374151; background: #fff; cursor: pointer; outline: none; transition: border-color 0.2s; }
+        .usu-filter-select:focus { border-color: #1a3a5c; }
+
+        .usu-filtros-clear { display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 9px; font-size: 12px; font-family: 'DM Sans', sans-serif; font-weight: 500; color: #1a3a5c; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.15s; }
+        .usu-filtros-clear:hover { background: #dbeafe; }
+
+        .usu-btn-nuevo { flex-shrink: 0; }
+
+        /* ── Tabla ── */
+        .usu-table { width: 100%; border-collapse: collapse; min-width: 420px; }
+        .usu-table thead { background: #f8fafc; border-bottom: 1px solid #e8edf2; }
+        .usu-table th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+        .usu-table td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; font-size: 13.5px; color: #374151; font-family: 'DM Sans', sans-serif; vertical-align: middle; }
         .usu-table tr:last-child td { border-bottom: none; }
         .usu-table tbody tr { cursor: pointer; }
-        .usu-table tbody tr:hover td { background: #f0f5fb; }
-        .usu-name { font-weight: 500; color: #111827; }
-        .usu-username { font-size: 12px; color: #9ca3af; }
-        .usu-hint { font-size: 11px; color: #bfdbfe; margin-top: 2px; }
-        .usu-avatar { width: 34px; height: 34px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #1a3a5c; border: 1px solid #bfdbfe; flex-shrink: 0; }
-        .usu-name-cell { display: flex; align-items: center; gap: 10px; }
+        .usu-table tbody tr:nth-child(odd)  { background: #ffffff; }
+        .usu-table tbody tr:nth-child(even) { background: #f8fafc; }
+        .usu-table tbody tr:hover td { background: #f0f5fb !important; }
         .usu-inactivo td { opacity: .55; }
-        .usu-master-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
+
+        .usu-name-cell { display: flex; align-items: center; gap: 10px; }
+        .usu-avatar { width: 34px; height: 34px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #1a3a5c; border: 1px solid #bfdbfe; flex-shrink: 0; }
+        .usu-name { font-weight: 500; color: #111827; }
+        .usu-username { font-size: 12px; color: #9ca3af; margin-top: 1px; }
+        .usu-hint { font-size: 11px; color: #9ca3af; margin-top: 3px; font-style: italic; }
+        .usu-master-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: #92400e; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
 
         .usu-actions { display: flex; gap: 6px; }
-        .usu-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6b7280; }
+        .usu-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6b7280; transition: background 0.15s, color 0.15s, border-color 0.15s; }
         .usu-btn:hover { background: #f0f4f8; border-color: #bfdbfe; color: #1a3a5c; }
         .usu-btn.danger:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
         .usu-btn.active-toggle { color: #16a34a; }
@@ -559,27 +587,35 @@ export default function UsuariosPage() {
         .usu-btn:disabled { opacity: .45; cursor: not-allowed; }
         .usu-empty { padding: 48px; text-align: center; color: #9ca3af; font-size: 14px; font-family: 'DM Sans', sans-serif; }
 
+        /* Ocultar columna prestador en mobile */
+        @media (max-width: 767px) {
+          .usu-col-prestador { display: none; }
+          .usu-hint { display: none; }
+        }
+
+        /* ── Formulario ── */
         .usu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .usu-full { grid-column: 1 / -1; }
         .usu-error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #dc2626; margin-bottom: 14px; font-family: 'DM Sans', sans-serif; }
         .usu-info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #1a3a5c; margin-bottom: 14px; font-family: 'DM Sans', sans-serif; }
         .usu-form-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; border-top: 1px solid #f3f4f6; margin-top: 20px; }
 
+        /* ── Typeahead ── */
         .usu-typeahead-wrap { position: relative; }
         .usu-typeahead-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); z-index: 200; max-height: 200px; overflow-y: auto; }
         .usu-typeahead-item { padding: 9px 12px; font-size: 13px; color: #374151; cursor: pointer; font-family: 'DM Sans', sans-serif; }
         .usu-typeahead-item:hover { background: #f0f5fb; color: #1a3a5c; }
         .usu-typeahead-empty { padding: 9px 12px; font-size: 13px; color: #9ca3af; font-family: 'DM Sans', sans-serif; }
-
         .usu-tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
         .usu-tag-selected { display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 20px; padding: 4px 10px; font-size: 12px; color: #1a3a5c; font-family: 'DM Sans', sans-serif; }
         .usu-tag-label { font-weight: 500; }
         .usu-tag-remove { background: none; border: none; cursor: pointer; color: #6b7280; display: flex; align-items: center; padding: 0; }
         .usu-tag-remove:hover { color: #dc2626; }
 
+        /* ── Vista detalle ── */
         .usu-detalle-top { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f4f8; }
         .usu-avatar-lg { width: 52px; height: 52px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; color: #1a3a5c; border: 2px solid #bfdbfe; flex-shrink: 0; }
-        .usu-detalle-nombre { font-size: 16px; font-weight: 600; color: #111827; font-family: 'DM Sans', sans-serif; margin-bottom: 2px; }
+        .usu-detalle-nombre { font-size: 16px; font-weight: 600; color: #111827; font-family: 'DM Sans', sans-serif; margin-bottom: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
         .usu-detalle-username { font-size: 13px; color: #6b7280; font-family: 'DM Sans', sans-serif; margin-bottom: 6px; }
         .usu-detalle-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f4f8; }
         .usu-seccion { border: 1px solid #e8edf2; border-radius: 10px; background: #fafbfc; margin-bottom: 12px; }
@@ -588,16 +624,14 @@ export default function UsuariosPage() {
         .usu-campo-label { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 2px; font-family: 'DM Sans', sans-serif; }
         .usu-campo-valor { font-size: 13px; color: #111827; font-family: 'DM Sans', sans-serif; }
 
-        @media (max-width: 767px) {
-          .modal-backdrop { padding: 0 !important; align-items: flex-end !important; }
-          .modal-box { border-radius: 16px 16px 0 0 !important; max-height: 95dvh !important; max-width: 100% !important; }
-          .usu-search-wrap { max-width: 100%; order: 4; flex: 1 0 100%; }
-          .usu-filters { order: 5; flex: 1 0 100%; }
-        }
-        @media (max-width: 479px) {
-          .modal-backdrop { align-items: stretch !important; }
-          .modal-box { border-radius: 0 !important; max-height: 100dvh !important; height: 100dvh !important; }
-          .usu-page { padding: 16px; }
+        /* ── Mobile < 600px (toolbar reflow) ── */
+        @media (max-width: 600px) {
+          .usu-titles { display: none; }
+          .usu-btn-nuevo { order: 1; }
+          .usu-search-wrap { order: 2; flex: 1 1 100%; }
+          .usu-filters { order: 3; flex: 1 0 100%; }
+          .usu-filter-select { flex: 1; min-width: 0; }
+          .usu-filtros-clear { order: 4; width: 100%; }
           .usu-grid { grid-template-columns: 1fr; }
           .usu-full { grid-column: 1; }
           .usu-seccion-body { grid-template-columns: 1fr; }
@@ -621,8 +655,10 @@ export default function UsuariosPage() {
       />
 
       <div className="usu-page">
+
+        {/* ── Toolbar ── */}
         <div className="usu-toolbar">
-          <div className="usu-title-block">
+          <div className="usu-titles">
             <div className="usu-header-icon">
               <Users size={20} color="#1a3a5c" />
             </div>
@@ -631,6 +667,7 @@ export default function UsuariosPage() {
               <div className="usu-subtitle">Gestión de accesos y roles</div>
             </div>
           </div>
+
           <div className="usu-search-wrap">
             <Search size={14} className="usu-search-icon" />
             <input
@@ -651,14 +688,21 @@ export default function UsuariosPage() {
               <option value="false">Solo inactivos</option>
             </select>
           </div>
-          <div className="usu-toolbar-btn">
+          {filtrosActivos > 0 && (
+            <button className="usu-filtros-clear" onClick={limpiarFiltros} title="Limpiar filtros">
+              <X size={12} />
+              {filtrosActivos} {filtrosActivos === 1 ? 'filtro activo' : 'filtros activos'}
+            </button>
+          )}
+          <div className="usu-btn-nuevo">
             <button className="btn btn-primary" onClick={handleNuevo}>
               <Plus size={15} /> Nuevo usuario
             </button>
           </div>
         </div>
 
-        <div className="usu-table-wrap">
+        {/* ── Tabla ── */}
+        <div className="table-wrapper">
           {isLoading ? (
             <div className="usu-empty">Cargando...</div>
           ) : usuarios.length === 0 ? (
@@ -669,7 +713,7 @@ export default function UsuariosPage() {
                 <tr>
                   <th>Usuario</th>
                   <th>Rol</th>
-                  <th>Prestador vinculado</th>
+                  <th className="usu-col-prestador">Prestador vinculado</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -683,7 +727,11 @@ export default function UsuariosPage() {
                         <div>
                           <div className="usu-name">
                             {u.nombre_completo}
-                            {u.es_master && <span className="usu-master-badge">MASTER</span>}
+                            {u.es_master && (
+                              <span className="usu-master-badge">
+                                <Shield size={10} />MASTER
+                              </span>
+                            )}
                           </div>
                           <div className="usu-username">@{u.username}</div>
                           <div className="usu-hint">Ver detalle ›</div>
@@ -695,7 +743,7 @@ export default function UsuariosPage() {
                         {ROL_LABELS[u.rol] || u.rol}
                       </span>
                     </td>
-                    <td style={{ color: u.persona_rrhh_nombre ? '#374151' : '#d1d5db' }}>
+                    <td className="usu-col-prestador" style={{ color: u.persona_rrhh_nombre ? '#374151' : '#d1d5db' }}>
                       {u.persona_rrhh_nombre || '—'}
                     </td>
                     <td>
@@ -705,7 +753,7 @@ export default function UsuariosPage() {
                     </td>
                     <td onClick={e => e.stopPropagation()}>
                       <div className="usu-actions">
-                        <button className="usu-btn" title="Editar" onClick={e => handleEditar(u, e)}>
+                        <button className="usu-btn" title="Editar usuario" onClick={e => handleEditar(u, e)}>
                           <Edit2 size={13} />
                         </button>
                         <button className="usu-btn" title="Resetear contraseña" onClick={e => handleResetear(u, e)}>
@@ -713,11 +761,11 @@ export default function UsuariosPage() {
                         </button>
                         <button
                           className={`usu-btn ${u.activo ? 'danger' : 'active-toggle'}`}
-                          title={u.activo ? 'Desactivar' : 'Activar'}
+                          title={u.activo ? 'Desactivar usuario' : 'Activar usuario'}
                           onClick={() => setConfirmEstado(u)}
                           disabled={u.es_master}
                         >
-                          {u.activo ? <EyeOff size={13} /> : <Check size={13} />}
+                          {u.activo ? <UserX size={13} /> : <UserCheck size={13} />}
                         </button>
                       </div>
                     </td>
@@ -727,6 +775,8 @@ export default function UsuariosPage() {
             </table>
           )}
         </div>
+
+
       </div>
 
       <Modal

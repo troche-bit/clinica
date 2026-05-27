@@ -1,0 +1,238 @@
+@startuml
+skinparam style strictuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam sequenceArrowThickness 1
+skinparam sequenceMessageAlign center
+skinparam sequenceParticipant underline
+
+skinparam sequenceActorBorderColor black
+skinparam sequenceParticipantBorderColor black
+skinparam sequenceParticipantBackgroundColor white
+skinparam sequenceLifeLineBorderColor black
+
+actor ADMIN
+actor RECEPCIONISTA
+
+boundary "GruposPage.jsx" as GUI
+boundary "FacturacionPage.jsx" as FACGUI
+
+control "useGrupos / useProductos" as HOOK
+control "GrupoViewSet / ProductoServicioViewSet" as VIEW
+control "VentaFactCabViewSet" as FACVIEW
+
+entity "GrupoProducto" as GRUPO
+entity "ProductoServicio" as PRODUCTO
+
+database "PostgreSQL" as BD
+
+== 1. Crear grupo ==
+
+ADMIN -> GUI : Click "Nuevo grupo"
+
+GUI -> GUI : Mostrar panel overlay
+
+ADMIN -> GUI : descripcion = "Servicios Médicos"
+
+ADMIN -> GUI : Click "Crear grupo"
+
+GUI -> HOOK : useCreateGrupo()
+
+HOOK -> VIEW : POST /api/grupos/
+
+VIEW -> VIEW : Validar descripción única
+
+VIEW -> GRUPO : save()
+
+GRUPO -> BD : INSERT grupo_producto
+
+BD --> VIEW : id = 5
+
+VIEW --> HOOK : 201 Created
+
+HOOK -> HOOK : invalidateQueries(['grupos'])
+
+HOOK --> GUI : Nueva card visible
+
+== 2. Navegación al grupo ==
+
+ADMIN -> GUI : Click grupo "Servicios Médicos"
+
+GUI -> GUI : Cambiar a VistaProductos
+
+GUI -> HOOK : useProductos(5)
+
+HOOK -> VIEW : GET /api/productos/?grupo=5
+
+VIEW -> BD : SELECT productos activos
+
+BD --> VIEW : []
+
+VIEW --> HOOK : Lista vacía
+
+HOOK --> GUI : "Sin productos"
+
+== 3. Crear producto ==
+
+ADMIN -> GUI : Click "Nuevo producto"
+
+GUI -> GUI : Panel lateral derecho
+
+ADMIN -> GUI : descripcion = "Consulta General"\nIVA = 10%
+
+ADMIN -> GUI : Click "Agregar producto"
+
+GUI -> HOOK : useCreateProducto()
+
+HOOK -> VIEW : POST /api/productos/
+
+VIEW -> VIEW : Validar unicidad
+
+VIEW -> PRODUCTO : save()
+
+PRODUCTO -> BD : INSERT producto_servicio
+
+BD --> VIEW : 201 Created
+
+HOOK -> HOOK : invalidateQueries()
+
+HOOK --> GUI : Mostrar producto en tabla
+
+== 4. Segundo producto ==
+
+ADMIN -> GUI : Crear "Consulta Urgencia"
+
+GUI -> HOOK : useCreateProducto()
+
+HOOK -> VIEW : POST /api/productos/
+
+VIEW -> PRODUCTO : save()
+
+PRODUCTO -> BD : INSERT producto_servicio
+
+BD --> VIEW : 201 Created
+
+HOOK --> GUI : Tabla con 2 productos
+
+== 5. Facturación ==
+
+RECEPCIONISTA -> FACGUI : Nueva factura
+
+RECEPCIONISTA -> FACGUI : Buscar "Consulta"
+
+FACGUI -> VIEW : GET /api/productos/?search=Consulta
+
+VIEW -> BD : SELECT descripcion ILIKE '%Consulta%'
+
+BD --> VIEW : Consulta General\nConsulta Urgencia
+
+VIEW --> FACGUI : Mostrar autocomplete
+
+RECEPCIONISTA -> FACGUI : Seleccionar "Consulta General"
+
+FACGUI -> FACGUI : Calcular IVA 10%
+
+note right of FACGUI
+IVA inclusivo SET Paraguay
+
+150.000 / 11 = 13.636 Gs
+end note
+
+RECEPCIONISTA -> FACGUI : Click "Emitir factura"
+
+FACGUI -> HOOK : useCreateFactura()
+
+HOOK -> FACVIEW : POST /api/facturacion/
+
+FACVIEW -> BD : INSERT venta_fact_cab
+FACVIEW -> BD : INSERT venta_fact_det
+
+BD --> FACVIEW : OK
+
+FACVIEW --> FACGUI : Factura emitida
+
+== 6. Intento de eliminación del producto ==
+
+ADMIN -> GUI : Eliminar "Consulta General"
+
+GUI -> GUI : ConfirmDialog
+
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : useDeleteProducto()
+
+HOOK -> VIEW : DELETE /api/productos/{id}
+
+VIEW -> BD : Verificar facturas vinculadas
+
+BD --> VIEW : Existe relación
+
+VIEW --> HOOK : 400 ValidationError
+
+HOOK --> GUI : Mostrar error
+
+GUI -> GUI : Producto permanece visible
+
+== 7. Desactivar producto ==
+
+ADMIN -> GUI : Editar producto
+
+GUI -> GUI : Estado Activo -> Inactivo
+
+ADMIN -> GUI : Guardar cambios
+
+GUI -> HOOK : useUpdateProducto()
+
+HOOK -> VIEW : PATCH /api/productos/{id}
+
+VIEW -> PRODUCTO : update(activo=false)
+
+PRODUCTO -> BD : UPDATE producto_servicio
+
+BD --> VIEW : 200 OK
+
+HOOK -> HOOK : invalidateQueries()
+
+HOOK --> GUI : Producto inactivo
+
+note right of GUI
+El producto sigue visible
+en facturas históricas.
+
+No aparece en nuevas búsquedas
+porque activo = false.
+end note
+
+== 8. Intento de eliminación del grupo ==
+
+ADMIN -> GUI : Volver a grupos
+
+ADMIN -> GUI : Eliminar grupo
+
+GUI -> GUI : ConfirmDialog
+
+ADMIN -> GUI : Confirmar
+
+GUI -> HOOK : useDeleteGrupo()
+
+HOOK -> VIEW : DELETE /api/grupos/5
+
+VIEW -> BD : Verificar productos activos
+
+BD --> VIEW : "Consulta Urgencia" activa
+
+VIEW --> HOOK : 400 ValidationError
+
+HOOK --> GUI : Mostrar error
+
+note right of GUI
+Un grupo no puede eliminarse
+si tiene productos activos.
+
+Los productos inactivos
+no bloquean la eliminación.
+end note
+@enduml

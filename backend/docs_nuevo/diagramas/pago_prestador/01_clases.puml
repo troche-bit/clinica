@@ -1,0 +1,88 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+skinparam classArrowColor #000000
+skinparam classAttributeFontSize 11
+skinparam classHeaderBackgroundColor #ffffff
+
+class PersonaRRHH {
+  nombre
+  documento
+  cargo
+}
+
+class Persona {
+  razon_social
+  nro_documento
+}
+
+class FormaPago {
+  descripcion
+  tipo
+}
+
+class CuentaMcb {
+  descripcion
+  saldo
+}
+
+class PagoPrestador {
+  nro_comprobante : PositiveIntegerField (nullable)
+  fecha_pago : DateField
+  monto_hora : Decimal
+  total_hora : Decimal
+  monto_total : Decimal
+  saldo : Decimal
+  estado : CharField (pendiente/parcial/pagado)
+  is_deleted : BooleanField
+}
+
+class PagoPrestadorDetCobranza {
+  monto : Decimal
+  voucher : CharField
+  is_deleted : BooleanField
+}
+
+class Agenda {
+  fecha : DateField
+  hora_desde : TimeField
+  hora_hasta : TimeField
+  estado : CharField
+  pagado_prestador : BooleanField
+}
+
+class MovimientoCajaBanco {
+  monto_egreso : Decimal
+  fecha : DateField
+  ppdc_id : IntegerField
+}
+
+PagoPrestador "N" --> "1" PersonaRRHH : persona_rrhh
+PersonaRRHH "N" --> "1" Persona : persona
+PagoPrestadorDetCobranza "1..*" --> "1" PagoPrestador : pago_prestador
+PagoPrestadorDetCobranza "N" --> "1" FormaPago : forma_pago
+PagoPrestadorDetCobranza "N" --> "1" CuentaMcb : cta
+Agenda "N" --> "1" PagoPrestador : pago_prestador (nullable)
+MovimientoCajaBanco "N" ..> "1" PagoPrestadorDetCobranza : ppdc_id
+
+note bottom of PagoPrestador
+  UniqueConstraint: nro_comprobante
+  unico entre registros activos
+  (is_deleted=False y no nulo).
+  Nro se autoincrementa: MAX + 1.
+  Transaccion atomica en create y delete.
+end note
+
+note right of Agenda
+  pagado_prestador=True y
+  pago_prestador=FK al crear el pago.
+  Se revierte al eliminar.
+end note
+
+@enduml

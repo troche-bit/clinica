@@ -23,7 +23,7 @@
 .condicion-row  { display: table; width: 100%; margin-bottom: 5pt; font-size: 9pt; }
 .condicion-left { display: table-cell; vertical-align: middle; }
 .condicion-fecha { display: table-cell; vertical-align: middle; text-align: right; font-size: 9pt; }
-.chk            { display: inline-block; width: 10pt; height: 10pt; border: 1px solid #000; margin-right: 3pt; vertical-align: middle; text-align: center; font-size: 8pt; line-height: 10pt; }
+.chk            { display: inline-block; width: 10pt; height: 10pt; border: 1px solid #000; margin-right: 3pt; vertical-align: middle; text-align: center; font-size: 8pt; line-height: 10pt; font-weight: bold; }
 .chk-lbl        { vertical-align: middle; margin-right: 14pt; }
 
 /* Datos cliente */
@@ -38,40 +38,25 @@
 .det-table th   { background: #f0f0f0; font-size: 8pt; text-transform: uppercase; border: 1px solid #bbb; font-weight: bold; padding: 3pt 5pt; }
 .det-table td   { border: 1px solid #ccc; font-size: 9pt; padding: 3pt 5pt; }
 .det-table .fila-vacia td { border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-top: none; border-bottom: none; color: transparent; font-size: 8pt; }
-.col-cant       { width: 8%; text-align: center; }
-.col-desc       { width: 48%; }
-.col-precio     { width: 15%; text-align: right; }
-.col-iva        { width: 8%; text-align: center; }
-.col-total      { width: 15%; text-align: right; font-weight: bold; }
-.col-exenta     { width: 6%; text-align: center; }
+.col-cant       { width: 7%; text-align: center; }
+.col-desc       { width: 38%; }
+.col-precio     { width: 16%; text-align: right; }
+.col-exenta     { width: 13%; text-align: right; }
+.col-gra5       { width: 13%; text-align: right; }
+.col-gra10      { width: 13%; text-align: right; }
 
-/* Liquidación IVA */
-.liq-wrap       { display: table; width: 100%; margin-bottom: 5pt; border: 1px solid #000; }
-.liq-titulo     { background: #e8e8e8; font-weight: bold; font-size: 8pt; text-transform: uppercase; padding: 3pt 8pt; border-bottom: 1px solid #000; letter-spacing: .05em; }
-.liq-grid       { display: table-row; }
-.liq-cell       { display: table-cell; width: 33.33%; padding: 4pt 8pt; vertical-align: top; }
-.liq-cell + .liq-cell { border-left: 1px solid #ccc; }
-.liq-item       { display: table; width: 100%; margin-bottom: 2pt; }
-.liq-lbl        { display: table-cell; font-size: 8pt; }
-.liq-val        { display: table-cell; text-align: right; font-family: 'Courier New', monospace; font-size: 8.5pt; font-weight: bold; }
-
-/* Totales */
-.totales-wrap   { display: table; width: 100%; margin-bottom: 8pt; }
-.totales-left   { display: table-cell; width: 55%; vertical-align: top; }
-.totales-right  { display: table-cell; width: 45%; vertical-align: top; }
-.total-row      { display: table; width: 100%; border-bottom: 1px dotted #ccc; margin-bottom: 2pt; padding-bottom: 2pt; }
-.total-lbl      { display: table-cell; font-size: 8.5pt; }
-.total-val      { display: table-cell; text-align: right; font-family: 'Courier New', monospace; font-size: 9pt; }
-.total-general  { background: #000; color: #fff; padding: 5pt 8pt; display: table; width: 100%; margin-top: 4pt; }
-.tg-lbl         { display: table-cell; font-weight: bold; font-size: 10pt; }
-.tg-val         { display: table-cell; text-align: right; font-family: 'Courier New', monospace; font-size: 11pt; font-weight: bold; }
+/* Totales en pie de tabla */
+.tfoot-subtotal td { background: #f0f0f0; font-size: 8.5pt; font-weight: bold; border-top: 2px solid #888; padding: 4pt 5pt; }
+.tfoot-total td    { background: #e0e0e0; font-size: 9pt; font-weight: bold; border-top: 2px solid #555; padding: 4pt 5pt; }
+.tfoot-liq td      { background: #e8e8e8; font-size: 8pt; border-top: 1px solid #bbb; padding: 4pt 5pt; }
+.liq-mini-lbl      { font-size: 7pt; text-transform: uppercase; letter-spacing: .04em; color: #666; margin-bottom: 1pt; }
 
 /* Pie */
 .obs-row        { margin-bottom: 16pt; }
 .obs-lbl        { font-weight: bold; font-size: 8.5pt; }
 .obs-val        { border-bottom: 1px solid #888; min-height: 14pt; display: block; margin-top: 3pt; font-size: 9pt; }
 .firma-row      { display: table; width: 100%; margin-bottom: 6pt; }
-.firma-cell     { display: table-cell; width: 45%; text-align: center; }
+.firma-cell     { display: table-cell; width: 33.33%; text-align: center; }
 .firma-linea    { border-top: 1px solid #000; padding-top: 3pt; font-size: 8pt; }
 .pie-legal      { text-align: center; font-size: 7pt; color: #555; border-top: 1px solid #ccc; padding-top: 5pt; margin-top: 8pt; }
 {% endblock %}
@@ -84,7 +69,7 @@
   <div class="hdr">
     <div class="hdr-left">
       <div class="clinica-nombre">Clínica Lichi</div>
-      <div class="clinica-sub">RUC: {{ factura.persona.nro_documento }} &nbsp;|&nbsp; Asunción, Paraguay</div>
+      <div class="clinica-sub">RUC: 80012345-6 &nbsp;|&nbsp; Asunción, Paraguay</div>
       <div class="clinica-sub" style="margin-top:3pt;">Tel: (021) 000-0000</div>
     </div>
     <div class="hdr-right">
@@ -107,10 +92,10 @@
     <div class="condicion-left">
       <span class="bold" style="margin-right:8pt;">Condición de venta:</span>
       <span class="chk-lbl">
-        <span class="chk">{% if factura.condicion_vta %}✓{% endif %}</span>Contado
+        <span class="chk">{% if factura.condicion_vta %}X{% endif %}</span>Contado
       </span>
       <span class="chk-lbl">
-        <span class="chk">{% if not factura.condicion_vta %}✓{% endif %}</span>Crédito
+        <span class="chk">{% if not factura.condicion_vta %}X{% endif %}</span>Crédito
       </span>
     </div>
     <div class="condicion-fecha">
@@ -139,9 +124,9 @@
         <th class="col-cant">Cant.</th>
         <th class="col-desc">Descripción</th>
         <th class="col-precio">P. Unitario</th>
-        <th class="col-iva">IVA</th>
         <th class="col-exenta">Exenta</th>
-        <th class="col-total">Total Gs.</th>
+        <th class="col-gra5">5%</th>
+        <th class="col-gra10">10%</th>
       </tr>
     </thead>
     <tbody>
@@ -150,11 +135,9 @@
         <td class="col-cant center">{{ item.cantidad|floatformat:0 }}</td>
         <td class="col-desc">{{ item.prs.descripcion }}</td>
         <td class="col-precio right mono">{{ item.precio_unitario|gs }}</td>
-        <td class="col-iva center">
-          {% if item.impuesto == "exenta" %}Exenta{% else %}{{ item.impuesto }}%{% endif %}
-        </td>
-        <td class="col-exenta center">{% if item.impuesto == "exenta" %}X{% endif %}</td>
-        <td class="col-total right mono">{{ item.monto|gs }}</td>
+        <td class="col-exenta right mono">{% if item.impuesto == "exenta" %}{{ item.monto|gs }}{% endif %}</td>
+        <td class="col-gra5 right mono">{% if item.impuesto == "5" %}{{ item.monto|gs }}{% endif %}</td>
+        <td class="col-gra10 right mono">{% if item.impuesto == "10" %}{{ item.monto|gs }}{% endif %}</td>
       </tr>
       {% endfor %}
       {# Filas vacías hasta completar mínimo 8 visibles #}
@@ -163,93 +146,51 @@
         <td class="col-cant">&nbsp;</td>
         <td class="col-desc">&nbsp;</td>
         <td class="col-precio">&nbsp;</td>
-        <td class="col-iva">&nbsp;</td>
         <td class="col-exenta">&nbsp;</td>
-        <td class="col-total">&nbsp;</td>
+        <td class="col-gra5">&nbsp;</td>
+        <td class="col-gra10">&nbsp;</td>
       </tr>
       {% endfor %}
     </tbody>
+    <tfoot>
+      {# Fila 1 — Sub totales por columna #}
+      <tr class="tfoot-subtotal">
+        <td colspan="3" class="right">Sub Total</td>
+        <td class="right mono">{{ sub_exenta|gs }}</td>
+        <td class="right mono">{{ sub_5|gs }}</td>
+        <td class="right mono">{{ sub_10|gs }}</td>
+      </tr>
+      {# Fila 2 — Total comprobante #}
+      <tr class="tfoot-total">
+        <td colspan="3">Total Comprobante Gs.</td>
+        <td colspan="3" class="right mono">{{ factura.monto_total|gs }}</td>
+      </tr>
+      {# Fila 3 — Liquidación del IVA #}
+      <tr class="tfoot-liq">
+        <td colspan="3" style="font-weight:bold;">Liquidación del IVA</td>
+        <td class="right">
+          <div class="liq-mini-lbl">IVA 5%</div>
+          <div class="mono bold">{{ factura.iva_5|gs }}</div>
+        </td>
+        <td class="right">
+          <div class="liq-mini-lbl">IVA 10%</div>
+          <div class="mono bold">{{ factura.iva_10|gs }}</div>
+        </td>
+        <td class="right">
+          <div class="liq-mini-lbl">Total IVA</div>
+          <div class="mono bold">{{ factura.total_iva|gs }}</div>
+        </td>
+      </tr>
+    </tfoot>
   </table>
 
-  {# ── Liquidación IVA ──────────────────────────────────── #}
-  <div class="liq-wrap">
-    <div class="liq-titulo">Liquidación del IVA</div>
-    <div class="liq-grid">
-      <div class="liq-cell">
-        <div class="liq-item">
-          <span class="liq-lbl">Gravada 10%:</span>
-          <span class="liq-val">{{ factura.grav_10|gs }}</span>
-        </div>
-        <div class="liq-item">
-          <span class="liq-lbl">Gravada 5%:</span>
-          <span class="liq-val">{{ factura.grav_5|gs }}</span>
-        </div>
-        <div class="liq-item">
-          <span class="liq-lbl">Exenta:</span>
-          <span class="liq-val">
-            {{ factura.monto_total|minus:factura.total_gravada|gs }}
-          </span>
-        </div>
-      </div>
-      <div class="liq-cell">
-        <div class="liq-item">
-          <span class="liq-lbl">IVA 10%:</span>
-          <span class="liq-val">{{ factura.iva_10|gs }}</span>
-        </div>
-        <div class="liq-item">
-          <span class="liq-lbl">IVA 5%:</span>
-          <span class="liq-val">{{ factura.iva_5|gs }}</span>
-        </div>
-      </div>
-      <div class="liq-cell">
-        <div class="liq-item">
-          <span class="liq-lbl">Total IVA:</span>
-          <span class="liq-val">{{ factura.total_iva|gs }}</span>
-        </div>
-      </div>
-    </div>
+  {# ── Observación ──────────────────────────────────────── #}
+  {% if factura.observacion %}
+  <div class="obs-row" style="margin: 8pt 0;">
+    <span class="obs-lbl">Observación:</span>
+    <span class="obs-val">{{ factura.observacion }}</span>
   </div>
-
-  {# ── Totales ──────────────────────────────────────────── #}
-  <div class="totales-wrap">
-    <div class="totales-left">
-      {% if factura.observacion %}
-      <div class="obs-row">
-        <span class="obs-lbl">Observación:</span>
-        <span class="obs-val">{{ factura.observacion }}</span>
-      </div>
-      {% endif %}
-    </div>
-    <div class="totales-right">
-      {% if factura.grav_10 %}
-      <div class="total-row">
-        <span class="total-lbl">Subtotal gravada 10%:</span>
-        <span class="total-val">{{ factura.grav_10|gs }}</span>
-      </div>
-      {% endif %}
-      {% if factura.grav_5 %}
-      <div class="total-row">
-        <span class="total-lbl">Subtotal gravada 5%:</span>
-        <span class="total-val">{{ factura.grav_5|gs }}</span>
-      </div>
-      {% endif %}
-      <div class="total-general">
-        <span class="tg-lbl">TOTAL GENERAL</span>
-        <span class="tg-val">Gs. {{ factura.monto_total|gs }}</span>
-      </div>
-    </div>
-  </div>
-
-  {# ── Firma ────────────────────────────────────────────── #}
-  <div class="firma-row">
-    <div class="firma-cell">
-      <div class="firma-linea">Firma del cliente</div>
-    </div>
-    <div class="firma-cell"></div>
-    <div class="firma-cell">
-      <div class="firma-linea">Aclaración</div>
-    </div>
-  </div>
+  {% endif %}
 
   {# ── Pie legal ────────────────────────────────────────── #}
   <div class="pie-legal">

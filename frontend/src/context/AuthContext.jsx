@@ -41,7 +41,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('access_token', data.access)
     localStorage.setItem('refresh_token', data.refresh)
     queryClient.clear()
-    setUser(buildUser(data.access))
+    const newUser = buildUser(data.access)
+    setUser(newUser)
+    return newUser
   }
 
   const logout = () => {

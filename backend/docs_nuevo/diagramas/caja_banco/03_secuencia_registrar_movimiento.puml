@@ -1,0 +1,111 @@
+@startuml 03_secuencia_registrar_movimiento
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor RECEP
+boundary "CuentasMcbPage.jsx" as GUI
+control "useCuentasMcb.js" as HOOK
+control "MovimientoCajaBancoViewSet" as VIEW
+entity "MovimientoCajaBancoSerializer" as SER
+entity "MovimientoCajaBanco" as MOV
+entity "CuentaMcb" as CUENTA
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Apertura de cuenta y carga de movimientos ==
+
+RECEP -> GUI : selecciona cuenta "Caja Principal"
+GUI -> HOOK : useMovimientos({ cta: id })
+HOOK -> VIEW : GET /api/movimientos-caja/?cta=ID
+VIEW -> MOV : MovimientoCajaBanco.filter(\n  cta=ID, is_deleted=False)\n  .order_by('-fecha', '-id')
+MOV --> BD : SELECT movimiento_caja_banco
+BD --> MOV : filas ordenadas
+VIEW --> HOOK : lista de movimientos
+HOOK --> GUI : renderiza tabla (fecha, comprobante, ingreso, egreso)
+
+GUI -> HOOK : useCuentasMcb()
+HOOK -> VIEW : GET /api/cuentas-mcb/ID/
+VIEW -> CUENTA : CuentaMcb.annotate(\n  saldo=Coalesce(SUM(monto_ingreso), 0)\n       - Coalesce(SUM(monto_egreso), 0))
+CUENTA --> BD : SELECT cuenta_mcb con saldo anotado
+VIEW --> HOOK : { id, descripcion, saldo }
+HOOK --> GUI : muestra saldo actualizado en header de cuenta
+
+== Registrar nuevo movimiento (directo desde caja) ==
+
+RECEP -> GUI : click "Nuevo movimiento"
+GUI --> RECEP : panel overlay desde la derecha
+
+RECEP -> GUI : toggle — selecciona "Ingreso"
+GUI --> RECEP : campo monto habilitado como ingreso
+
+RECEP -> GUI : ingresa fecha: hoy, monto: 50000
+RECEP -> GUI : ingresa nro_comprobante: "REC-001" (opcional)
+RECEP -> GUI : click "Registrar"
+
+GUI -> GUI : validar() — monto requerido y > 0
+
+GUI -> HOOK : useCreateMovimiento.mutateAsync({\n  cta: ID, fecha: '2026-05-27',\n  monto_ingreso: 50000, monto_egreso: 0,\n  nro_comprobante: 'REC-001' })
+
+HOOK -> VIEW : POST /api/movimientos-caja/\n{ cta, fecha, nro_comprobante,\n  monto_ingreso: 50000, monto_egreso: 0 }
+
+VIEW -> SER : MovimientoCajaBancoSerializer.validate(data)
+
+note over SER
+  Validaciones:
+  1. Si self.instance tiene vfdc_id / vrc_id / ppdc_id → 400
+  2. monto_ingreso=0 AND monto_egreso=0 → 400
+  3. monto_ingreso>0 AND monto_egreso>0 → 400
+end note
+
+alt datos validos
+  VIEW -> AUDIT : perform_create\n  id_usu_creator = request.user
+  AUDIT -> MOV : MovimientoCajaBanco.objects.create(\n  cta_id=ID, fecha='2026-05-27',\n  monto_ingreso=50000, monto_egreso=0,\n  vuelto=0, nro_comprobante='REC-001',\n  vfdc_id=None, vrc_id=None, ppdc_id=None)
+  MOV --> BD : INSERT movimiento_caja_banco
+  AUDIT --> BD : INSERT auditoria_registro (CREAR)
+  VIEW --> HOOK : 201 Created
+  HOOK -> HOOK : invalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+  HOOK --> GUI : panel se cierra\nnueva fila aparece en tabla
+  GUI -> HOOK : re-fetch cuenta → saldo actualizado en header
+else ingreso y egreso ambos con valor
+  VIEW --> HOOK : 400 — "Solo puede tener ingreso o egreso, no ambos."
+  HOOK --> GUI : showToast error
+else ambos en cero
+  VIEW --> HOOK : 400 — "Debe ingresar monto de ingreso o egreso."
+  HOOK --> GUI : showToast error
+end
+
+== Registrar movimiento de egreso ==
+
+RECEP -> GUI : click "Nuevo movimiento"
+GUI --> RECEP : panel overlay desde la derecha
+
+RECEP -> GUI : toggle — selecciona "Egreso"
+RECEP -> GUI : ingresa monto: 30000
+RECEP -> GUI : deja nro_comprobante vacio
+RECEP -> GUI : click "Registrar"
+
+GUI -> HOOK : useCreateMovimiento.mutateAsync({\n  cta: ID, fecha: hoy,\n  monto_ingreso: 0, monto_egreso: 30000,\n  nro_comprobante: null })
+
+HOOK -> VIEW : POST /api/movimientos-caja/\n{ cta, fecha, monto_ingreso: 0,\n  monto_egreso: 30000, nro_comprobante: null }
+
+VIEW -> SER : validate(data) — OK (egreso > 0, ingreso = 0)
+VIEW -> AUDIT : perform_create
+AUDIT -> MOV : MovimientoCajaBanco.objects.create(\n  monto_ingreso=0, monto_egreso=30000, ...)
+MOV --> BD : INSERT movimiento_caja_banco
+AUDIT --> BD : INSERT auditoria_registro (CREAR)
+VIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries
+HOOK --> GUI : tabla actualizada\nsaldo en header: 50000 - 30000 = 20000
+
+@enduml

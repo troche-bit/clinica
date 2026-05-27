@@ -1,0 +1,177 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "CobranzasPage.jsx" as GUI
+control "useCobranzas.js" as HOOK
+control "CobranzaViewSet" as VIEW
+entity "Cobranza" as COB
+entity "CobranzaDet" as DET
+entity "ValorRecibidoCob" as VRC
+entity "CtaCobrar" as CTA
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Apertura del modulo ==
+
+ADMIN -> GUI : abre CobranzasPage
+GUI -> HOOK : useCobranzas()
+HOOK -> VIEW : GET /api/cobranzas/
+VIEW --> HOOK : lista paginada (is_deleted=False)
+HOOK --> GUI : renderiza tabla con columnas:\nComprobante, Fecha, Cliente, Monto, Vuelto, Acciones
+
+== Busqueda y filtros ==
+
+ADMIN -> GUI : escribe nombre en buscador (debounce 300ms)
+GUI -> HOOK : useCobranzas({ search: 'Gonzalez' })
+HOOK -> VIEW : GET /api/cobranzas/?search=Gonzalez
+VIEW --> HOOK : resultados filtrados
+HOOK --> GUI : tabla actualizada
+
+ADMIN -> GUI : selecciona rango de fechas
+GUI -> HOOK : useCobranzas({ fecha_desde, fecha_hasta })
+HOOK -> VIEW : GET /api/cobranzas/?fecha_desde=...&fecha_hasta=...
+VIEW --> HOOK : resultados filtrados
+HOOK --> GUI : tabla actualizada
+
+== Nueva cobranza — apertura modal ==
+
+ADMIN -> GUI : click "Nueva cobranza" (o tecla Insert)
+GUI --> ADMIN : abre ModalNuevaCobranza — Tab 0: Cabecera y cuotas
+
+GUI -> HOOK : useSiguienteNumeroCob()
+HOOK -> VIEW : GET /api/cobranzas/siguiente-numero/
+VIEW -> COB : MAX(comprobante_nro, is_deleted=False) + 1
+VIEW --> HOOK : { siguiente: 42 }
+HOOK --> GUI : muestra "0000042" (campo readOnly)
+
+== Busqueda de cliente con pendientes ==
+
+ADMIN -> GUI : escribe "Gonz" en buscador de cliente (debounce 300ms)
+GUI -> HOOK : useClientesConPendientes('Gonz')
+HOOK -> VIEW : GET /api/cobranzas/clientes-con-pendientes/?search=Gonz
+VIEW -> CTA : Persona.filter(\n  facturas__cuotas__saldo__gt=0,\n  is_deleted=False).distinct()\n  .filter(razon_social__icontains='Gonz')
+CTA --> VIEW : clientes con cuotas pendientes
+VIEW --> HOOK : [{ id, razon_social, nro_documento }]
+HOOK --> GUI : dropdown filtrado — solo clientes con saldo pendiente
+
+ADMIN -> GUI : selecciona "Gonzalez, Maria"
+
+== Carga de cuotas pendientes ==
+
+GUI -> HOOK : useCuotasPendientes(persona_id=12)
+HOOK -> VIEW : GET /api/cobranzas/cuotas-pendientes/?persona=12
+VIEW -> CTA : CtaCobrar.filter(\n  saldo__gt=0, is_deleted=False,\n  vfc__persona_id=12, vfc__is_deleted=False)\n  .select_related('vfc__timbrado')
+CTA --> VIEW : cuotas con factura_nro, cuota_display, saldo, vencimiento
+VIEW --> HOOK : [{ id, factura_nro, nro_cuota, cant_cuota,\n  saldo: 90000, fecha_vencimiento, estado }]
+HOOK --> GUI : tabla de cuotas con checkboxes\n(filas vencidas resaltadas en rojo)
+
+ADMIN -> GUI : tick checkbox cuota 1 → monto = 90000 (total)\nADMIN tick cuota 2 → monto = 60000 (parcial)
+GUI -> GUI : totalCobrar = 90000 + 60000 = 150000
+
+== Valores recibidos (Tab 1) ==
+
+ADMIN -> GUI : click tab "Valores recibidos"
+ADMIN -> GUI : fila 1: Efectivo / Caja Chica / 100000
+ADMIN -> GUI : click "Agregar fila"
+ADMIN -> GUI : fila 2: Tarjeta / POS / 80000
+GUI -> GUI : totalRecibido = 180000\nvuelto = max(0, 180000 - 150000) = 30000
+GUI --> ADMIN : indicador "Vuelto: 30.000 Gs."
+
+== Guardar cobranza (F10 o boton Guardar) ==
+
+ADMIN -> GUI : click "Guardar" (o tecla F10)
+GUI -> GUI : validar() — persona, fecha, cuotas con monto>0,\nvalores con forma_pago+cta+monto>0,\ntotalRecibido >= totalCobrar
+GUI -> HOOK : useCreateCobranza.mutateAsync(payload)
+HOOK -> VIEW : POST /api/cobranzas/\n{ fecha: '2026-05-26', persona: 12,\n  detalle: [\n    { cta_cobrar_id: 5, monto_pagado: 90000 },\n    { cta_cobrar_id: 7, monto_pagado: 60000 }\n  ],\n  valores_recibidos: [\n    { forma_pago_id: 1, cta_id: 2, monto: 100000 },\n    { forma_pago_id: 3, cta_id: 4, monto: 80000 }\n  ] }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+
+VIEW -> COB : Cobranza.objects.create(\n  comprobante_nro=42, persona=12,\n  monto=150000, vuelto=30000)
+COB --> BD : INSERT cobranza — id=8
+
+VIEW -> CTA : CtaCobrar(5).select_for_update()\nsaldo=90000 → 0, estado='pagado'
+CTA --> BD : UPDATE cta_cobrar id=5
+VIEW -> DET : CobranzaDet.create(cobranza=8, cta_cobrar=5,\n  monto_total=90000, monto_pagado=90000)
+DET --> BD : INSERT cobranza_det
+
+VIEW -> CTA : CtaCobrar(7).select_for_update()\nsaldo=120000 → 60000, estado='pendiente'
+CTA --> BD : UPDATE cta_cobrar id=7
+VIEW -> DET : CobranzaDet.create(cobranza=8, cta_cobrar=7,\n  monto_total=120000, monto_pagado=60000)
+DET --> BD : INSERT cobranza_det
+
+note over VIEW : Distribucion FIFO — saldo_pendiente=150000
+
+VIEW -> VRC : ValorRecibidoCob.create(cobranza=8,\n  forma_pago=1, cta=2, monto=100000)
+VRC --> BD : INSERT valor_recibido_cob — id=15
+VIEW -> VIEW : ingreso = min(100000, 150000) = 100000\nsaldo_pendiente = 50000
+VIEW -> MOV : MovimientoCajaBanco.create(\n  cta=2, monto_ingreso=100000, vrc_id=15)
+MOV --> BD : INSERT movimiento_caja_banco
+
+VIEW -> VRC : ValorRecibidoCob.create(cobranza=8,\n  forma_pago=3, cta=4, monto=80000)
+VRC --> BD : INSERT valor_recibido_cob — id=16
+VIEW -> VIEW : ingreso = min(80000, 50000) = 50000\nsaldo_pendiente = 0
+VIEW -> MOV : MovimientoCajaBanco.create(\n  cta=4, monto_ingreso=50000, vrc_id=16)
+MOV --> BD : INSERT movimiento_caja_banco\n(30000 de vuelto NO genera movimiento)
+
+VIEW -> AUDIT : registrar CREAR en auditoria
+AUDIT --> BD : INSERT auditoria_registro
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['cobranzas'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])\ninvalidateQueries(['facturas'])\ninvalidateQueries(['cuotas-pendientes'])
+HOOK --> GUI : onSuccess
+GUI --> ADMIN : modal se cierra\nfila nueva aparece en la tabla
+
+== Recibo PDF por fila ==
+
+ADMIN -> GUI : click icono impresora en la fila
+GUI -> VIEW : GET /api/cobranzas/8/recibo-pdf/\n(apiClient blob)
+VIEW -> COB : Cobranza.select_related('persona')
+VIEW -> DET : CobranzaDet.filter(cobranza=8)\n  .select_related('cta_cobrar__vfc__timbrado')
+VIEW -> VRC : ValorRecibidoCob activos del comprobante
+VIEW -> VIEW : construye detalle_rows con factura_nro computado
+VIEW -> VIEW : render_to_string('informes/recibo_cobranza.html', ctx)
+VIEW -> VIEW : weasyprint.HTML(string=html).write_pdf()
+VIEW --> GUI : application/pdf — inline; filename="recibo_cob_0000042.pdf"
+GUI --> ADMIN : PDF del recibo abierto en nueva pestana
+
+== Recibo PDF desde modal de detalle ==
+
+ADMIN -> GUI : click fila en tabla
+GUI --> ADMIN : abre ModalVerCobranza
+GUI -> HOOK : useCobranzaDetalle(8)
+HOOK -> VIEW : GET /api/cobranzas/8/
+VIEW --> HOOK : CobranzaDetalleSerializer (detalle + valores_recibidos)
+HOOK --> GUI : renderiza cuotas cobradas y valores recibidos
+
+ADMIN -> GUI : click "Recibo PDF" en footer del modal
+GUI -> VIEW : GET /api/cobranzas/8/recibo-pdf/ (blob)
+VIEW --> GUI : PDF generado
+GUI --> ADMIN : PDF abierto en nueva pestana
+
+== Reporte general (lista PDF / Excel) ==
+
+ADMIN -> GUI : click boton "PDF" o "Excel" en toolbar
+GUI -> VIEW : GET /api/cobranzas/reporte-pdf/\n(con filtros activos como query params)
+VIEW -> VIEW : _qs_con_filtros(request)\n_filtros_str(request)
+VIEW -> VIEW : construye filas con nro, comprobante,\nfecha, cliente, documento, monto, vuelto
+VIEW -> VIEW : render_to_string('informes/cobranza_lista.html', ctx)
+VIEW -> VIEW : weasyprint / openpyxl segun accion
+VIEW --> GUI : PDF o XLSX descargado
+GUI --> ADMIN : archivo abierto o descargado
+
+@enduml

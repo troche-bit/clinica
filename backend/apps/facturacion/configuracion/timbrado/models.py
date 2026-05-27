@@ -14,8 +14,11 @@ class Timbrado(BaseModel):
         ordering            = ['-inicio_vigencia']
         constraints         = [
             models.UniqueConstraint(
-                fields=['nro_timbrado'],
-                name='unique_timbrado_nro',
+                fields=[
+                    'nro_timbrado', 'inicio_vigencia', 'fin_vigencia',
+                    'punto_sucursal', 'punto_expedicion', 'nro_desde', 'nro_hasta',
+                ],
+                name='unique_timbrado_combinado',
                 condition=Q(is_deleted=False),
             )
         ]

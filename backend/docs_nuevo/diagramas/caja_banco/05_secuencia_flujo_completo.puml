@@ -1,0 +1,160 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "CuentasMcbPage.jsx" as GUI
+control "useCuentasMcb.js" as HOOK
+control "CuentaMcbViewSet" as VCUENTA
+control "MovimientoCajaBancoViewSet" as VMOV
+entity "MovimientoCajaBancoSerializer" as SER
+entity "CuentaMcb" as CUENTA
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Apertura del modulo ==
+
+ADMIN -> GUI : abre CuentasMcbPage
+GUI -> HOOK : useCuentasMcb()
+HOOK -> VCUENTA : GET /api/cuentas-mcb/
+VCUENTA -> CUENTA : CuentaMcb.filter(is_deleted=False)\n  .annotate(\n    saldo=Coalesce(SUM(ingreso),0)\n          - Coalesce(SUM(egreso),0),\n    total_movimientos=Count(movimientos))
+CUENTA --> BD : SELECT con anotaciones
+BD --> CUENTA : cuentas con saldo calculado
+VCUENTA --> HOOK : [{ id, descripcion, saldo, total_movimientos }]
+HOOK --> GUI : renderiza grilla de cards\n(4 columnas desktop, 1 mobile)
+
+== Busqueda de cuenta (debounce 300ms) ==
+
+ADMIN -> GUI : escribe "caja" en buscador
+GUI -> HOOK : useCuentasMcb({ search: 'caja' })
+HOOK -> VCUENTA : GET /api/cuentas-mcb/?search=caja
+VCUENTA -> CUENTA : filter(descripcion__icontains='caja')
+VCUENTA --> HOOK : cuentas filtradas
+HOOK --> GUI : grilla actualizada
+
+== Drill-down: seleccionar cuenta ==
+
+ADMIN -> GUI : click card "Caja Principal"
+GUI -> HOOK : useMovimientos({ cta: 3 })
+HOOK -> VMOV : GET /api/movimientos-caja/?cta=3
+VMOV -> MOV : MovimientoCajaBanco.filter(\n  cta=3, is_deleted=False)\n  .order_by('-fecha', '-id')
+MOV --> BD : SELECT movimiento_caja_banco
+BD --> MOV : movimientos ordenados
+VMOV --> HOOK : lista de movimientos
+HOOK --> GUI : tabla con columnas:\nFecha, Nro. Comp., Ingreso, Egreso, Acciones
+
+GUI --> ADMIN : header muestra "Caja Principal\nSaldo: 500.000 Gs."
+
+== Filtrar movimientos por nro_comprobante ==
+
+ADMIN -> GUI : escribe "REC" en buscador de movimientos (debounce 300ms)
+GUI -> HOOK : useMovimientos({ cta: 3, search: 'REC' })
+HOOK -> VMOV : GET /api/movimientos-caja/?cta=3&search=REC
+VMOV -> MOV : filter(nro_comprobante__icontains='REC')
+VMOV --> HOOK : movimientos filtrados
+HOOK --> GUI : tabla actualizada
+
+== Registrar movimiento directo (ingreso) ==
+
+ADMIN -> GUI : click "Nuevo movimiento"
+GUI --> ADMIN : panel overlay desde la derecha
+ADMIN -> GUI : toggle Ingreso, monto=75000, nro_comprobante="REC-100"
+ADMIN -> GUI : click "Registrar"
+
+GUI -> GUI : validar() — monto requerido
+GUI -> HOOK : useCreateMovimiento.mutateAsync({\n  cta: 3, fecha: '2026-05-27',\n  monto_ingreso: 75000, monto_egreso: 0,\n  nro_comprobante: 'REC-100' })
+HOOK -> VMOV : POST /api/movimientos-caja/
+VMOV -> SER : validate(data)\n→ OK (ingreso > 0, egreso = 0, no instancia externa)
+VMOV -> AUDIT : perform_create — id_usu_creator = request.user
+AUDIT -> MOV : MovimientoCajaBanco.objects.create(\n  cta_id=3, monto_ingreso=75000,\n  monto_egreso=0, vuelto=0,\n  nro_comprobante='REC-100',\n  vfdc_id=None, vrc_id=None, ppdc_id=None)
+MOV --> BD : INSERT movimiento_caja_banco
+AUDIT --> BD : INSERT auditoria_registro (CREAR)
+VMOV --> HOOK : 201 Created
+HOOK -> HOOK : invalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : panel se cierra\nnueva fila en tabla\nsaldo en header: 575.000 Gs.
+
+== Intento de editar movimiento externo (generado por Cobranzas) ==
+
+note over GUI
+  El movimiento id=20 tiene vrc_id=15 (de cobranzas).
+  El boton editar NO aparece en la fila
+  porque el frontend verifica vrc_id != null.
+end note
+
+ADMIN -> GUI : observa fila de movimiento id=20 (vrc_id=15)
+GUI --> ADMIN : boton editar NO visible — solo boton eliminar (admin)
+
+note over GUI
+  Solo admin ve el boton eliminar.
+  Si lo intenta, el backend tambien bloquea.
+end note
+
+ADMIN -> GUI : click icono eliminar en movimiento id=20
+GUI --> ADMIN : ConfirmDialog "¿Eliminar este movimiento?"
+ADMIN -> GUI : confirma
+GUI -> HOOK : useDeleteMovimiento.mutateAsync(20)
+HOOK -> VMOV : DELETE /api/movimientos-caja/20/
+VMOV -> MOV : instance = get(id=20)
+VMOV -> VMOV : perform_destroy — verifica\nvfdc_id=None AND vrc_id=15 AND ppdc_id=None
+VMOV --> HOOK : 400 — "No se puede eliminar un movimiento\ngenerado automaticamente por otro modulo."
+HOOK --> GUI : showToast error
+
+== Editar movimiento directo (registrado desde caja) ==
+
+ADMIN -> GUI : click icono editar en movimiento id=22\n(vfdc_id=None, vrc_id=None, ppdc_id=None)
+GUI --> ADMIN : panel overlay con datos actuales
+ADMIN -> GUI : modifica monto a 80000
+ADMIN -> GUI : click "Guardar cambios"
+
+GUI -> HOOK : useUpdateMovimiento.mutateAsync({\n  id: 22, monto_ingreso: 80000 })
+HOOK -> VMOV : PATCH /api/movimientos-caja/22/
+VMOV -> SER : validate(data)\n→ self.instance.vfdc_id=None, vrc_id=None, ppdc_id=None → OK
+VMOV -> AUDIT : perform_update — id_usu_modificator = request.user
+AUDIT -> MOV : instance.save()
+MOV --> BD : UPDATE movimiento_caja_banco SET monto_ingreso=80000
+AUDIT --> BD : INSERT auditoria_registro (EDITAR)
+VMOV --> HOOK : 200 OK
+HOOK -> HOOK : invalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : panel se cierra\nfila actualizada en tabla
+
+== Intento de eliminar cuenta con movimientos activos ==
+
+ADMIN -> GUI : click icono eliminar en header de cuenta
+GUI --> ADMIN : ConfirmDialog\n"Solo se puede eliminar si no tiene movimientos activos."
+ADMIN -> GUI : confirma
+GUI -> HOOK : useDeleteCuenta.mutateAsync(3)
+HOOK -> VCUENTA : DELETE /api/cuentas-mcb/3/
+VCUENTA -> CUENTA : instance = get(id=3)
+VCUENTA -> VCUENTA : perform_destroy — verifica\ninstance.movimientos.filter(is_deleted=False).exists()
+VCUENTA --> HOOK : 400 — "No se puede eliminar una cuenta con movimientos activos."
+HOOK --> GUI : showToast error
+
+== Eliminar cuenta sin movimientos activos ==
+
+ADMIN -> GUI : click eliminar en cuenta vacía id=7
+GUI --> ADMIN : ConfirmDialog
+ADMIN -> GUI : confirma
+GUI -> HOOK : useDeleteCuenta.mutateAsync(7)
+HOOK -> VCUENTA : DELETE /api/cuentas-mcb/7/
+VCUENTA -> CUENTA : instance.movimientos.filter(is_deleted=False).exists() → False
+VCUENTA -> AUDIT : borrado logico\nis_deleted=True, fecha_eliminacion=now
+AUDIT -> CUENTA : instance.save()
+CUENTA --> BD : UPDATE cuenta_mcb SET is_deleted=True
+AUDIT --> BD : INSERT auditoria_registro (ELIMINAR)
+VCUENTA --> HOOK : 204 No Content
+HOOK -> HOOK : invalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : card desaparece de la grilla
+
+@enduml

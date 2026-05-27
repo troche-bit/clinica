@@ -1,3 +1,4 @@
+from django.db.models import Exists, OuterRef
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,6 +9,8 @@ from apps.administracion.auditoria.mixins import AuditoriaMixin
 from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from apps.clinica.paciente.models import Paciente
 from apps.clinica.paciente.serializers import PacienteSerializer
+from apps.clinica.paciente_responsable.models import PacienteResponsable
+from apps.administracion.persona_rrhh.models import PersonaRRHH
 from .models import TipoDocumento, Persona
 from .serializers import TipoDocumentoSerializer, PersonaListSerializer, PersonaSerializer
 
@@ -45,9 +48,18 @@ class PersonaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return [IsAuthenticated(), IsAdminOrRecepcionista()]
 
     def get_queryset(self):
-        return Persona.objects.filter(
+        qs = Persona.objects.filter(
             is_deleted=False
         ).select_related("tipo_documento", "pais", "departamento", "ciudad")
+
+        if self.request.query_params.get('con_rol') == 'true':
+            qs = qs.filter(
+                Exists(Paciente.objects.filter(persona=OuterRef('pk'), is_deleted=False)) |
+                Exists(PacienteResponsable.objects.filter(persona=OuterRef('pk'), is_deleted=False)) |
+                Exists(PersonaRRHH.objects.filter(persona=OuterRef('pk'), is_deleted=False))
+            )
+
+        return qs
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve', 'buscar'):

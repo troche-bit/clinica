@@ -36,8 +36,8 @@ class MovimientoCajaBanco(BaseModel):
     vrc_id   = models.IntegerField(null=True, blank=True)
     ppdc_id  = models.IntegerField(null=True, blank=True)
 
-    fecha         = models.DateField(default=date_type.today)
-    voucher       = models.CharField(max_length=50, null=True, blank=True)
+    fecha           = models.DateField(default=date_type.today)
+    nro_comprobante = models.CharField(max_length=50, null=True, blank=True)
     monto_ingreso = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     monto_egreso  = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     vuelto        = models.DecimalField(max_digits=18, decimal_places=2, default=0)

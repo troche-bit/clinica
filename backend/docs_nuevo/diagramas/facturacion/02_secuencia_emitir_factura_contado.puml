@@ -1,0 +1,96 @@
+@startuml 02_secuencia_emitir_factura_contado
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor RECEPCIONISTA
+boundary "FacturacionPage.jsx" as GUI
+control "useFacturacion.js" as HOOK
+control "VentaFactCabViewSet" as VIEW
+control "services.py" as SERVICE
+entity "VentaFactCab" as CAB
+entity "VentaFactDet" as DET
+entity "VentaFactDetCobranza" as COB
+entity "MovimientoCajaBanco" as MOV
+entity "Timbrado" as TIM
+database "PostgreSQL" as BD
+
+== Pestaña 1 — Cabecera y Detalle ==
+
+RECEPCIONISTA -> GUI : ingresa establecimiento y expedicion (3 digitos)
+GUI -> HOOK : useSiguienteNumero(estab, expedicion)
+HOOK -> VIEW : GET /api/facturacion/siguiente-numero/\n?establecimiento=001&expedicion=001
+VIEW -> TIM : filtra timbrado vigente por punto de emision
+TIM --> VIEW : timbrado + max nro usado
+VIEW --> HOOK : { siguiente: N, nro_timbrado: X, timbrado_id: Y }
+HOOK --> GUI : muestra siguiente numero disponible
+
+RECEPCIONISTA -> GUI : busca cliente (debounce 300ms)
+GUI -> HOOK : useBuscarPersonas(search)
+HOOK -> VIEW : GET /api/persona/?search=...&page_size=8
+VIEW --> HOOK : { results: [personas] }
+HOOK --> GUI : muestra autocomplete
+RECEPCIONISTA -> GUI : selecciona cliente del autocomplete
+
+RECEPCIONISTA -> GUI : busca producto (debounce 300ms)
+GUI -> HOOK : useBuscarProductos(search)
+HOOK -> VIEW : GET /api/productos/?search=...&activo=true&page_size=10
+VIEW --> HOOK : { results: [productos] }
+HOOK --> GUI : muestra autocomplete
+RECEPCIONISTA -> GUI : selecciona producto
+RECEPCIONISTA -> GUI : ingresa cantidad y precio unitario
+GUI -> GUI : calcularItem(monto, impuesto)\ncalcularTotales(detalle)
+GUI --> RECEPCIONISTA : muestra IVA en tiempo real\n(Gravada + IVA + Total)
+
+note over GUI : Puede agregar mas productos
+
+== Pestaña 2 — Cobranza ==
+
+RECEPCIONISTA -> GUI : selecciona forma de pago
+RECEPCIONISTA -> GUI : selecciona cuenta (Caja)
+RECEPCIONISTA -> GUI : ingresa monto
+GUI -> GUI : totalCobrado vs montoTotal
+GUI --> RECEPCIONISTA : indicador "Cobrado completo" / falta X / vuelto Y
+
+note over GUI : Puede agregar mas formas de pago
+
+== Emision ==
+
+RECEPCIONISTA -> GUI : click "Emitir factura"
+GUI -> GUI : validar() — fecha, persona, timbrado, detalle, cobranza
+GUI -> HOOK : useCreateFactura.mutateAsync(payload)
+HOOK -> VIEW : POST /api/facturacion/\n{ cabecera, detalle[], cobranza[] }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+VIEW -> TIM : verifica vigencia y rango nro_comprobante
+TIM --> VIEW : timbrado valido
+VIEW -> SERVICE : calcular_item(monto, impuesto) por cada det
+SERVICE --> VIEW : { sub_gra_10, sub_iva_10, ... }
+VIEW -> SERVICE : calcular_totales(items_calculados)
+SERVICE --> VIEW : { grav_5, grav_10, iva_5, iva_10, total_gravada, total_iva, monto_total }
+VIEW -> CAB : VentaFactCab.objects.create(...)
+CAB --> BD : INSERT venta_fact_cab
+VIEW -> DET : VentaFactDet.objects.create() x cada item
+DET --> BD : INSERT venta_fact_det[]
+VIEW -> COB : VentaFactDetCobranza.objects.create() x cada pago
+COB --> BD : INSERT venta_fact_det_cobranza[]
+VIEW -> MOV : MovimientoCajaBanco.objects.create() x cada pago
+MOV --> BD : INSERT movimiento_caja_banco[]
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created — VentaFactCabDetalleSerializer
+HOOK -> HOOK : invalidateQueries(['facturas'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : onSuccess
+GUI --> RECEPCIONISTA : modal se cierra\ntabla se actualiza con la factura emitida
+
+@enduml

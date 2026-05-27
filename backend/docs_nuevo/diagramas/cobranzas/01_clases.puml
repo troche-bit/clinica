@@ -1,0 +1,105 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+skinparam classArrowColor #000000
+skinparam classAttributeFontSize 11
+skinparam classHeaderBackgroundColor #ffffff
+
+class Persona {
+  razon_social
+  nro_documento
+}
+
+class FormaPago {
+  descripcion
+  tipo
+}
+
+class CuentaMcb {
+  descripcion
+  saldo
+}
+
+class VentaFactCab {
+  nro_comprobante
+  fecha
+  establecimiento
+  expedicion
+}
+
+class CtaCobrar {
+  nro_cuota : IntegerField
+  cant_cuota : IntegerField
+  monto_cuota : Decimal
+  saldo : Decimal
+  fecha_vencimiento : DateField
+  estado : CharField (pendiente/vencido/pagado)
+  is_deleted : BooleanField
+}
+
+class Cobranza {
+  comprobante_nro : IntegerField (nullable, autoincrement)
+  fecha : DateField
+  monto : Decimal
+  vuelto : Decimal
+  is_deleted : BooleanField
+}
+
+class CobranzaDet {
+  monto_total : Decimal
+  monto_pagado : Decimal
+  nro_comprobante : CharField
+  is_deleted : BooleanField
+}
+
+class ValorRecibidoCob {
+  monto : Decimal
+  voucher : CharField
+  nro_comprobante : CharField
+  is_deleted : BooleanField
+}
+
+class MovimientoCajaBanco {
+  monto_ingreso : Decimal
+  fecha : DateField
+  vrc_id : IntegerField
+}
+
+Cobranza "N" --> "1" Persona : persona
+VentaFactCab "N" --> "1" Persona : persona
+CtaCobrar "N" --> "1" VentaFactCab : vfc
+CobranzaDet "1..*" --> "1" Cobranza : cobranza
+CobranzaDet "N" --> "1" CtaCobrar : cta_cobrar
+ValorRecibidoCob "1..*" --> "1" Cobranza : cobranza
+ValorRecibidoCob "N" --> "1" FormaPago : forma_pago
+ValorRecibidoCob "N" --> "1" CuentaMcb : cta
+MovimientoCajaBanco "N" ..> "1" ValorRecibidoCob : vrc_id
+
+note bottom of Cobranza
+  comprobante_nro autoincrementa MAX + 1.
+  monto = suma de cuotas pagadas.
+  vuelto = max(0, total_recibido - monto).
+  Transaccion atomica en create y delete.
+end note
+
+note right of CobranzaDet
+  monto_total = saldo de la cuota
+  antes del cobro.
+  Descuenta saldo de CtaCobrar al crear.
+  Revierte saldo al eliminar.
+end note
+
+note right of ValorRecibidoCob
+  Registra lo fisicamente recibido.
+  MovimientoCajaBanco solo acumula
+  hasta monto (FIFO). El exceso
+  (vuelto) no genera movimiento.
+end note
+
+@enduml

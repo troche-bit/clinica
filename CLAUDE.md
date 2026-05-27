@@ -285,5 +285,5 @@ def perform_destroy(self, instance):
 | `Timbrado` | facturas activas en `VentaFactCab` | ✅ |
 | `Grupo` | productos activos vinculados | ✅ |
 | `ProductoServicio` | facturas activas en `VentaFactDet` | ✅ |
-| `VentaFactCab` | movimientos de caja vinculados a su cobranza (`MovimientoCajaBanco.vfdc_id`) | ✅ |
+| `VentaFactCab` | cascade: elimina `MovimientoCajaBanco` vinculados, `VentaFactDet`, `VentaFactDetCobranza` y `CtaCobrar` — sin bloqueo | ✅ |
 | `CuentaMcb` | movimientos activos en `MovimientoCajaBanco` | ✅ |

@@ -1,0 +1,121 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam componentBorderColor #000000
+skinparam componentBackgroundColor #ffffff
+skinparam packageBorderColor #000000
+skinparam packageBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam arrowColor #000000
+skinparam noteBorderColor #000000
+skinparam noteBackgroundColor #ffffff
+
+package "Frontend" {
+  component "FacturacionPage.jsx" as PAGE
+  note right of PAGE
+    Tabla facturas
+    Modal emision 3 pestanas
+    Modal ver / editar detalle
+  end note
+
+  component "useFacturacion.js" as HOOK
+  note right of HOOK
+    useFacturas()
+    useFacturaDetalle()
+    useCreateFactura()
+    useUpdateFactura()
+    useDeleteFactura()
+    useValidarTimbrado()
+    useSiguienteNumero()
+    useFormaPago()
+    useBuscarPersonas()
+    useBuscarProductos()
+  end note
+
+  component "useTimbrado.js" as TIMHOOK
+  note right of TIMHOOK
+    consulta timbrado vigente
+  end note
+
+  component "client.js" as CLIENT
+  note right of CLIENT
+    responseType blob
+    para PDF de factura
+  end note
+
+  component "ConfirmDialog.jsx" as CONFIRM
+}
+
+package "Backend" {
+  component "VentaFactCabViewSet" as VIEW
+  note right of VIEW
+    /validar-timbrado/
+    /siguiente-numero/
+    {id}/pdf/
+  end note
+
+  component "services.py" as SVC
+  note right of SVC
+    calculo Decimal SET
+    IVA 10%: monto / 1.10
+    IVA 5%: monto / 1.05
+    ROUND_HALF_UP
+  end note
+
+  component "VentaFactCabListSerializer" as LISTSER
+  component "VentaFactCabDetalleSerializer" as DETSER
+  component "VentaFactCabUpdateSerializer" as UPDSER
+  note right of UPDSER
+    solo fecha, persona,
+    observacion
+  end note
+
+  component "WeasyPrint" as PDF
+  note right of PDF
+    factura_print.html
+    formato SET Paraguay
+  end note
+
+  component "AuditoriaMixin" as AUDIT
+}
+
+package "Base de Datos" {
+  database "venta_fact_cab" as TCAB
+  database "venta_fact_det" as TDET
+  database "venta_fact_det_cobranza" as TCOB
+  database "ctacobrar\n(solo credito)" as TCTA
+  database "movimiento_caja_banco\n(solo contado)" as TMOV
+  database "timbrado\n(vigente al emitir)" as TTIM
+}
+
+PAGE --> HOOK : usa
+PAGE --> CONFIRM : usa
+HOOK --> CLIENT : axios
+CLIENT --> VIEW : HTTP
+
+VIEW --> SVC : calculo IVA
+VIEW --> LISTSER : list
+VIEW --> DETSER : retrieve / create
+VIEW --> UPDSER : partial_update simple
+VIEW --> PDF : accion pdf
+AUDIT --> VIEW : herencia
+
+VIEW --> TCAB : transaccion atomica
+VIEW --> TDET : transaccion atomica
+VIEW --> TCOB : contado → MovimientoCajaBanco
+VIEW --> TCTA : credito → CtaCobrar
+VIEW --> TMOV : contado → MovimientoCajaBanco
+VIEW --> TTIM : vigente al emitir
+
+note as N1
+  siguiente numero auto:
+  MAX(nro_comprobante) + 1
+  por timbrado activo
+end note
+
+@enduml

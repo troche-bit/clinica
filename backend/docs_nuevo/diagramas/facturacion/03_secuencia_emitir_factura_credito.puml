@@ -1,0 +1,76 @@
+@startuml 03_secuencia_emitir_factura_credito
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor RECEPCIONISTA
+boundary "FacturacionPage.jsx" as GUI
+control "useFacturacion.js" as HOOK
+control "VentaFactCabViewSet" as VIEW
+control "services.py" as SERVICE
+entity "VentaFactCab" as CAB
+entity "VentaFactDet" as DET
+entity "CtaCobrar" as CTA
+database "PostgreSQL" as BD
+
+== Pestaña 1 — Cabecera y Detalle ==
+
+RECEPCIONISTA -> GUI : mismo flujo que factura contado\n(punto emision, cliente, productos)
+RECEPCIONISTA -> GUI : toggle condicion_vta → Credito (desmarca checkbox Contado)
+GUI --> RECEPCIONISTA : pestaña cambia a "Cuenta a Cobrar"
+
+== Pestaña 3 — Cuotas ==
+
+RECEPCIONISTA -> GUI : ingresa cantidad de cuotas
+RECEPCIONISTA -> GUI : ingresa dias entre cuotas
+GUI -> GUI : preview local (sin llamada al backend)\ncalcula fecha_vencimiento = fecha + dias * N\ncalcula monto_cuota = total / cant_cuotas
+GUI --> RECEPCIONISTA : tabla preview:\nCuota N | Fecha vencimiento | Monto
+
+== Flujo alternativo — cuotas no cuadran ==
+
+alt total cuotas != total factura o campos vacios
+  GUI --> RECEPCIONISTA : boton Emitir deshabilitado\nmensaje de error en pestaña
+end
+
+== Emision ==
+
+RECEPCIONISTA -> GUI : click "Emitir factura"
+GUI -> GUI : validar() — fecha, persona, timbrado, detalle, cuotas
+GUI -> HOOK : useCreateFactura.mutateAsync(payload)
+HOOK -> VIEW : POST /api/facturacion/\n{ cabecera, detalle[], cuotas: { cant_cuota, dias_entre_cuotas } }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+VIEW -> SERVICE : calcular_item(monto, impuesto) por cada det
+SERVICE --> VIEW : desgloses por impuesto
+VIEW -> SERVICE : calcular_totales(items_calculados)
+SERVICE --> VIEW : totales IVA
+VIEW -> CAB : VentaFactCab.objects.create(condicion_vta=False)
+CAB --> BD : INSERT venta_fact_cab
+VIEW -> DET : VentaFactDet.objects.create() x cada item
+DET --> BD : INSERT venta_fact_det[]
+
+loop para i en 1..cant_cuota
+  VIEW -> CTA : CtaCobrar.objects.create(\n  nro_cuota=i,\n  fecha_vencimiento=fecha + dias*i,\n  monto_cuota=total/cant,\n  saldo=monto_cuota,\n  estado='pendiente'\n)
+  CTA --> BD : INSERT ctacobrar
+end
+
+note over VIEW : Sin MovimientoCajaBanco\n(se genera al cobrar la cuota\nen el modulo Cobranzas)
+
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created — VentaFactCabDetalleSerializer
+HOOK -> HOOK : invalidateQueries(['facturas'])
+HOOK --> GUI : onSuccess
+GUI --> RECEPCIONISTA : modal se cierra\ntabla se actualiza con la factura emitida
+
+@enduml

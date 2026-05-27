@@ -1,0 +1,89 @@
+@startuml 03_secuencia_eliminar_cobranza
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "CobranzasPage.jsx" as GUI
+control "ConfirmDialog.jsx" as CONFIRM
+control "useCobranzas.js" as HOOK
+control "CobranzaViewSet" as VIEW
+entity "Cobranza" as COB
+entity "CobranzaDet" as DET
+entity "ValorRecibidoCob" as VRC
+entity "CtaCobrar" as CTA
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Inicio del flujo ==
+
+note over GUI : La eliminacion puede iniciarse\ndesde el icono de la fila\no desde el boton del modal de detalle
+
+alt Desde la fila
+  ADMIN -> GUI : click icono eliminar en la fila
+else Desde el modal de detalle
+  ADMIN -> GUI : click "Eliminar" en ModalVerCobranza
+end
+
+GUI -> CONFIRM : abre ConfirmDialog\n"Eliminar cobranza #N — Cliente?\nTambien eliminara movimientos de caja."
+CONFIRM --> ADMIN : muestra confirmacion
+
+alt ADMIN cancela
+  ADMIN -> CONFIRM : click Cancelar
+  CONFIRM --> GUI : cierra sin accion
+else ADMIN confirma
+  ADMIN -> CONFIRM : click Confirmar
+  CONFIRM --> GUI : onConfirm()
+
+  GUI -> HOOK : useDeleteCobranza.mutateAsync(id)
+  HOOK -> VIEW : DELETE /api/cobranzas/{id}/
+
+  VIEW -> BD : BEGIN TRANSACTION (perform_destroy)
+
+  VIEW -> VRC : obtiene IDs de ValorRecibidoCob\nfiltro: cobranza=instance, is_deleted=False
+  VRC --> VIEW : [vrc_ids]
+
+  VIEW -> DET : CobranzaDet.filter(cobranza=instance, is_deleted=False)\n.select_related('cta_cobrar')
+  DET --> VIEW : detalles con cuotas
+
+  loop por cada CobranzaDet activo
+    VIEW -> CTA : cta.saldo += det.monto_pagado\nsi vencida: cta.estado='vencido'\nsi no: cta.estado='pendiente'\ncta.save()
+    CTA --> BD : UPDATE cta_cobrar SET saldo, estado
+  end
+
+  VIEW -> MOV : MovimientoCajaBanco.filter(\n  vrc_id__in=vrc_ids, is_deleted=False)\n  .update(is_deleted=True, fecha_eliminacion=now)
+  MOV --> BD : UPDATE movimiento_caja_banco SET is_deleted=True
+
+  VIEW -> VRC : ValorRecibidoCob.filter(\n  cobranza=instance, is_deleted=False)\n  .update(is_deleted=True, fecha_eliminacion=now)
+  VRC --> BD : UPDATE valor_recibido_cob SET is_deleted=True
+
+  VIEW -> DET : CobranzaDet.filter(\n  cobranza=instance, is_deleted=False)\n  .update(is_deleted=True, fecha_eliminacion=now)
+  DET --> BD : UPDATE cobranza_det SET is_deleted=True
+
+  VIEW -> AUDIT : registrar ELIMINAR en auditoria
+  AUDIT --> BD : INSERT auditoria_registro
+  VIEW -> COB : Cobranza — borrado logico\n(is_deleted=True, fecha_eliminacion=now)
+  COB --> BD : UPDATE cobranza SET is_deleted=True
+
+  VIEW -> BD : COMMIT
+
+  VIEW --> HOOK : 204 No Content
+  HOOK -> HOOK : invalidateQueries(['cobranzas'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])\ninvalidateQueries(['facturas'])\ninvalidateQueries(['cuotas-pendientes'])
+  HOOK --> GUI : onSuccess
+  GUI --> ADMIN : fila desaparece de la tabla
+
+  note over CTA : Los saldos de las cuotas cobradas\nse revierten: estado segun vencimiento.\nVuelven a aparecer en cuotas-pendientes.
+end
+
+@enduml

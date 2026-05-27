@@ -68,6 +68,31 @@ export function useSiguienteNumeroCob() {
   })
 }
 
+export function useValidarNroCobranza(nro) {
+  return useQuery({
+    queryKey: ['cobranzas-validar-numero', nro],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`${BASE}validar-numero/`, { params: { nro } })
+      return data
+    },
+    enabled: !!nro && /^\d+$/.test(nro),
+    staleTime: 0,
+  })
+}
+
+export function useClientesConPendientes(search = '') {
+  return useQuery({
+    queryKey: ['clientes-con-pendientes', search],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`${BASE}clientes-con-pendientes/`, {
+        params: search ? { search } : {},
+      })
+      return data
+    },
+    staleTime: 0,
+  })
+}
+
 export function useCuotasPendientes(personaId) {
   return useQuery({
     queryKey: ['cuotas-pendientes', personaId],

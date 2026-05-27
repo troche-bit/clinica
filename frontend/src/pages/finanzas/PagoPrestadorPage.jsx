@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Plus, Search, Trash2, Eye, X, AlertCircle, CheckCircle } from 'lucide-react'
+import { Plus, Search, Trash2, Eye, X, AlertCircle, CheckCircle, Banknote, Printer, FileText, FileSpreadsheet } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast from '../../components/ui/Toast'
@@ -11,11 +11,14 @@ import {
   useSiguienteNumeroPago,
   useBloquesPendientes,
   usePagoPrestadorDetalle,
+  useMedicosConPendientes,
+  useValidarNroComprobante,
 } from '../../hooks/finanzas/usePagoPrestador'
 import { useFormaPago } from '../../hooks/facturacion/useFacturacion'
 import { useCuentasMcb } from '../../hooks/finanzas/useCuentasMcb'
-import { useBuscarPersonasRRHH } from '../../hooks/administracion/usePersonaRRHH'
 import { extraerMensajeError } from '../../utils/errores'
+import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
+import apiClient from '../../api/client'
 
 function hoy() { return new Date().toISOString().split('T')[0] }
 function fmt(n) { if (n == null) return '—'; return Number(n).toLocaleString('es-PY') }
@@ -43,7 +46,7 @@ function BuscadorMedico({ value, onSelect }) {
     return () => clearTimeout(timerRef.current)
   }, [query])
 
-  const { data: resultados = [] } = useBuscarPersonasRRHH(debouncedQ)
+  const { data: resultados = [] } = useMedicosConPendientes(debouncedQ)
 
   const handleSelect = (m) => {
     onSelect(m)
@@ -73,7 +76,7 @@ function BuscadorMedico({ value, onSelect }) {
         value={query}
         onChange={e => { setQuery(e.target.value); setAbierto(true); setHighlighted(0) }}
         onKeyDown={handleKeyDown}
-        onFocus={() => query.length >= 2 && setAbierto(true)}
+        onFocus={() => setAbierto(true)}
         onBlur={() => setTimeout(() => setAbierto(false), 200)}
         autoComplete="off"
       />
@@ -95,26 +98,36 @@ function BuscadorMedico({ value, onSelect }) {
   )
 }
 
-function FilaValor({ val, formasPago, cuentas, onChange, onRemove }) {
+function FilaValor({ val, formasPago, cuentas, onChange, onRemove, intentoEnvio }) {
   const fp        = formasPago.find(f => f.id === parseInt(val.forma_pago)) || null
   const esTarjeta = fp?.tipo === 'tarjeta'
+  const tieneAlgo = val.forma_pago || val.cta || parseFloat(val.monto || '0') > 0
+  const errFP     = intentoEnvio && tieneAlgo && !val.forma_pago
+  const errCta    = intentoEnvio && tieneAlgo && !val.cta
+  const errMonto  = intentoEnvio && tieneAlgo && parseFloat(val.monto || '0') <= 0
   return (
     <tr className="pp-vr-fila">
       <td className="pp-td">
-        <select className="pp-select" value={val.forma_pago} onChange={e => onChange('forma_pago', e.target.value)}>
+        <select className={`pp-select${errFP ? ' pp-input-error' : ''}`} value={val.forma_pago}
+          onChange={e => onChange('forma_pago', e.target.value)}>
           <option value="">Forma de pago</option>
           {formasPago.map(f => <option key={f.id} value={f.id}>{f.descripcion}</option>)}
         </select>
+        {errFP && <span className="pp-error">Requerido</span>}
       </td>
       <td className="pp-td">
-        <select className="pp-select" value={val.cta} onChange={e => onChange('cta', e.target.value)}>
+        <select className={`pp-select${errCta ? ' pp-input-error' : ''}`} value={val.cta}
+          onChange={e => onChange('cta', e.target.value)}>
           <option value="">Cuenta</option>
           {cuentas.map(c => <option key={c.id} value={c.id}>{c.descripcion}</option>)}
         </select>
+        {errCta && <span className="pp-error">Requerido</span>}
       </td>
       <td className="pp-td">
-        <input type="number" className="pp-input pp-input-monto" placeholder="0" min="0" step="any"
+        <input type="number" className={`pp-input pp-input-monto${errMonto ? ' pp-input-error' : ''}`}
+          placeholder="0" min="0" step="any"
           value={val.monto} onChange={e => onChange('monto', e.target.value)} />
+        {errMonto && <span className="pp-error">Requerido</span>}
       </td>
       <td className="pp-td">
         <input className="pp-input" placeholder="Voucher" disabled={!esTarjeta}
@@ -129,7 +142,7 @@ function FilaValor({ val, formasPago, cuentas, onChange, onRemove }) {
 
 const VALOR_INIT = () => ({ forma_pago: '', cta: '', monto: '', voucher: '' })
 
-function ModalNuevoPago({ onClose, onCreado, showToast }) {
+function ModalNuevoPago({ onClose, onCreado, showToast, onIsDirtyChange }) {
   const [tab, setTab]               = useState(0)
   const [medico, setMedico]         = useState(null)
   const [fechaHasta, setFechaHasta] = useState(hoy())
@@ -138,6 +151,9 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
   const [valores, setValores]       = useState([VALOR_INIT()])
   const [errores, setErrores]       = useState({})
   const [guardando, setGuardando]   = useState(false)
+  const [nroComprobante, setNroComprobante] = useState('')
+  const [nroAValidar, setNroAValidar]       = useState(null)
+  const [intentoEnvio, setIntentoEnvio]     = useState(false)
 
   const { data: sigNro }                              = useSiguienteNumeroPago()
   const { data: bloques, isLoading: cargandoBloques } = useBloquesPendientes(medico?.id, fechaHasta)
@@ -147,34 +163,68 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
   const createPago                                    = useCreatePagoPrestador()
 
   useEffect(() => {
+    if (sigNro?.siguiente != null && nroComprobante === '') {
+      setNroComprobante(String(sigNro.siguiente).padStart(7, '0'))
+    }
+  }, [sigNro])
+
+  useEffect(() => {
+    const nroInt = parseInt(nroComprobante)
+    if (!nroInt || nroInt < 1) { setNroAValidar(null); return }
+    const t = setTimeout(() => setNroAValidar(nroInt), 400)
+    return () => clearTimeout(t)
+  }, [nroComprobante])
+
+  const { data: validacionNro, isFetching: validandoNro } = useValidarNroComprobante(nroAValidar)
+  const nroError = nroAValidar && validacionNro && !validacionNro.disponible
+    ? validacionNro.mensaje
+    : ''
+
+  useEffect(() => {
     if (!bloques) return
     const sel = {}
     bloques.forEach(b => { sel[`${b.horario_prestador_id}_${b.fecha}`] = true })
     setSeleccionados(sel)
   }, [bloques])
 
+  const isDirty = !!(medico || montoHora || valores.some(v => v.forma_pago || v.cta || v.monto))
+
   const bloquesSeleccionados = (bloques || []).filter(b => seleccionados[`${b.horario_prestador_id}_${b.fecha}`])
   const totalHoras   = bloquesSeleccionados.reduce((acc, b) => acc + parseFloat(b.horas || 0), 0)
   const montoHoraNum = parseFloat(montoHora || '0')
   const montoTotal   = totalHoras * montoHoraNum
   const totalPagado  = valores.reduce((acc, v) => acc + parseFloat(v.monto || '0'), 0)
-  const cubierto     = totalPagado >= montoTotal && montoTotal > 0
+  const cubierto     = totalPagado === montoTotal && montoTotal > 0
+  const excede       = totalPagado > montoTotal && montoTotal > 0
 
   const actualizarValor = (idx, key, val) =>
     setValores(prev => prev.map((v, i) => i === idx ? { ...v, [key]: val } : v))
 
   const validar = () => {
+    setIntentoEnvio(true)
     const e = {}
+    const nroInt = parseInt(nroComprobante)
+    if (!nroInt || nroInt < 1)  e.nroComprobante = 'Ingrese un número de comprobante válido.'
+    else if (nroError)          e.nroComprobante = nroError
+    else if (validandoNro)      e.nroComprobante = 'Verificando número, aguarde un momento.'
     if (!medico)                           e.medico    = 'Seleccione un médico.'
     if (!montoHora || montoHoraNum <= 0)   e.montoHora = 'Ingrese el monto por hora.'
     if (bloquesSeleccionados.length === 0) e.bloques   = 'Seleccione al menos un bloque.'
     const valOk = valores.filter(v => v.forma_pago && v.cta && parseFloat(v.monto || '0') > 0)
     if (valOk.length === 0)                e.valores   = 'Ingrese al menos un valor de pago completo.'
-    if (montoTotal > 0 && totalPagado < montoTotal)
-      e.valores_monto = `Total pagado (${fmt(totalPagado)}) menor al monto total (${fmt(montoTotal)}).`
+    if (montoTotal > 0 && totalPagado > montoTotal)
+      e.valores_monto = `El total pagado (Gs. ${fmt(totalPagado)}) supera el monto a pagar (Gs. ${fmt(montoTotal)}). No se permite pago en exceso.`
+    else if (montoTotal > 0 && totalPagado < montoTotal)
+      e.valores_monto = `El total pagado (Gs. ${fmt(totalPagado)}) es menor al monto a pagar (Gs. ${fmt(montoTotal)}).`
     setErrores(e)
     return e
   }
+
+  useEffect(() => {
+    onIsDirtyChange(isDirty)
+  }, [isDirty])
+
+  useEffect(() => () => onIsDirtyChange(false), [])
 
   const handleGuardar = async () => {
     const e = validar()
@@ -183,8 +233,10 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
       else setTab(1)
       return
     }
+    const nroInt = parseInt(nroComprobante) || undefined
     const payload = {
       persona_rrhh_id: medico.id,
+      nro_comprobante: nroInt,
       fecha_pago:      fechaHasta,
       monto_hora:      montoHoraNum,
       bloques: bloquesSeleccionados.map(b => ({
@@ -213,6 +265,10 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
     }
   }
 
+  useAtajosTeclado({
+    'F10': { fn: () => { if (!guardando) handleGuardar() }, soloFueraDeInputs: false },
+  })
+
   return (
     <div className="pp-modal">
       <div className="pp-tabs">
@@ -221,7 +277,7 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
         </button>
         <button className={`pp-tab${tab === 1 ? ' pp-tab--active' : ''}`} onClick={() => setTab(1)}>
           Forma de pago
-          {montoTotal > 0 && <span className={`pp-tab-badge${cubierto ? ' pp-tab-badge--ok' : ''}`}>{fmt(montoTotal)}</span>}
+          {montoTotal > 0 && <span className={`pp-tab-badge${cubierto ? ' pp-tab-badge--ok' : excede ? ' pp-tab-badge--error' : ''}`}>{fmt(montoTotal)}</span>}
         </button>
       </div>
 
@@ -235,8 +291,32 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
             </div>
             <div className="pp-form-group">
               <label className="pp-label">Nro. comprobante</label>
-              <input className="pp-input pp-mono" readOnly
-                value={sigNro?.siguiente ? String(sigNro.siguiente).padStart(7, '0') : '—'} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  className={`pp-input pp-mono${errores.nroComprobante || nroError ? ' pp-input-error' : ''}`}
+                  value={nroComprobante}
+                  maxLength={7}
+                  placeholder="0000001"
+                  inputMode="numeric"
+                  onChange={e => {
+                    const digits = e.target.value.replace(/[^\d]/g, '').replace(/^0+/, '') || ''
+                    setNroComprobante(digits)
+                  }}
+                  onBlur={e => {
+                    const v = parseInt(e.target.value)
+                    if (v >= 1) setNroComprobante(String(v).padStart(7, '0'))
+                  }}
+                />
+                {validandoNro && (
+                  <span className="pp-nro-checking">verificando...</span>
+                )}
+              </div>
+              {(errores.nroComprobante || nroError) && (
+                <span className="pp-error">{errores.nroComprobante || nroError}</span>
+              )}
+              {!nroError && !validandoNro && nroAValidar && (
+                <span className="pp-nro-ok">Número disponible</span>
+              )}
             </div>
             <div className="pp-form-group">
               <label className="pp-label">Monto por hora (Gs.)</label>
@@ -361,6 +441,7 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
                     cuentas={cuentas}
                     onChange={(k, val) => actualizarValor(i, k, val)}
                     onRemove={() => setValores(prev => prev.filter((_, j) => j !== i))}
+                    intentoEnvio={intentoEnvio}
                   />
                 ))}
               </tbody>
@@ -373,16 +454,22 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
           <div className="pp-totales-bloque">
             <div className="pp-totales-fila">
               <span className="pp-totales-lbl">Monto total a pagar</span>
-              <span className="pp-mono">{fmt(montoTotal)}</span>
+              <span className="pp-mono">Gs. {fmt(montoTotal)}</span>
             </div>
             <div className="pp-totales-fila">
               <span className="pp-totales-lbl">Total ingresado</span>
-              <span className={`pp-mono${!cubierto && totalPagado > 0 ? ' pp-val-error' : ''}`}>{fmt(totalPagado)}</span>
+              <span className={`pp-mono${(excede || (!cubierto && totalPagado > 0)) ? ' pp-val-error' : ''}`}>Gs. {fmt(totalPagado)}</span>
             </div>
             {cubierto && (
               <div className="pp-totales-fila pp-totales-ok">
                 <CheckCircle size={14} />
-                <span>Monto cubierto</span>
+                <span>Monto exacto</span>
+              </div>
+            )}
+            {excede && (
+              <div className="pp-totales-fila pp-totales-excede">
+                <AlertCircle size={14} />
+                <span>Supera el monto a pagar en Gs. {fmt(totalPagado - montoTotal)}</span>
               </div>
             )}
           </div>
@@ -401,16 +488,35 @@ function ModalNuevoPago({ onClose, onCreado, showToast }) {
   )
 }
 
-function ModalVerPago({ id, onClose, onEliminar }) {
+function ModalVerPago({ id, onClose, onEliminar, showToast }) {
   const { data: pago, isLoading } = usePagoPrestadorDetalle(id)
+  const [generandoPdf, setGenerandoPdf] = useState(false)
+
   if (isLoading) return <div className="pp-loading-modal">Cargando...</div>
   if (!pago) return null
+
+  const handleReciboPdf = async () => {
+    setGenerandoPdf(true)
+    try {
+      const res = await apiClient.get(`/pago-prestador/${pago.id}/recibo-pdf/`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      showToast('No se pudo generar el recibo.', 'error')
+    } finally {
+      setGenerandoPdf(false)
+    }
+  }
 
   const ESTADOS = { pendiente: 'pp-badge-warn', parcial: 'pp-badge-info', pagado: 'pp-badge-ok' }
 
   return (
     <div className="pp-ver">
       <div className="pp-ver-header">
+        <div className="pp-ver-campo">
+          <span className="pp-ver-lbl">Nro. comprobante</span>
+          <span className="pp-ver-val pp-mono">{pago.nro_comprobante ? String(pago.nro_comprobante).padStart(7, '0') : '—'}</span>
+        </div>
         <div className="pp-ver-campo">
           <span className="pp-ver-lbl">Médico</span>
           <span className="pp-ver-val pp-bold">{pago.medico_nombre}</span>
@@ -463,6 +569,10 @@ function ModalVerPago({ id, onClose, onEliminar }) {
 
       <div className="pp-modal-footer">
         <button className="btn btn-danger" onClick={() => onEliminar(pago)}>Eliminar</button>
+        <button className="pp-btn-pdf" onClick={handleReciboPdf} disabled={generandoPdf}>
+          <Printer size={14} />
+          {generandoPdf ? 'Generando...' : 'Recibo PDF'}
+        </button>
         <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
       </div>
     </div>
@@ -473,10 +583,78 @@ const ESTADOS_BADGE = { pendiente: 'badge-warning', parcial: 'badge-info', pagad
 
 export default function PagoPrestadorPage() {
   const { toast, showToast }          = useToast()
-  const [modalAbierto, setModalAbierto] = useState(false)
-  const [pagoViendo, setPagoViendo]   = useState(null)
-  const [confirmando, setConfirmando] = useState(null)
+  const [modalAbierto, setModalAbierto]         = useState(false)
+  const [pagoViendo, setPagoViendo]             = useState(null)
+  const [confirmando, setConfirmando]           = useState(null)
+  const [confirmDescartarNuevo, setConfirmDescartarNuevo] = useState(false)
   const [filtros, setFiltros]         = useState({ search: '', estado: '', fecha_desde: '', fecha_hasta: '' })
+  const modalIsDirtyRef               = useRef(false)
+  const debounceRef                   = useRef(null)
+  const [generandoPdfLista,   setGenerandoPdfLista]   = useState(false)
+  const [generandoExcelLista, setGenerandoExcelLista] = useState(false)
+  const [generandoReciboId,   setGenerandoReciboId]   = useState(null)
+
+  useAtajosTeclado({
+    'Insert': { fn: () => { if (!modalAbierto && !pagoViendo) setModalAbierto(true) } },
+  })
+
+  const _params = () => {
+    const p = {}
+    if (filtros.search)       p.search       = filtros.search
+    if (filtros.estado)       p.estado       = filtros.estado
+    if (filtros.fecha_desde)  p.fecha_desde  = filtros.fecha_desde
+    if (filtros.fecha_hasta)  p.fecha_hasta  = filtros.fecha_hasta
+    return p
+  }
+
+  const handlePdfLista = async () => {
+    setGenerandoPdfLista(true)
+    try {
+      const res = await apiClient.get('/pago-prestador/reporte-pdf/', { responseType: 'blob', params: _params() })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      showToast('No se pudo generar el listado PDF.', 'error')
+    } finally {
+      setGenerandoPdfLista(false)
+    }
+  }
+
+  const handleExcelLista = async () => {
+    setGenerandoExcelLista(true)
+    try {
+      const res = await apiClient.get('/pago-prestador/reporte-excel/', { responseType: 'blob', params: _params() })
+      const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `pagos_prestadores_${new Date().toISOString().split('T')[0].replace(/-/g,'')}.xlsx`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToast('No se pudo generar el listado Excel.', 'error')
+    } finally {
+      setGenerandoExcelLista(false)
+    }
+  }
+
+  const handleReciboFila = async (e, pago) => {
+    e.stopPropagation()
+    setGenerandoReciboId(pago.id)
+    try {
+      const res = await apiClient.get(`/pago-prestador/${pago.id}/recibo-pdf/`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      window.open(url, '_blank')
+    } catch {
+      showToast('No se pudo generar el recibo.', 'error')
+    } finally {
+      setGenerandoReciboId(null)
+    }
+  }
+
+  const handleCerrarModalNuevo = () => {
+    if (modalIsDirtyRef.current) setConfirmDescartarNuevo(true)
+    else setModalAbierto(false)
+  }
 
   const { data, isLoading } = usePagosPrestador(filtros)
   const deletePago          = useDeletePagoPrestador()
@@ -501,33 +679,53 @@ export default function PagoPrestadorPage() {
   return (
     <>
       <style>{`
-        .pp-page { padding: 24px; max-width: 1200px; margin: 0 auto; }
+        .pp-page { display: flex; flex-direction: column; height: 100%; }
 
-        .pp-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px; }
-        .pp-filtro-group { display: flex; flex-direction: column; gap: 4px; }
-        .pp-filtro-label { font-size: 11px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
-        .pp-input-filtro { height: 36px; border: 1px solid #e5e7eb; border-radius: 7px; padding: 0 10px; font-size: 13px; background: #fff; outline: none; }
-        .pp-input-filtro:focus { border-color: #1a3a5c; }
-        .pp-btn-nuevo { margin-left: auto; height: 36px; display: flex; align-items: center; gap: 6px; }
+        .pp-toolbar { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #f3f4f6; }
+        .pp-toolbar-icon { width: 34px; height: 34px; background: #e8f0fe; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #1a3a5c; flex-shrink: 0; align-self: center; }
+        .pp-toolbar-titles { order: 1; flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 1px; justify-content: center; }
+        .pp-toolbar-title { font-size: 15px; font-weight: 700; color: #1a3a5c; }
+        .pp-toolbar-subtitle { font-size: 11px; color: #9ca3af; }
+        .pp-search-wrap { order: 2; flex: 1 1 200px; max-width: 280px; position: relative; }
+        .pp-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+        .pp-search-input { width: 100%; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 10px 0 30px; font-size: 13px; outline: none; box-sizing: border-box; }
+        .pp-search-input:focus { border-color: #1a3a5c; }
+        .pp-filtros { order: 3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pp-filtro-sel { height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 8px; font-size: 13px; background: #fff; outline: none; color: #374151; cursor: pointer; }
+        .pp-filtro-sel:focus { border-color: #1a3a5c; }
+        .pp-filtro-date { height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 8px; font-size: 13px; outline: none; color: #374151; }
+        .pp-filtro-date:focus { border-color: #1a3a5c; }
+        .pp-toolbar-right { order: 4; margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .pp-btn-report { height: 36px; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; color: #374151; cursor: pointer; font-weight: 500; transition: all .12s; flex-shrink: 0; }
+        .pp-btn-report:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .pp-btn-report:disabled { opacity: .6; cursor: default; }
+        .pp-btn-nuevo { height: 36px; display: flex; align-items: center; gap: 6px; background: #1a3a5c; color: #fff; border: none; border-radius: 8px; padding: 0 14px; font-size: 13px; font-weight: 500; cursor: pointer; flex-shrink: 0; }
+        .pp-btn-nuevo:hover { background: #15304d; }
+        @media (max-width: 600px) { .pp-search-wrap { order: 4; max-width: 100%; flex-basis: 100%; } .pp-toolbar-titles { display: none; } }
 
-        .pp-table-wrap { overflow-x: auto; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; }
+        .pp-body { flex: 1; overflow: hidden; padding: 14px 24px 24px; }
+        .pp-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; overflow-y: auto; }
+        .pp-table-wrap { overflow-x: auto; border: 1px solid #e8edf2; border-radius: 8px; background: #fff; }
         .pp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .pp-th { padding: 10px 14px; background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; }
+        .pp-th { padding: 10px 14px; background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
         .pp-th-right { text-align: right; }
         .pp-th-center { text-align: center; }
         .pp-td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
         .pp-td-right { text-align: right; }
         .pp-td-center { text-align: center; }
-        .pp-row { cursor: pointer; transition: background .12s; }
-        .pp-row:hover { background: #eff6ff; }
-        .pp-row:last-child td { border-bottom: none; }
+        .pp-td-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .pp-tr { cursor: pointer; }
+        .pp-tr:nth-child(even) .pp-td { background: #f9fafb; }
+        .pp-tr:hover .pp-td { background: #eff6ff !important; }
+        .pp-tr:last-child .pp-td { border-bottom: none; }
         .pp-mono { font-family: 'Courier New', monospace; font-size: 12px; }
         .pp-bold { font-weight: 600; }
 
         .pp-td-acciones { display: flex; gap: 4px; justify-content: center; }
-        .pp-row-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 5px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; }
-        .pp-row-btn:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
-        .pp-row-btn-eye:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a3a5c; }
+        .pp-row-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; transition: all .12s; }
+        .pp-row-btn:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a3a5c; }
+        .pp-row-btn.danger { border-color: #fecaca; color: #dc2626; }
+        .pp-row-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; }
 
         .pp-modal { display: flex; flex-direction: column; min-height: 0; }
         .pp-tabs { display: flex; border-bottom: 2px solid #e8edf2; }
@@ -535,6 +733,7 @@ export default function PagoPrestadorPage() {
         .pp-tab--active { color: #1a3a5c; border-bottom-color: #1a3a5c; }
         .pp-tab-badge { font-size: 11px; font-family: 'Courier New', monospace; background: #fef3c7; color: #92400e; border-radius: 4px; padding: 1px 6px; }
         .pp-tab-badge--ok { background: #d1fae5; color: #065f46; }
+        .pp-tab-badge--error { background: #fee2e2; color: #991b1b; }
         .pp-tab-body { padding: 20px 0 0; display: flex; flex-direction: column; gap: 14px; }
 
         .pp-cab-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
@@ -549,7 +748,10 @@ export default function PagoPrestadorPage() {
         .pp-input-error { border-color: #dc2626 !important; }
         .pp-select { height: 36px; border: 1px solid #e5e7eb; border-radius: 7px; padding: 0 8px; font-size: 13px; background: #fff; outline: none; width: 100%; }
         .pp-select:focus { border-color: #1a3a5c; }
+        .pp-select.pp-input-error { border-color: #dc2626 !important; }
         .pp-error { font-size: 11px; color: #dc2626; }
+        .pp-nro-checking { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #9ca3af; pointer-events: none; }
+        .pp-nro-ok { font-size: 11px; color: #16a34a; }
 
         .pp-buscador-wrap { position: relative; }
         .pp-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e8edf2; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.12); z-index: 100; max-height: 220px; overflow-y: auto; padding: 4px 0; list-style: none; margin: 4px 0 0; }
@@ -583,7 +785,12 @@ export default function PagoPrestadorPage() {
         .pp-total-val { font-size: 15px; color: #1a3a5c; }
         .pp-totales-bloque { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; padding: 14px 0; border-top: 1px solid #e8edf2; }
         .pp-totales-ok { color: #16a34a; font-size: 13px; font-weight: 500; gap: 6px; }
+        .pp-totales-excede { color: #dc2626; font-size: 13px; font-weight: 500; gap: 6px; }
         .pp-val-error { color: #dc2626; }
+
+        .pp-btn-pdf { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; color: #374151; cursor: pointer; font-weight: 500; transition: all .12s; }
+        .pp-btn-pdf:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .pp-btn-pdf:disabled { opacity: .6; cursor: default; }
 
         .pp-btn-add-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #1a3a5c; background: none; border: 1px dashed #bfdbfe; border-radius: 6px; padding: 6px 14px; cursor: pointer; margin-top: 6px; }
         .pp-btn-add-row:hover { background: #eff6ff; }
@@ -607,105 +814,113 @@ export default function PagoPrestadorPage() {
       `}</style>
 
       <div className="pp-page">
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Pago a prestadores</h1>
-            <p className="page-subtitle">Gestión de honorarios médicos por bloques de atención</p>
+        <div className="pp-toolbar">
+          <div className="pp-toolbar-icon"><Banknote size={18} /></div>
+          <div className="pp-toolbar-titles">
+            <span className="pp-toolbar-title">Pago a prestadores</span>
+            <span className="pp-toolbar-subtitle">Gestión de honorarios médicos por bloques de atención</span>
           </div>
-        </div>
-
-        <div className="pp-filtros">
-          <div className="pp-filtro-group">
-            <span className="pp-filtro-label">Buscar</span>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: 9, top: 11, color: '#9ca3af' }} />
-              <input className="pp-input-filtro" style={{ paddingLeft: 30, width: 220 }}
-                placeholder="Médico o documento..."
-                value={filtros.search}
-                onChange={e => setFiltros(f => ({ ...f, search: e.target.value }))} />
-            </div>
+          <div className="pp-search-wrap">
+            <Search size={14} className="pp-search-icon" />
+            <input className="pp-search-input" placeholder="Médico o documento..."
+              onChange={e => {
+                const val = e.target.value
+                clearTimeout(debounceRef.current)
+                debounceRef.current = setTimeout(() => setFiltros(f => ({ ...f, search: val })), 300)
+              }}
+            />
           </div>
-          <div className="pp-filtro-group">
-            <span className="pp-filtro-label">Estado</span>
-            <select className="pp-input-filtro" value={filtros.estado}
+          <div className="pp-filtros">
+            <select className="pp-filtro-sel" value={filtros.estado}
               onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
-              <option value="">Todos</option>
+              <option value="">Todos los estados</option>
               <option value="pendiente">Pendiente</option>
               <option value="parcial">Parcial</option>
               <option value="pagado">Pagado</option>
             </select>
-          </div>
-          <div className="pp-filtro-group">
-            <span className="pp-filtro-label">Desde</span>
-            <input type="date" className="pp-input-filtro"
-              value={filtros.fecha_desde}
+            <input type="date" className="pp-filtro-date" value={filtros.fecha_desde}
               onChange={e => setFiltros(f => ({ ...f, fecha_desde: e.target.value }))} />
-          </div>
-          <div className="pp-filtro-group">
-            <span className="pp-filtro-label">Hasta</span>
-            <input type="date" className="pp-input-filtro"
-              value={filtros.fecha_hasta}
+            <input type="date" className="pp-filtro-date" value={filtros.fecha_hasta}
               onChange={e => setFiltros(f => ({ ...f, fecha_hasta: e.target.value }))} />
           </div>
-          <button className="btn btn-primary pp-btn-nuevo" onClick={() => setModalAbierto(true)}>
-            <Plus size={15} /> Nuevo pago
-          </button>
+          <div className="pp-toolbar-right">
+            <button className="pp-btn-report" onClick={handlePdfLista} disabled={generandoPdfLista} title="Exportar listado PDF">
+              <FileText size={14} />{generandoPdfLista ? 'Generando...' : 'PDF'}
+            </button>
+            <button className="pp-btn-report" onClick={handleExcelLista} disabled={generandoExcelLista} title="Exportar listado Excel">
+              <FileSpreadsheet size={14} />{generandoExcelLista ? 'Generando...' : 'Excel'}
+            </button>
+            <button className="pp-btn-nuevo" onClick={() => setModalAbierto(true)}>
+              <Plus size={15} /> Nuevo pago
+            </button>
+          </div>
         </div>
 
-        <div className="pp-table-wrap">
-          <table className="pp-table">
-            <thead>
-              <tr>
-                <th className="pp-th">Médico</th>
-                <th className="pp-th">Fecha pago</th>
-                <th className="pp-th pp-th-right">Total horas</th>
-                <th className="pp-th pp-th-right">Monto/hora</th>
-                <th className="pp-th pp-th-right">Monto total</th>
-                <th className="pp-th pp-th-center">Estado</th>
-                <th className="pp-th pp-th-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={7} className="pp-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Cargando...</td></tr>
-              ) : lista.length === 0 ? (
-                <tr><td colSpan={7} className="pp-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Sin registros</td></tr>
-              ) : lista.map(p => (
-                <tr key={p.id} className="pp-row" onClick={() => setPagoViendo(p.id)}>
-                  <td className="pp-td">
-                    <div style={{ fontWeight: 500, color: '#111827' }}>{p.medico_nombre}</div>
-                  </td>
-                  <td className="pp-td">{fmtFecha(p.fecha_pago)}</td>
-                  <td className="pp-td pp-td-right pp-mono">{p.total_hora}h</td>
-                  <td className="pp-td pp-td-right pp-mono">{fmt(p.monto_hora)}</td>
-                  <td className="pp-td pp-td-right pp-mono pp-bold">Gs. {fmt(p.monto_total)}</td>
-                  <td className="pp-td pp-td-center">
-                    <span className={`pp-badge ${ESTADOS_BADGE[p.estado] || ''}`}>{p.estado_display}</span>
-                  </td>
-                  <td className="pp-td pp-td-center">
-                    <div className="pp-td-acciones" onClick={e => e.stopPropagation()}>
-                      <button className="pp-row-btn pp-row-btn-eye" title="Ver detalle" onClick={() => setPagoViendo(p.id)}>
-                        <Eye size={12} />
-                      </button>
-                      <button className="pp-row-btn" title="Eliminar" onClick={() => handleEliminar(p)}>
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
+        <div className="pp-body">
+          <div className="pp-tabla-wrap">
+            <table className="pp-table">
+              <thead>
+                <tr>
+                  <th className="pp-th">Médico</th>
+                  <th className="pp-th">Nro.</th>
+                  <th className="pp-th">Fecha pago</th>
+                  <th className="pp-th pp-th-right">Total horas</th>
+                  <th className="pp-th pp-th-right">Monto/hora</th>
+                  <th className="pp-th pp-th-right">Monto total</th>
+                  <th className="pp-th pp-th-center">Estado</th>
+                  <th className="pp-th pp-th-center">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={8} className="pp-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Cargando...</td></tr>
+                ) : lista.length === 0 ? (
+                  <tr><td colSpan={8} className="pp-td" style={{ textAlign: 'center', color: '#9ca3af', padding: 32 }}>Sin registros</td></tr>
+                ) : lista.map(p => (
+                  <tr key={p.id} className="pp-tr" onClick={() => setPagoViendo(p.id)}>
+                    <td className="pp-td">
+                      <div style={{ fontWeight: 500, color: '#111827' }}>{p.medico_nombre}</div>
+                      <div className="pp-td-hint">Click para ver detalle</div>
+                    </td>
+                    <td className="pp-td pp-mono">{p.nro_comprobante ? String(p.nro_comprobante).padStart(7, '0') : '—'}</td>
+                    <td className="pp-td">{fmtFecha(p.fecha_pago)}</td>
+                    <td className="pp-td pp-td-right pp-mono">{p.total_hora}h</td>
+                    <td className="pp-td pp-td-right pp-mono">{fmt(p.monto_hora)}</td>
+                    <td className="pp-td pp-td-right pp-mono pp-bold">Gs. {fmt(p.monto_total)}</td>
+                    <td className="pp-td pp-td-center">
+                      <span className={`pp-badge ${ESTADOS_BADGE[p.estado] || ''}`}>{p.estado_display}</span>
+                    </td>
+                    <td className="pp-td pp-td-center">
+                      <div className="pp-td-acciones" onClick={e => e.stopPropagation()}>
+                        <button className="pp-row-btn" title="Ver detalle" onClick={() => setPagoViendo(p.id)}>
+                          <Eye size={12} />
+                        </button>
+                        <button className="pp-row-btn" title="Recibo PDF"
+                          disabled={generandoReciboId === p.id}
+                          onClick={e => handleReciboFila(e, p)}>
+                          {generandoReciboId === p.id ? '…' : <Printer size={12} />}
+                        </button>
+                        <button className="pp-row-btn danger" title="Eliminar" onClick={() => handleEliminar(p)}>
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {modalAbierto && (
-        <Modal isOpen={modalAbierto} onClose={() => setModalAbierto(false)}
+        <Modal isOpen={modalAbierto} onClose={handleCerrarModalNuevo}
           title="Nuevo pago a prestador" subtitle="Honorarios por bloques de atención" size="xl">
           <ModalNuevoPago
-            onClose={() => setModalAbierto(false)}
+            onClose={handleCerrarModalNuevo}
             onCreado={() => { setModalAbierto(false); showToast('Pago registrado correctamente.', 'success') }}
             showToast={showToast}
+            onIsDirtyChange={(v) => { modalIsDirtyRef.current = v }}
           />
         </Modal>
       )}
@@ -717,9 +932,20 @@ export default function PagoPrestadorPage() {
             id={pagoViendo}
             onClose={() => setPagoViendo(null)}
             onEliminar={handleEliminar}
+            showToast={showToast}
           />
         </Modal>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDescartarNuevo}
+        title="Descartar cambios"
+        description="¿Desea descartar los cambios y cerrar el formulario? Los datos ingresados se perderán."
+        onConfirm={() => { setConfirmDescartarNuevo(false); setModalAbierto(false) }}
+        onCancel={() => setConfirmDescartarNuevo(false)}
+        confirmText="Descartar"
+        cancelText="Seguir editando"
+      />
 
       <ConfirmDialog
         isOpen={!!confirmando}

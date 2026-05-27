@@ -42,11 +42,6 @@ class TimbradoSerializer(serializers.ModelSerializer):
         value = value.strip()
         if not value.isdigit():
             raise serializers.ValidationError('Solo se permiten dígitos numéricos.')
-        qs = Timbrado.objects.filter(is_deleted=False, nro_timbrado=value)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError('Ya existe un timbrado activo con ese número.')
         return value
 
     def validate_punto_sucursal(self, value):
@@ -62,12 +57,16 @@ class TimbradoSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        inicio = data.get('inicio_vigencia', getattr(self.instance, 'inicio_vigencia', None))
-        fin    = data.get('fin_vigencia',    getattr(self.instance, 'fin_vigencia',    None))
-        desde  = data.get('nro_desde',       getattr(self.instance, 'nro_desde',       None))
-        hasta  = data.get('nro_hasta',       getattr(self.instance, 'nro_hasta',       None))
-        auto   = data.get('autoimpresor',    getattr(self.instance, 'autoimpresor',    False))
-        habili = data.get('nro_habilitacion', getattr(self.instance, 'nro_habilitacion', ''))
+        inst   = self.instance
+        nro    = data.get('nro_timbrado',    getattr(inst, 'nro_timbrado',    None))
+        inicio = data.get('inicio_vigencia', getattr(inst, 'inicio_vigencia', None))
+        fin    = data.get('fin_vigencia',    getattr(inst, 'fin_vigencia',    None))
+        desde  = data.get('nro_desde',       getattr(inst, 'nro_desde',       None))
+        hasta  = data.get('nro_hasta',       getattr(inst, 'nro_hasta',       None))
+        suc    = data.get('punto_sucursal',   getattr(inst, 'punto_sucursal',   None))
+        exp    = data.get('punto_expedicion', getattr(inst, 'punto_expedicion', None))
+        auto   = data.get('autoimpresor',     getattr(inst, 'autoimpresor',     False))
+        habili = data.get('nro_habilitacion', getattr(inst, 'nro_habilitacion', ''))
 
         if inicio and fin and fin <= inicio:
             raise serializers.ValidationError(
@@ -81,10 +80,30 @@ class TimbradoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'nro_habilitacion': 'Requerido para timbrado autoimpresor.'}
             )
+
+        if all(v is not None for v in [nro, inicio, fin, suc, exp, desde, hasta]):
+            qs = Timbrado.objects.filter(
+                is_deleted=False,
+                nro_timbrado=nro,
+                inicio_vigencia=inicio,
+                fin_vigencia=fin,
+                punto_sucursal=suc,
+                punto_expedicion=exp,
+                nro_desde=desde,
+                nro_hasta=hasta,
+            )
+            if inst:
+                qs = qs.exclude(pk=inst.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    'Ya existe un timbrado activo con el mismo número, fechas de vigencia y punto de emisión.'
+                )
+
         return data
 
     class Meta:
-        model  = Timbrado
+        model      = Timbrado
+        validators = []
         fields = [
             'id', 'nro_timbrado', 'autoimpresor',
             'inicio_vigencia', 'fin_vigencia',

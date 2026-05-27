@@ -1,0 +1,131 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor RECEPCIONISTA
+boundary "FacturacionPage.jsx" as GUI
+control "useFacturacion.js" as HOOK
+control "VentaFactCabViewSet" as VIEW
+control "services.py" as SVC
+entity "Timbrado" as TIM
+entity "VentaFactCab" as CAB
+entity "VentaFactDet" as DET
+entity "VentaFactDetCobranza" as COB
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Apertura y punto de emision ==
+
+RECEPCIONISTA -> GUI : abre FacturacionPage
+GUI -> HOOK : useFacturas()
+HOOK -> VIEW : GET /api/facturacion/
+VIEW --> HOOK : lista de facturas paginada
+HOOK --> GUI : renderiza tabla
+
+RECEPCIONISTA -> GUI : click "Nueva factura"
+GUI --> RECEPCIONISTA : abre modal — Pestaña "Cabecera y Detalle"
+
+RECEPCIONISTA -> GUI : ingresa establecimiento=001, expedicion=001
+GUI -> HOOK : useSiguienteNumero('001', '001')
+HOOK -> VIEW : GET /api/facturacion/siguiente-numero/\n?establecimiento=001&expedicion=001
+VIEW -> TIM : timbrado vigente para 001-001
+TIM --> VIEW : siguiente = 1, nro_timbrado = 12345678
+VIEW --> HOOK : { siguiente: 1, nro_timbrado: 12345678, timbrado_id: 3 }
+HOOK --> GUI : nro_comprobante prefijado = 0000001
+
+note over GUI : Validacion en tiempo real\ncada vez que cambia el numero
+
+GUI -> HOOK : useValidarTimbrado({ establecimiento, expedicion, numero })
+HOOK -> VIEW : POST /api/facturacion/validar-timbrado/
+VIEW -> TIM : verifica vigencia y rango
+VIEW --> HOOK : { valido: true, mensaje: 'Timbrado 12345678 valido.' }
+HOOK --> GUI : indicador verde "Timbrado valido"
+
+== Busqueda y seleccion de cliente ==
+
+RECEPCIONISTA -> GUI : escribe "Enzo" en buscador (debounce 300ms)
+GUI -> HOOK : useBuscarPersonas('Enzo')
+HOOK -> VIEW : GET /api/persona/?search=Enzo&page_size=8
+VIEW --> HOOK : [{ id: 5, razon_social: 'Enzo Fabian', nro_documento: '1234567' }]
+HOOK --> GUI : muestra autocomplete
+RECEPCIONISTA -> GUI : selecciona "Enzo Fabian"
+GUI --> RECEPCIONISTA : tag verde "1234567 — Enzo Fabian"
+
+== Busqueda y seleccion de producto ==
+
+RECEPCIONISTA -> GUI : escribe "Consulta" en buscador (debounce 300ms)
+GUI -> HOOK : useBuscarProductos('Consulta')
+HOOK -> VIEW : GET /api/productos/?search=Consulta&activo=true&page_size=10
+VIEW --> HOOK : [{ id: 12, descripcion: 'Consulta General', impuesto: '10', precio: 150000 }]
+HOOK --> GUI : muestra autocomplete
+RECEPCIONISTA -> GUI : selecciona "Consulta General G/ 150.000 IVA 10%"
+RECEPCIONISTA -> GUI : cantidad = 1, precio = 150000
+
+GUI -> GUI : calcularItem(150000, '10')\n→ sub_gra_10 = 136364\n→ sub_iva_10 = 13636
+GUI -> GUI : calcularTotales(detalle)\n→ total_gravada = 136364\n→ total_iva = 13636\n→ monto_total = 150000
+
+GUI --> RECEPCIONISTA : Gravada 10%: G/ 136.364\nIVA 10%: G/ 13.636\nTotal: G/ 150.000
+
+== Cobranza ==
+
+RECEPCIONISTA -> GUI : click en pestaña "Cobranza"
+RECEPCIONISTA -> GUI : selecciona Efectivo + Caja + monto=150000
+GUI -> GUI : totalCobrado=150000 vs montoTotal=150000
+GUI --> RECEPCIONISTA : indicador verde "Cobrado completo"
+
+== Emision ==
+
+RECEPCIONISTA -> GUI : click "Emitir factura"
+GUI -> GUI : validar() — todos los campos ok
+GUI -> HOOK : useCreateFactura.mutateAsync(payload)
+HOOK -> VIEW : POST /api/facturacion/\n{ fecha, condicion_vta: true, persona: 5,\n  timbrado: 3, nro_comprobante: 1,\n  detalle: [...], cobranza: [...] }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+VIEW -> SVC : calcular_item(150000, '10')
+SVC --> VIEW : { sub_gra_10: 136364, sub_iva_10: 13636 }
+VIEW -> SVC : calcular_totales([item])
+SVC --> VIEW : { monto_total: 150000, ... }
+VIEW -> CAB : VentaFactCab.objects.create(establecimiento='001', expedicion='001', nro_comprobante=1)
+CAB --> BD : INSERT venta_fact_cab — id=42
+VIEW -> DET : VentaFactDet.objects.create(vfc_id=42, prs_id=12, cantidad=1, monto=150000)
+DET --> BD : INSERT venta_fact_det
+VIEW -> COB : VentaFactDetCobranza.objects.create(vfc_id=42, forma_pago=1, cta=2, monto=150000)
+COB --> BD : INSERT venta_fact_det_cobranza — id=88
+VIEW -> MOV : MovimientoCajaBanco.objects.create(cta=2, monto_ingreso=150000, vfdc_id=88)
+MOV --> BD : INSERT movimiento_caja_banco
+VIEW -> AUDIT : registrar CREAR en auditoria
+AUDIT --> BD : INSERT auditoria_registro
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created { id: 42, nro_comprobante_formateado: '001-001-0000001', ... }
+HOOK -> HOOK : invalidateQueries(['facturas'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : onSuccess
+GUI --> RECEPCIONISTA : modal se cierra\nfila 001-001-0000001 aparece en la tabla
+
+== Impresion PDF ==
+
+RECEPCIONISTA -> GUI : click boton imprimir en la fila
+GUI -> GUI : window.open('/api/facturacion/42/pdf/', '_blank')
+GUI -> VIEW : GET /api/facturacion/42/pdf/\n(permission_classes=[AllowAny])
+VIEW -> CAB : select_related + prefetch_related
+CAB --> VIEW : factura completa con detalle y cobranza
+VIEW -> VIEW : render_to_string('informes/factura_print.html', contexto)
+VIEW -> VIEW : weasyprint.HTML(string=html).write_pdf()
+VIEW --> GUI : application/pdf — inline; filename="factura_001-001-0000001.pdf"
+GUI --> RECEPCIONISTA : PDF abierto en nueva pestana
+
+note over TIM : Proximo numero disponible\npasa a ser 2 (MAX + 1\nal consultar siguiente-numero)
+
+@enduml

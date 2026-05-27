@@ -1,0 +1,71 @@
+@startuml 01_clases
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam classBackgroundColor #ffffff
+skinparam classBorderColor #000000
+skinparam classArrowColor #000000
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam classAttributeIconSize 0
+
+abstract class BaseModel {
+  + id : AutoField
+  + fecha_creacion : DateTimeField
+  + fecha_modificacion : DateTimeField
+  + is_deleted : BooleanField
+  + fecha_eliminacion : DateTimeField [null]
+  + id_usu_creator : FK(User) [null]
+  + id_usu_modificator : FK(User) [null]
+}
+
+class Grupo {
+  -- db_table: grupo_producto --
+  + descripcion : CharField(150)
+  + activo : BooleanField [default=True]
+  --
+  unique: lower(descripcion) where not is_deleted
+  ordering: descripcion
+}
+
+class ProductoServicio {
+  -- db_table: producto_servicio --
+  + descripcion : CharField(200)
+  + grupo : FK(Grupo, PROTECT)
+  + impuesto : CharField(10)
+    choices: '10'=IVA 10%
+             '5'=IVA 5%
+             'exenta'=Exenta
+    default: '10'
+  + activo : BooleanField [default=True]
+  --
+  unique: lower(descripcion) + grupo where not is_deleted
+  ordering: descripcion
+}
+
+class VentaFactDet {
+  -- db_table: venta_fact_det --
+  + prs : FK(ProductoServicio, PROTECT)
+  + cantidad : DecimalField
+  + precio_unitario : DecimalField
+  + subtotal : DecimalField
+  + iva_porcentaje : CharField
+  + monto_iva : DecimalField
+}
+
+BaseModel <|-- Grupo
+BaseModel <|-- ProductoServicio
+BaseModel <|-- VentaFactDet
+
+Grupo "1" o-- "0..*" ProductoServicio : productos >
+ProductoServicio "1" o-- "0..*" VentaFactDet : prs >
+
+note bottom of ProductoServicio
+  Grupo organiza los productos por categoría.
+  ProductoServicio es lo que se factura al cliente.
+  tipo_impuesto define el cálculo de IVA
+  según normativa SET Paraguay.
+end note
+
+@enduml

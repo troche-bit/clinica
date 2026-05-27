@@ -76,6 +76,7 @@ class ValorRecibidoInputSerializer(serializers.Serializer):
 class CobranzaCreateSerializer(serializers.Serializer):
     fecha             = serializers.DateField()
     persona           = serializers.IntegerField()
+    comprobante_nro   = serializers.IntegerField(required=False, allow_null=True, default=None)
     detalle           = CobranzaDetInputSerializer(many=True)
     valores_recibidos = ValorRecibidoInputSerializer(many=True)
 

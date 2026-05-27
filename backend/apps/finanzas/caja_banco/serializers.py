@@ -40,7 +40,7 @@ class MovimientoCajaBancoListSerializer(serializers.ModelSerializer):
         model  = MovimientoCajaBanco
         fields = [
             'id', 'cta', 'cta_detalle',
-            'fecha', 'voucher',
+            'fecha', 'nro_comprobante',
             'monto_ingreso', 'monto_egreso', 'vuelto',
             'tipo',
             'vfdc_id', 'vrc_id', 'ppdc_id',
@@ -59,10 +59,12 @@ class MovimientoCajaBancoListSerializer(serializers.ModelSerializer):
 class MovimientoCajaBancoSerializer(serializers.ModelSerializer):
     class Meta:
         model  = MovimientoCajaBanco
-        fields = ['id', 'cta', 'fecha', 'voucher', 'monto_ingreso', 'monto_egreso', 'vuelto']
+        fields = ['id', 'cta', 'fecha', 'nro_comprobante', 'monto_ingreso', 'monto_egreso']
         read_only_fields = ['id']
 
     def validate(self, data):
+        if self.instance and (self.instance.vfdc_id or self.instance.vrc_id or self.instance.ppdc_id):
+            raise serializers.ValidationError('No se puede editar un movimiento generado automáticamente.')
         ing = data.get('monto_ingreso', 0) or 0
         egr = data.get('monto_egreso', 0) or 0
         if ing == 0 and egr == 0:

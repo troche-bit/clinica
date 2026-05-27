@@ -1,0 +1,110 @@
+@startuml 02_secuencia_registrar_pago
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "PagoPrestadorPage.jsx" as GUI
+control "usePagoPrestador.js" as HOOK
+control "PagoPrestadorViewSet" as VIEW
+entity "PagoPrestador" as PP
+entity "PagoPrestadorDetCobranza" as DET
+entity "Agenda" as AG
+entity "MovimientoCajaBanco" as MOV
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Carga inicial ==
+
+ADMIN -> GUI : abre modulo Pago a Prestadores
+GUI -> HOOK : usePagoPrestadores()
+HOOK -> VIEW : GET /api/pago-prestador/
+VIEW --> HOOK : lista de pagos paginada
+HOOK --> GUI : renderiza tabla
+
+ADMIN -> GUI : click "Nuevo pago" (o Insert)
+GUI --> ADMIN : abre modal de registro
+
+== Seleccion de medico ==
+
+GUI -> HOOK : useMedicosConPendientes()
+HOOK -> VIEW : GET /api/pago-prestador/medicos-con-pendientes/
+VIEW -> AG : filtra Agenda con pagado_prestador=False
+AG --> VIEW : lista de PersonaRRHH con bloques pendientes
+VIEW --> HOOK : [{ id, nombre, documento, cant_bloques }]
+HOOK --> GUI : dropdown de medicos con pendientes
+
+ADMIN -> GUI : selecciona medico
+
+== Carga de bloques pendientes ==
+
+GUI -> HOOK : useBloquesPendientes(persona_rrhh_id)
+HOOK -> VIEW : GET /api/pago-prestador/bloques-pendientes/\n?persona_rrhh=ID
+VIEW -> AG : filtra turnos realizados no pagados del medico
+AG --> VIEW : turnos agrupados por horario + fecha
+VIEW --> HOOK : [{ key, fecha, hora_desde, hora_hasta,\n  especialidad, horas, agenda_ids }]
+HOOK --> GUI : tabla de bloques con checkboxes
+
+ADMIN -> GUI : selecciona uno o varios bloques
+ADMIN -> GUI : ingresa monto por hora
+GUI -> GUI : calcula total_hora = suma de horas seleccionadas\ncalcula monto_total = total_hora * monto_hora
+
+== Numero de comprobante ==
+
+note over GUI : debounce 300ms al ingresar nro_comprobante
+
+GUI -> HOOK : useValidarNumero(nro)
+HOOK -> VIEW : GET /api/pago-prestador/validar-numero/?nro=N
+VIEW -> PP : verifica unicidad entre activos
+VIEW --> HOOK : { libre: true/false }
+HOOK --> GUI : indicador verde "Disponible" o rojo "Ya existe"
+
+note over GUI : si nro vacio, el backend autocalcula MAX + 1
+
+== Forma de pago ==
+
+ADMIN -> GUI : selecciona forma de pago y cuenta
+ADMIN -> GUI : ingresa monto del detalle (puede ser parcial)
+GUI -> GUI : totalDetalle vs montoTotal\nindicador pagado completo / parcial
+
+== Guardar (F10 o boton Guardar) ==
+
+ADMIN -> GUI : click "Guardar" (o F10)
+GUI -> GUI : validar() — medico, bloques, monto_hora, forma_pago, cta
+GUI -> HOOK : useCrearPago.mutateAsync(payload)
+HOOK -> VIEW : POST /api/pago-prestador/\n{ persona_rrhh, nro_comprobante, fecha_pago,\n  monto_hora, bloques: [agenda_ids],\n  detalle: [{ forma_pago, cta, monto, voucher }] }
+
+VIEW -> BD : BEGIN TRANSACTION (@transaction.atomic)
+VIEW -> PP : valida nro_comprobante unico\ncalcula total_hora y monto_total
+VIEW -> PP : PagoPrestador.objects.create(...)
+PP --> BD : INSERT pago_prestador — id=N
+VIEW -> AG : Agenda.objects.filter(id__in=agenda_ids).update(\n  pagado_prestador=True,\n  pago_prestador=pago)
+AG --> BD : UPDATE agenda SET pagado_prestador=True
+
+loop por cada detalle de cobranza
+  VIEW -> DET : PagoPrestadorDetCobranza.objects.create(\n  pago_prestador=pago,\n  forma_pago, cta, monto, voucher)
+  DET --> BD : INSERT pago_prestador_det_cobranza — id=M
+  VIEW -> MOV : MovimientoCajaBanco.objects.create(\n  cta=cta, monto_egreso=monto, ppdc_id=M)
+  MOV --> BD : INSERT movimiento_caja_banco
+end
+
+VIEW -> AUDIT : registrar CREAR en auditoria
+AUDIT --> BD : INSERT auditoria_registro
+VIEW -> BD : COMMIT
+
+VIEW --> HOOK : 201 Created — PagoPrestadorListSerializer
+HOOK -> HOOK : invalidateQueries(['pago-prestador'])\ninvalidateQueries(['movimientos'])\ninvalidateQueries(['cuentas-mcb'])
+HOOK --> GUI : onSuccess
+GUI --> ADMIN : modal se cierra\nfila nueva aparece en la tabla
+
+@enduml

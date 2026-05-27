@@ -1,0 +1,89 @@
+@startuml 03_secuencia_borrado_logico
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "TimbradoPage.jsx" as GUI
+boundary "ConfirmDialog" as DIALOG
+control "useTimbrado.js" as HOOK
+control "TimbradoViewSet" as VIEW
+entity "Timbrado" as MODEL
+entity "VentaFactCab" as FACTURA
+database "PostgreSQL" as BD
+
+== Flujo principal: Borrado lógico ==
+
+ADMIN -> GUI : click "Eliminar" en PanelVer
+GUI -> DIALOG : isOpen=true\n"¿Eliminar este timbrado?\nNo se puede eliminar si tiene facturas emitidas."
+DIALOG --> ADMIN : muestra confirmación
+
+alt ADMIN cancela
+  ADMIN -> DIALOG : click "Cancelar"
+  DIALOG --> GUI : onCancel
+  GUI --> ADMIN : panel sigue abierto, sin cambios
+else ADMIN confirma
+  ADMIN -> DIALOG : click "Confirmar"
+  DIALOG --> GUI : onConfirm
+  GUI -> HOOK : useDeleteTimbrado.mutateAsync(id)
+  HOOK -> VIEW : DELETE /api/timbrado/{id}/
+
+  VIEW -> VIEW : perform_destroy(instance)
+  VIEW -> FACTURA : VentaFactCab.objects.filter(\n  timbrado=instance,\n  is_deleted=False\n).exists()
+
+  alt tiene facturas emitidas activas
+    FACTURA --> VIEW : True
+    VIEW --> HOOK : 400 ValidationError\n"No se puede eliminar: el timbrado\ntiene facturas emitidas."
+    HOOK --> GUI : onError
+    GUI --> ADMIN : toast error\n"No se puede eliminar:\nel timbrado tiene facturas emitidas."
+  else sin facturas activas
+    FACTURA --> VIEW : False
+    VIEW -> VIEW : AuditoriaMixin.perform_destroy()\n  is_deleted=True\n  fecha_eliminacion=now()\n  id_usu_modificator=request.user
+    VIEW -> BD : UPDATE timbrado SET\n  is_deleted=True,\n  fecha_eliminacion=now()\n  WHERE id={id}
+    BD --> VIEW : OK
+    VIEW -> BD : INSERT INTO auditoria_registro\n  (tabla='Timbrado', accion='ELIMINAR', ...)
+    BD --> VIEW : OK
+    VIEW --> HOOK : 204 No Content
+    HOOK -> HOOK : invalidateQueries(['timbrado'])
+    HOOK --> GUI : onSuccess
+    GUI -> GUI : cerrarPanel()
+    GUI --> ADMIN : toast "Timbrado eliminado"
+  end
+end
+
+== Flujo alternativo: Timbrado con facturas — dato fiscal ==
+
+note over MODEL, FACTURA
+  Los timbrados con facturas emitidas
+  NUNCA pueden eliminarse.
+  Son documentos fiscales obligatorios
+  según normativa SET Paraguay.
+  El registro permanece en BD con
+  is_deleted=False para trazabilidad.
+end note
+
+ADMIN -> GUI : intenta eliminar timbrado con facturas
+GUI -> HOOK : useDeleteTimbrado.mutateAsync(id)
+HOOK -> VIEW : DELETE /api/timbrado/{id}/
+VIEW -> FACTURA : .exists() → True
+VIEW --> HOOK : 400 "No se puede eliminar:\nel timbrado tiene facturas emitidas."
+HOOK --> GUI : error
+GUI --> ADMIN : toast error — acción bloqueada
+
+note right of BD
+  El timbrado permanece en BD.
+  Las facturas vinculadas conservan
+  su referencia fiscal intacta.
+end note
+
+@enduml

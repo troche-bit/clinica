@@ -1,0 +1,128 @@
+@startuml 04_componentes
+
+skinparam style strictuml
+skinparam backgroundColor #ffffff
+skinparam componentBorderColor #000000
+skinparam componentBackgroundColor #ffffff
+skinparam databaseBorderColor #000000
+skinparam databaseBackgroundColor #ffffff
+skinparam arrowColor #000000
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam packageBorderColor #000000
+skinparam packageBackgroundColor #ffffff
+skinparam noteBorderColor #000000
+skinparam noteBackgroundColor #ffffff
+
+package "Frontend" {
+  component "TimbradoPage.jsx" as PAGE
+  note right of PAGE
+    Master-Detail:
+    tabla + panel lateral
+    barra de progreso por fechas
+    esDuplicado() validación local
+  end note
+
+  component "useTimbrado.js" as HOOK
+  note right of HOOK
+    useTimbrados(filters)
+    useCreateTimbrado()
+    useUpdateTimbrado()
+    useDeleteTimbrado()
+    invalidateQueries en onSuccess
+  end note
+
+  component "FacturacionPage.jsx" as FACT_PAGE
+  note right of FACT_PAGE
+    consume useTimbrado
+    para validar timbrado vigente
+    y obtener siguiente número
+  end note
+
+  component "client.js" as CLIENT
+  component "ConfirmDialog.jsx" as CONFIRM
+}
+
+package "Backend" {
+  component "TimbradoViewSet" as VIEW
+  note right of VIEW
+    GET /api/timbrado/
+    POST /api/timbrado/
+    PATCH /api/timbrado/{id}/
+    DELETE /api/timbrado/{id}/
+    GET /api/timbrado/eliminados/
+    filtro ?vigente=true|false
+  end note
+
+  component "TimbradoListSerializer" as LIST_SER
+  note right of LIST_SER
+    lectura: list, retrieve
+    campos calculados:
+    vigente, tipo,
+    dias_restantes,
+    total_comprobantes
+  end note
+
+  component "TimbradoSerializer" as WRITE_SER
+  note right of WRITE_SER
+    escritura: create, update
+    validators=[]
+    validate() con unicidad
+    combinada (7 campos)
+  end note
+
+  component "VentaFactCabViewSet" as VENTA_VIEW
+  note right of VENTA_VIEW
+    POST /api/facturacion/validar-timbrado/
+    GET  /api/facturacion/siguiente-numero/
+    validación número en rango activo
+    siguiente número = MAX+1
+  end note
+
+  component "AuditoriaMixin" as AUDIT
+  note right of AUDIT
+    perform_create → CREAR
+    perform_update → EDITAR
+    perform_destroy → ELIMINAR
+    registra en auditoria_registro
+  end note
+}
+
+package "Base de Datos" {
+  database "timbrado" as DB_TIM
+  note right of DB_TIM
+    UniqueConstraint combinado
+    (7 campos) WHERE is_deleted=False
+    dato fiscal — preservar siempre
+  end note
+
+  database "ventafactcab\n(FK → timbrado)" as DB_VENTA
+  note right of DB_VENTA
+    referencia fiscal obligatoria
+    bloquea eliminación del timbrado
+    si existen facturas activas
+  end note
+}
+
+PAGE --> HOOK : usa
+PAGE --> CONFIRM : usa
+HOOK --> CLIENT : HTTP
+FACT_PAGE --> HOOK : usa (validación)
+FACT_PAGE --> CLIENT : HTTP
+
+CLIENT --> VIEW : REST API
+VIEW --> LIST_SER : list / retrieve
+VIEW --> WRITE_SER : create / update
+VIEW --> AUDIT : hereda
+AUDIT --> DB_TIM : borrado lógico\n+ auditoría
+
+LIST_SER --> DB_TIM : lectura\nvigente calculado por fechas
+WRITE_SER --> DB_TIM : escritura\nvalidación número en rango
+
+VENTA_VIEW --> DB_TIM : validación número en rango\nsiguiente número = MAX+1
+VENTA_VIEW --> DB_VENTA : escritura factura
+
+DB_VENTA --> DB_TIM : FK timbrado
+
+@enduml

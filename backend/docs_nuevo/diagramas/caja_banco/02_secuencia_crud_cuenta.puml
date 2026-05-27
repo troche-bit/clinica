@@ -1,0 +1,96 @@
+@startuml 02_secuencia_crud_cuenta
+
+skinparam style strictuml
+skinparam sequenceParticipant underline
+skinparam backgroundColor #ffffff
+skinparam sequenceArrowThickness 1
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceParticipantBorderColor #000000
+skinparam sequenceParticipantBackgroundColor #ffffff
+skinparam sequenceMessageAlign center
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam sequenceLifeLineBorderColor #000000
+
+actor ADMIN
+boundary "CuentasMcbPage.jsx" as GUI
+control "useCuentasMcb.js" as HOOK
+control "CuentaMcbViewSet" as VIEW
+entity "CuentaMcb" as CUENTA
+entity "AuditoriaMixin" as AUDIT
+database "PostgreSQL" as BD
+
+== Crear cuenta ==
+
+ADMIN -> GUI : click "Nueva cuenta"
+GUI --> ADMIN : panel overlay desde la derecha
+ADMIN -> GUI : ingresa descripcion "Caja Principal"
+ADMIN -> GUI : click "Crear cuenta"
+GUI -> GUI : validar() — descripcion requerida
+
+GUI -> HOOK : useCreateCuenta.mutateAsync({ descripcion })
+HOOK -> VIEW : POST /api/cuentas-mcb/\n{ descripcion: "Caja Principal" }
+
+VIEW -> CUENTA : CuentaMcbSerializer.validate_descripcion()\nfilter(descripcion__iexact, is_deleted=False)
+alt descripcion duplicada
+  VIEW --> HOOK : 400 — "Ya existe una cuenta con esa descripcion."
+  HOOK --> GUI : showToast error
+else descripcion unica
+  VIEW -> AUDIT : perform_create — id_usu_creator = request.user
+  AUDIT -> CUENTA : CuentaMcb.objects.create(descripcion="Caja Principal")
+  CUENTA --> BD : INSERT cuenta_mcb
+  AUDIT --> BD : INSERT auditoria_registro (CREAR)
+  VIEW --> HOOK : 201 Created
+  HOOK -> HOOK : invalidateQueries(['cuentas-mcb'])
+  HOOK --> GUI : panel se cierra\nnueva card aparece en la grilla
+end
+
+== Editar cuenta ==
+
+ADMIN -> GUI : click icono editar en la barra de cuenta activa
+GUI --> ADMIN : panel overlay con descripcion actual
+ADMIN -> GUI : modifica descripcion a "Caja Chica"
+ADMIN -> GUI : click "Guardar cambios"
+
+GUI -> HOOK : useUpdateCuenta.mutateAsync({ id, descripcion })
+HOOK -> VIEW : PATCH /api/cuentas-mcb/{id}/
+
+VIEW -> CUENTA : validate_descripcion() — excluye instancia actual
+alt nueva descripcion ya existe (en otro registro)
+  VIEW --> HOOK : 400 — descripcion duplicada
+  HOOK --> GUI : showToast error
+else valida
+  VIEW -> AUDIT : perform_update — id_usu_modificator = request.user
+  AUDIT -> CUENTA : instance.save()
+  CUENTA --> BD : UPDATE cuenta_mcb SET descripcion
+  AUDIT --> BD : INSERT auditoria_registro (EDITAR)
+  VIEW --> HOOK : 200 OK
+  HOOK -> HOOK : invalidateQueries(['cuentas-mcb'])
+  HOOK --> GUI : setCtaActual actualiza nombre en header\npanel se cierra
+end
+
+== Eliminar cuenta ==
+
+ADMIN -> GUI : click icono eliminar en la barra de cuenta activa
+GUI --> ADMIN : ConfirmDialog\n"Solo se puede eliminar si no tiene movimientos activos."
+ADMIN -> GUI : confirma
+
+GUI -> HOOK : useDeleteCuenta.mutateAsync(id)
+HOOK -> VIEW : DELETE /api/cuentas-mcb/{id}/
+
+VIEW -> CUENTA : perform_destroy — verifica\ninstance.movimientos.filter(is_deleted=False).exists()
+alt tiene movimientos activos
+  VIEW --> HOOK : 400 — "No se puede eliminar una cuenta con movimientos activos."
+  HOOK --> GUI : showToast error
+else sin movimientos activos
+  VIEW -> AUDIT : borrado logico\nis_deleted=True, fecha_eliminacion=now
+  AUDIT -> CUENTA : instance.save()
+  CUENTA --> BD : UPDATE cuenta_mcb SET is_deleted=True
+  AUDIT --> BD : INSERT auditoria_registro (ELIMINAR)
+  VIEW --> HOOK : 204 No Content
+  HOOK -> HOOK : invalidateQueries(['cuentas-mcb'])
+  HOOK --> GUI : setCtaActual(null)\nvuelve a la grilla de cuentas
+end
+
+@enduml
