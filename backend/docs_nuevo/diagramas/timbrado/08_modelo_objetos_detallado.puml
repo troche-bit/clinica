@@ -1,0 +1,97 @@
+@startuml 08_modelo_objetos_detallado_timbrado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+' ── ACTORES ────────────────────────────────────────────────────────────────
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
+
+' ── BOUNDARY ───────────────────────────────────────────────────────────────
+class "TimbradoPage" <<boundary>> {
+  +tbl_timbrados
+  +txt_buscar
+  +sel_vigente
+  +btn_nuevo
+  +btn_editar
+  +btn_eliminar
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  +inp_nro_timbrado
+  +inp_inicio_vigencia
+  +inp_fin_vigencia
+  +inp_punto_sucursal
+  +inp_punto_expedicion
+  +inp_nro_desde
+  +inp_nro_hasta
+}
+
+' ── CONTROL ────────────────────────────────────────────────────────────────
+class "TimbradoViewSet" <<control>> {
+  queryset : Timbrado.activos
+  search_fields : [nro_timbrado]
+  filtro_vigente : vigente
+  get_permissions()
+  get_serializer_class()
+  list()
+  create()
+  update()
+  destroy()
+  eliminados()
+  perform_destroy()
+}
+
+' ── ENTIDADES ──────────────────────────────────────────────────────────────
+class "Timbrado" <<entity>> {
+  id : AutoField
+  nro_timbrado : CharField
+  inicio_vigencia : DateField
+  fin_vigencia : DateField
+  punto_sucursal : CharField
+  punto_expedicion : CharField
+  nro_desde : PositiveIntegerField
+  nro_hasta : PositiveIntegerField
+  autoimpresor : BooleanField
+  nro_habilitacion : CharField
+  vigente : property
+  tipo : property
+  dias_restantes : property
+  is_deleted : BooleanField
+  id_usu_creator : ForeignKey
+  id_usu_modificator : ForeignKey
+  fecha_creacion : DateTimeField
+  fecha_eliminacion : DateTimeField
+}
+
+class "VentaFactCab" <<entity>> {
+  id : AutoField
+  timbrado : ForeignKey
+  fecha : DateField
+  nro_comprobante : IntegerField
+  establecimiento : CharField
+  expedicion : CharField
+  monto_total : DecimalField
+  is_deleted : BooleanField
+}
+
+' ── RELACIONES ─────────────────────────────────────────────────────────────
+"Administrador" --> "TimbradoPage" : gestiona timbrados
+"Recepcionista" --> "TimbradoPage" : consulta vigencia
+
+"TimbradoPage" --> "TimbradoViewSet" : llama
+
+"TimbradoViewSet" --> "Timbrado" : crea / consulta / elimina
+"TimbradoViewSet" --> "VentaFactCab" : verifica facturas asociadas
+
+"Timbrado" "1" *-- "0..*" "VentaFactCab" : ampara facturas
+
+@enduml
