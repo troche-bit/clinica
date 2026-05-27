@@ -1,0 +1,94 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+boundary "Página de Cobranzas" as GUI
+control "Gestión de Cobranzas" as VIEW
+database "Base de datos" as BD
+
+== Apertura del módulo ==
+Administrador -> GUI : abre el módulo de Cobranzas
+GUI -> VIEW : solicita la lista de cobranzas
+VIEW -> BD : obtiene cobranzas activas paginadas
+BD --> VIEW : lista de cobranzas
+VIEW --> GUI : muestra tabla con Comprobante, Fecha, Cliente, Monto y Vuelto
+
+== Búsqueda y filtros ==
+Administrador -> GUI : escribe un nombre en el buscador\n(espera 300 ms antes de buscar)
+GUI -> VIEW : solicita cobranzas que contengan ese nombre
+VIEW -> BD : filtra cobranzas por nombre de cliente
+BD --> VIEW : cobranzas coincidentes
+VIEW --> GUI : actualiza la tabla
+
+Administrador -> GUI : selecciona un rango de fechas
+GUI -> VIEW : solicita cobranzas dentro del rango indicado
+VIEW -> BD : filtra cobranzas por fecha desde y hasta
+BD --> VIEW : cobranzas del período
+VIEW --> GUI : actualiza la tabla
+
+== Iniciar una nueva cobranza ==
+Administrador -> GUI : hace clic en "Nueva cobranza"
+GUI -> VIEW : solicita el siguiente número de comprobante disponible
+VIEW -> BD : obtiene el último número registrado
+BD --> VIEW : número siguiente calculado
+VIEW --> GUI : muestra el número formateado (ej. 0000042) en modo solo lectura
+
+Administrador -> GUI : escribe el nombre del cliente en el buscador
+GUI -> VIEW : busca clientes que tengan cuotas pendientes
+VIEW -> BD : filtra clientes con saldo pendiente mayor a cero
+BD --> VIEW : lista de clientes con deuda
+VIEW --> GUI : muestra sugerencias para seleccionar
+Administrador -> GUI : selecciona "González, María"
+
+GUI -> VIEW : solicita las cuotas pendientes de la cliente seleccionada
+VIEW -> BD : obtiene cuotas con saldo mayor a cero
+BD --> VIEW : cuotas pendientes
+VIEW --> GUI : muestra tabla con casillas de verificación\n(cuotas vencidas se resaltan en rojo)
+
+Administrador -> GUI : marca cuota 1 por 90.000 y cuota 2 por 60.000
+GUI --> Administrador : muestra total a cobrar: 150.000
+
+== Registrar los valores recibidos ==
+Administrador -> GUI : agrega fila 1: Efectivo / Caja / 100.000
+Administrador -> GUI : agrega fila 2: Tarjeta / POS / 80.000
+GUI --> Administrador : muestra total recibido: 180.000 — vuelto: 30.000
+
+== Guardar la cobranza ==
+Administrador -> GUI : hace clic en "Guardar"
+GUI -> GUI : valida que los montos y datos sean correctos
+GUI -> VIEW : envía los datos completos de la cobranza
+VIEW -> BD : inicia una transacción
+VIEW -> BD : crea el encabezado de la cobranza (nro. 42, monto 150.000, vuelto 30.000)
+VIEW -> BD : descuenta el saldo de cada cuota cobrada
+VIEW -> BD : guarda el detalle por cada cuota incluida
+VIEW -> BD : registra cada forma de pago recibida
+VIEW -> BD : genera un movimiento en la caja o banco correspondiente\n(sin descontar el vuelto)
+VIEW -> BD : registra la operación en auditoría
+VIEW -> BD : confirma la transacción
+BD --> VIEW : operación exitosa
+VIEW --> GUI : guardado con éxito
+GUI --> Administrador : el modal se cierra y aparece la nueva fila en la tabla\nlas listas de movimientos, cuentas y cuotas quedan actualizadas
+
+== Imprimir recibo en PDF ==
+Administrador -> GUI : hace clic en el ícono de impresora de una fila
+GUI -> VIEW : solicita el recibo en PDF de esa cobranza
+VIEW -> BD : obtiene los datos de la cobranza y sus detalles
+BD --> VIEW : datos completos
+VIEW -> VIEW : genera el documento PDF con los datos de la cobranza
+VIEW --> GUI : devuelve el archivo PDF
+GUI --> Administrador : abre el PDF en una nueva pestaña del navegador
+
+== Generar reporte general ==
+Administrador -> GUI : hace clic en "PDF" o "Excel"
+GUI -> VIEW : solicita el reporte de cobranzas con los filtros activos
+VIEW -> BD : obtiene todas las cobranzas del período seleccionado
+BD --> VIEW : datos del reporte
+VIEW -> VIEW : construye el documento PDF o planilla Excel
+VIEW --> GUI : devuelve el archivo generado
+GUI --> Administrador : descarga o abre el archivo en el navegador
+
+@enduml

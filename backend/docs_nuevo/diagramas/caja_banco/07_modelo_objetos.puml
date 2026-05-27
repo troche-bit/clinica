@@ -1,0 +1,70 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>> {
+}
+
+class "CuentasMcbPage" <<boundary>> {
+  - cuentaSeleccionada
+  - terminoBusqueda
+  - panelAbierto
+  --
+  + mostrarTarjetas()
+  + abrirPanelMovimientos()
+  + abrirFormularioNuevo()
+  + confirmarEliminar()
+}
+
+class "CuentaMcbViewSet" <<control>> {
+  + list()
+  + create()
+  + update()
+  + destroy()
+  + perform_destroy()
+}
+
+class "MovimientoCajaBancoViewSet" <<control>> {
+  + list()
+  + create()
+  + update()
+  + destroy()
+  + perform_destroy()
+}
+
+class "CuentaMcb" <<entity>> {
+  + id
+  + descripcion
+  + is_deleted
+}
+
+class "MovimientoCajaBanco" <<entity>> {
+  + id
+  + cta
+  + fecha
+  + nro_comprobante
+  + monto_ingreso
+  + monto_egreso
+  + is_deleted
+}
+
+"Administrador" --> "CuentasMcbPage" : interactúa
+
+"CuentasMcbPage" --> "CuentaMcbViewSet" : gestiona cuentas
+"CuentasMcbPage" --> "MovimientoCajaBancoViewSet" : gestiona movimientos
+
+"CuentaMcbViewSet" --> "CuentaMcb" : accede
+"MovimientoCajaBancoViewSet" --> "MovimientoCajaBanco" : accede
+
+"MovimientoCajaBanco" --> "CuentaMcb" : pertenece a
+
+@enduml

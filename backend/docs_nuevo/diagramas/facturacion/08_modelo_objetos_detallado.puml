@@ -1,0 +1,172 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+title Módulo Facturación — Modelo de objetos BCE (detallado)
+
+' ── Actores ──────────────────────────────────────────────
+class "Recepcionista" <<actor>>
+class "Administrador" <<actor>>
+
+' ── Boundary ─────────────────────────────────────────────
+class "FacturacionPage" <<boundary>> {
+  +tbl_facturas
+  +txt_buscar
+  +sel_fecha_desde
+  +sel_fecha_hasta
+  +btn_nueva_factura
+  +btn_pdf_factura
+  +btn_excel
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  +modal_nueva_factura
+  +inp_establecimiento
+  +inp_expedicion
+  +txt_cliente
+  +txt_producto
+  +tbl_detalle
+  +tbl_cobranza
+}
+
+' ── Controls ─────────────────────────────────────────────
+class "VentaFactCabViewSet" <<control>> {
+  +queryset : VentaFactCab.objects.filter(is_deleted=False)
+  +search_fields : nro_comprobante_formateado, persona__nombre
+  +list() : GET /api/facturacion/
+  +create() : POST /api/facturacion/
+  +destroy() : DELETE /api/facturacion/{id}/
+  +siguiente_numero() : GET siguiente-numero/
+  +validar_timbrado() : POST validar-timbrado/
+  +pdf() : GET {id}/pdf/
+  +eliminados() : GET eliminados/
+}
+
+' ── Entities ─────────────────────────────────────────────
+class "Timbrado" <<entity>> {
+  +id : AutoField
+  +nro_timbrado : CharField
+  +establecimiento : CharField
+  +expedicion : CharField
+  +nro_desde : IntegerField
+  +nro_hasta : IntegerField
+  +fecha_inicio : DateField
+  +fecha_vencimiento : DateField
+  +activo : BooleanField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "Persona" <<entity>> {
+  +id : AutoField
+  +nombres : CharField
+  +apellidos : CharField
+  +ruc : CharField
+  +tipo_documento : ForeignKey
+  +nro_documento : CharField
+}
+
+class "ProductoServicio" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +grupo : ForeignKey
+  +impuesto : CharField
+  +activo : BooleanField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "VentaFactCab" <<entity>> {
+  +id : AutoField
+  +timbrado : ForeignKey
+  +persona : ForeignKey
+  +establecimiento : CharField
+  +expedicion : CharField
+  +nro_comprobante : IntegerField
+  +nro_comprobante_formateado : CharField
+  +fecha_emision : DateField
+  +condicion_vta : BooleanField
+  +total_gravado_10 : DecimalField
+  +total_iva_10 : DecimalField
+  +total_gravado_5 : DecimalField
+  +total_iva_5 : DecimalField
+  +total_exento : DecimalField
+  +total : DecimalField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "VentaFactDet" <<entity>> {
+  +id : AutoField
+  +venta_fact_cab : ForeignKey
+  +producto_servicio : ForeignKey
+  +descripcion : CharField
+  +cantidad : DecimalField
+  +precio_unitario : DecimalField
+  +sub_gra_10 : DecimalField
+  +sub_iva_10 : DecimalField
+  +sub_gra_5 : DecimalField
+  +sub_iva_5 : DecimalField
+  +sub_exento : DecimalField
+  +subtotal : DecimalField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "VentaFactDetCobranza" <<entity>> {
+  +id : AutoField
+  +venta_fact_cab : ForeignKey
+  +forma_pago : ForeignKey
+  +cuenta_mcb : ForeignKey
+  +monto : DecimalField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+' ── Relaciones actor → boundary ──────────────────────────
+"Recepcionista"  --> "FacturacionPage" : usa
+"Administrador"  --> "FacturacionPage" : usa
+
+' ── Relaciones boundary → control ────────────────────────
+"FacturacionPage" --> "VentaFactCabViewSet" : invoca
+
+' ── Relaciones control → entity ──────────────────────────
+"VentaFactCabViewSet" --> "Timbrado"             : valida timbrado vigente
+"VentaFactCabViewSet" --> "Persona"              : busca cliente
+"VentaFactCabViewSet" --> "ProductoServicio"     : busca productos activos
+"VentaFactCabViewSet" --> "VentaFactCab"         : crea / lista / anula
+"VentaFactCabViewSet" --> "VentaFactDet"         : crea ítems de detalle
+"VentaFactCabViewSet" --> "VentaFactDetCobranza" : registra cobranza
+
+' ── Relaciones entre entidades ────────────────────────────
+"VentaFactCab"         "1" *-- "1..*" "VentaFactDet"         : contiene
+"VentaFactCab"         "1" *-- "1..*" "VentaFactDetCobranza" : cobrada por
+"VentaFactDet"         "*" --> "1"    "ProductoServicio"      : referencia
+"VentaFactCab"         "*" --> "1"    "Timbrado"              : usa
+"VentaFactCab"         "*" --> "1"    "Persona"               : emitida a
+
+@enduml

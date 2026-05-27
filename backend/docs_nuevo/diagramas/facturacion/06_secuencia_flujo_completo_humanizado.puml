@@ -1,0 +1,91 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+title Módulo Facturación — Flujo completo humanizado
+
+actor Recepcionista
+actor Administrador
+participant "Página de\nFacturación" as GUI
+participant "Gestión de\nFacturas" as VIEW
+participant "Base de datos" as BD
+
+== Consulta del listado ==
+Recepcionista -> GUI : Abre la página de facturación
+GUI -> VIEW : Solicita la lista de facturas
+VIEW -> BD : Consulta facturas activas paginadas
+BD --> VIEW : Devuelve registros
+VIEW --> GUI : Lista de facturas con número, cliente, total y estado
+GUI --> Recepcionista : Tabla de facturas visible
+
+== Nueva factura — punto de emisión ==
+Recepcionista -> GUI : Hace clic en "Nueva factura"
+Recepcionista -> GUI : Ingresa establecimiento 001 y expedición 001
+GUI -> VIEW : Solicita el siguiente número de comprobante disponible
+VIEW -> BD : Consulta timbrado vigente para ese punto de emisión
+BD --> VIEW : Timbrado válido con número correlativo
+VIEW --> GUI : Siguiente número y datos del timbrado
+GUI --> Recepcionista : Indicador verde "Timbrado válido"
+
+== Selección del cliente ==
+Recepcionista -> GUI : Escribe el nombre del cliente en el buscador
+GUI -> VIEW : Busca personas por nombre (con espera de 300 ms)
+VIEW -> BD : Filtra personas por nombre
+BD --> VIEW : Lista de coincidencias
+VIEW --> GUI : Sugerencias en el autocompletado
+Recepcionista -> GUI : Selecciona al cliente deseado
+GUI --> Recepcionista : Cliente asignado a la factura
+
+== Carga de productos ==
+Recepcionista -> GUI : Escribe el nombre del servicio en el buscador de productos
+GUI -> VIEW : Busca productos activos por nombre (con espera de 300 ms)
+VIEW -> BD : Filtra productos activos
+BD --> VIEW : Lista de productos con precio e IVA
+VIEW --> GUI : Sugerencias en el autocompletado
+Recepcionista -> GUI : Selecciona "Consulta General — Gs. 150.000 — IVA 10 %"
+Recepcionista -> GUI : Confirma cantidad 1 y precio 150.000
+GUI -> GUI : Calcula base gravada e IVA automáticamente
+GUI --> Recepcionista : Ítem agregado al detalle con subtotales
+
+== Registro de la cobranza ==
+Recepcionista -> GUI : Va a la pestaña "Cobranza"
+Recepcionista -> GUI : Elige forma de pago Efectivo, cuenta Caja, monto 150.000
+GUI -> GUI : Verifica que el total cobrado cubra el total facturado
+GUI --> Recepcionista : Indicador "Cobrado completo"
+
+== Emisión de la factura ==
+Recepcionista -> GUI : Hace clic en "Emitir factura"
+GUI -> GUI : Valida que todos los campos obligatorios estén completos
+GUI -> VIEW : Envía la factura con detalle y cobranza
+VIEW -> BD : Inicia transacción\nGuarda cabecera, detalle, cobranza y movimiento de caja
+BD --> VIEW : Registros creados correctamente
+VIEW -> BD : Registra evento en la auditoría del sistema
+VIEW -> BD : Confirma la transacción
+VIEW --> GUI : Factura emitida — número 001-001-0000001
+GUI -> GUI : Refresca la tabla de facturas y los movimientos de caja
+GUI --> Recepcionista : Modal cerrado, nueva fila visible en la tabla
+
+== Impresión de la factura ==
+Recepcionista -> GUI : Hace clic en el botón imprimir de la fila correspondiente
+GUI -> VIEW : Solicita el PDF de la factura
+VIEW -> BD : Carga los datos completos de la factura
+BD --> VIEW : Datos de cabecera, detalle y cliente
+VIEW -> VIEW : Genera el PDF con el template de impresión
+VIEW --> GUI : Archivo PDF listo para visualizar
+GUI --> Recepcionista : PDF abierto en una nueva pestaña del navegador
+
+== Anulación de factura (solo Administrador) ==
+Administrador -> GUI : Selecciona una factura emitida y elige "Anular"
+GUI -> GUI : Muestra diálogo de confirmación
+Administrador -> GUI : Confirma la anulación
+GUI -> VIEW : Solicita la eliminación lógica de la factura
+VIEW -> BD : Verifica que no existan movimientos de caja vinculados activos
+BD --> VIEW : Sin dependencias bloqueantes
+VIEW -> BD : Marca la factura como eliminada y registra en auditoría
+VIEW --> GUI : Anulación confirmada
+GUI --> Administrador : Factura desaparece del listado activo
+
+@enduml

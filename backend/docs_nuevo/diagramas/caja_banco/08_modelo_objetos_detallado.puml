@@ -1,0 +1,108 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>> {
+}
+
+class "CuentasMcbPage" <<boundary>> {
+  + tbl_cuentas
+  + tbl_movimientos
+  + txt_buscar
+  + btn_nuevo
+  + btn_editar
+  + btn_eliminar
+  + btn_guardar
+  + btn_cancelar
+  + btn_confirmar
+  + pnl_movimientos
+  --
+  - cuentaSeleccionada : number|null
+  - panelAbierto : boolean
+  - terminoBusqueda : string
+  --
+  + mostrarTarjetas() : void
+  + abrirPanelMovimientos(id) : void
+  + abrirFormularioNuevo() : void
+  + cerrarFormulario() : void
+  + confirmarEliminarCuenta(id) : void
+  + confirmarEliminarMovimiento(id) : void
+}
+
+class "CuentaMcbViewSet" <<control>> {
+  + queryset : CuentaMcb.objects.filter(is_deleted=False)
+  + search_fields : [descripcion]
+  + filter_fields : []
+  --
+  + list() : Response
+  + create() : Response
+  + retrieve() : Response
+  + update() : Response
+  + destroy() : Response
+  + perform_destroy(instance) : void
+  + get_serializer_class() : Serializer
+}
+
+class "MovimientoCajaBancoViewSet" <<control>> {
+  + queryset : MovimientoCajaBanco.objects.filter(is_deleted=False)
+  + search_fields : [nro_comprobante, concepto]
+  + filter_fields : [cta, fecha]
+  --
+  + list() : Response
+  + create() : Response
+  + retrieve() : Response
+  + update() : Response
+  + destroy() : Response
+  + perform_destroy(instance) : void
+  + get_serializer_class() : Serializer
+}
+
+class "CuentaMcb" <<entity>> {
+  + id : AutoField
+  + descripcion : CharField
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+class "MovimientoCajaBanco" <<entity>> {
+  + id : AutoField
+  + cta : ForeignKey
+  + fecha : DateField
+  + nro_comprobante : CharField
+  + concepto : CharField
+  + monto_ingreso : DecimalField
+  + monto_egreso : DecimalField
+  + vrc_id : ForeignKey
+  + vfdc_id : ForeignKey
+  + cob_id : ForeignKey
+  + pago_id : ForeignKey
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+"Administrador" --> "CuentasMcbPage" : interactúa
+
+"CuentasMcbPage" --> "CuentaMcbViewSet" : gestiona cuentas
+"CuentasMcbPage" --> "MovimientoCajaBancoViewSet" : gestiona movimientos
+
+"CuentaMcbViewSet" --> "CuentaMcb" : accede
+"MovimientoCajaBancoViewSet" --> "MovimientoCajaBanco" : accede
+
+"MovimientoCajaBanco" --> "CuentaMcb" : cta >
+
+@enduml

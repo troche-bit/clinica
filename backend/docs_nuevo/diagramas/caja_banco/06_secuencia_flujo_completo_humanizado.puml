@@ -1,0 +1,82 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+boundary "Página de Cuentas" as GUI
+control "Gestión de Cuentas" as GCUENTA
+control "Gestión de Movimientos" as GMOV
+database "Base de datos" as BD
+
+== Apertura del módulo ==
+Administrador -> GUI : abre el módulo de Cuentas Caja/Banco
+GUI -> GCUENTA : solicita la lista de cuentas
+GCUENTA -> BD : obtiene cuentas activas con saldo calculado y total de movimientos
+BD --> GCUENTA : lista de cuentas con saldos
+GCUENTA --> GUI : muestra grilla de tarjetas con saldo por cuenta
+
+== Búsqueda de cuenta ==
+Administrador -> GUI : escribe "caja" en el buscador\n(espera 300 ms antes de buscar)
+GUI -> GCUENTA : solicita cuentas que contengan "caja"
+GCUENTA -> BD : filtra cuentas activas por nombre
+BD --> GCUENTA : cuentas coincidentes
+GCUENTA --> GUI : actualiza la grilla con los resultados
+
+== Ver movimientos de una cuenta ==
+Administrador -> GUI : hace clic en la tarjeta "Caja Principal"
+GUI -> GMOV : solicita movimientos de la cuenta seleccionada
+GMOV -> BD : obtiene movimientos activos de esa cuenta, ordenados por fecha descendente
+BD --> GMOV : lista de movimientos
+GMOV --> GUI : muestra tabla con Fecha, Nro. Comprobante, Ingreso, Egreso y Acciones
+
+== Registrar un movimiento de ingreso ==
+Administrador -> GUI : hace clic en "Nuevo movimiento"
+Administrador -> GUI : elige tipo Ingreso, ingresa monto 75.000 y Nro. Comprobante "REC-100"
+Administrador -> GUI : hace clic en "Registrar"
+GUI -> GMOV : envía los datos del nuevo movimiento
+GMOV -> BD : guarda el movimiento con el usuario que lo creó
+BD --> GMOV : movimiento guardado con éxito
+GMOV -> BD : registra la operación en auditoría
+GMOV --> GUI : refresca la lista de movimientos y el saldo de la cuenta
+GUI --> Administrador : el panel se cierra y aparece la nueva fila en la tabla
+
+== Intento de eliminar un movimiento externo ==
+Administrador -> GUI : intenta eliminar un movimiento generado por otro módulo\n(por ejemplo, desde una cobranza)
+GUI -> GMOV : solicita eliminar el movimiento
+GMOV -> BD : verifica que el movimiento tiene origen en otro módulo
+BD --> GMOV : movimiento vinculado a registro externo
+GMOV --> GUI : rechaza la operación con error\n"No se puede eliminar un movimiento generado por otro módulo"
+GUI --> Administrador : muestra el mensaje de error
+
+== Editar un movimiento directo ==
+Administrador -> GUI : hace clic en editar sobre un movimiento propio del módulo
+Administrador -> GUI : modifica el monto a 80.000
+GUI -> GMOV : envía los cambios
+GMOV -> BD : actualiza el movimiento con el usuario que lo modificó
+BD --> GMOV : movimiento actualizado con éxito
+GMOV -> BD : registra la modificación en auditoría
+GMOV --> GUI : refresca la tabla de movimientos y el saldo de la cuenta
+
+== Intento de eliminar una cuenta con movimientos activos ==
+Administrador -> GUI : hace clic en eliminar sobre una cuenta que tiene movimientos
+GUI -> GCUENTA : solicita eliminar la cuenta
+GCUENTA -> BD : verifica que la cuenta tiene movimientos activos vinculados
+BD --> GCUENTA : existen movimientos activos
+GCUENTA --> GUI : rechaza la operación con error\n"No se puede eliminar una cuenta con movimientos activos"
+GUI --> Administrador : muestra el mensaje de error
+
+== Eliminar una cuenta sin movimientos ==
+Administrador -> GUI : hace clic en eliminar sobre una cuenta vacía
+GUI -> GCUENTA : solicita eliminar la cuenta
+GCUENTA -> BD : verifica que no tiene movimientos activos
+BD --> GCUENTA : cuenta sin movimientos activos
+GCUENTA -> BD : marca la cuenta como eliminada con fecha y usuario
+BD --> GCUENTA : eliminado con éxito
+GCUENTA -> BD : registra la eliminación en auditoría
+GCUENTA --> GUI : refresca la lista de cuentas
+GUI --> Administrador : la tarjeta desaparece de la grilla
+
+@enduml

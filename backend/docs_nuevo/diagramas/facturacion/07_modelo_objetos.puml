@@ -1,0 +1,56 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+title Módulo Facturación — Modelo de objetos BCE (abstracto)
+
+' ── Actores ──────────────────────────────────────────────
+class "Recepcionista" <<actor>>
+class "Administrador" <<actor>>
+
+' ── Boundary ─────────────────────────────────────────────
+class "FacturacionPage" <<boundary>>
+
+' ── Controls ─────────────────────────────────────────────
+class "VentaFactCabViewSet" <<control>>
+
+' ── Entities ─────────────────────────────────────────────
+class "Timbrado" <<entity>>
+class "Persona" <<entity>>
+class "ProductoServicio" <<entity>>
+class "VentaFactCab" <<entity>>
+class "VentaFactDet" <<entity>>
+class "VentaFactDetCobranza" <<entity>>
+
+' ── Relaciones actor → boundary ──────────────────────────
+"Recepcionista"  --> "FacturacionPage" : usa
+"Administrador"  --> "FacturacionPage" : usa
+
+' ── Relaciones boundary → control ────────────────────────
+"FacturacionPage" --> "VentaFactCabViewSet" : invoca
+
+' ── Relaciones control → entity ──────────────────────────
+"VentaFactCabViewSet" --> "Timbrado"             : valida timbrado vigente
+"VentaFactCabViewSet" --> "Persona"              : busca cliente
+"VentaFactCabViewSet" --> "ProductoServicio"     : busca productos activos
+"VentaFactCabViewSet" --> "VentaFactCab"         : crea / lista / anula
+"VentaFactCabViewSet" --> "VentaFactDet"         : crea ítems de detalle
+"VentaFactCabViewSet" --> "VentaFactDetCobranza" : registra cobranza
+
+' ── Relaciones entre entidades ────────────────────────────
+"VentaFactCab"         "1" *-- "1..*" "VentaFactDet"         : contiene
+"VentaFactCab"         "1" *-- "1..*" "VentaFactDetCobranza" : cobrada por
+"VentaFactDet"         "*" --> "1"    "ProductoServicio"      : referencia
+"VentaFactCab"         "*" --> "1"    "Timbrado"              : usa
+"VentaFactCab"         "*" --> "1"    "Persona"               : emitida a
+
+@enduml

@@ -1,0 +1,164 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>> {
+}
+
+class "Recepcionista" <<actor>> {
+}
+
+class "CobranzasPage" <<boundary>> {
+  + tbl_cobranzas
+  + txt_buscar
+  + sel_fecha_desde
+  + sel_fecha_hasta
+  + btn_nueva_cobranza
+  + btn_pdf
+  + btn_excel
+  + btn_guardar
+  + btn_cancelar
+  + btn_confirmar
+  + modal_nueva_cobranza
+  + tbl_cuotas
+  + tbl_valores_recibidos
+  --
+  - terminoBusqueda : string
+  - fechaDesde : string|null
+  - fechaHasta : string|null
+  - modalAbierto : boolean
+  - clienteSeleccionado : number|null
+  - cuotasMarcadas : array
+  - valoresRecibidos : array
+  --
+  + mostrarTabla() : void
+  + abrirModalNuevo() : void
+  + cerrarModal() : void
+  + buscarClientes(termino) : void
+  + cargarCuotasPendientes(personaId) : void
+  + calcularTotales() : void
+  + confirmarEliminar(id) : void
+  + solicitarReciboPDF(id) : void
+  + exportarPDF() : void
+  + exportarExcel() : void
+}
+
+class "CobranzaViewSet" <<control>> {
+  + queryset : Cobranza.objects.filter(is_deleted=False)
+  + search_fields : [persona__nombre, persona__apellido, nro_comprobante]
+  + filter_fields : [fecha_desde, fecha_hasta]
+  --
+  + list() : Response
+  + create() : Response
+  + destroy() : Response
+  + perform_destroy(instance) : void
+  + siguiente_numero() : Response
+  + clientes_con_pendientes() : Response
+  + cuotas_pendientes() : Response
+  + recibo_pdf(pk) : FileResponse
+  + reporte_pdf() : FileResponse
+  + reporte_excel() : FileResponse
+  + get_serializer_class() : Serializer
+}
+
+class "Cobranza" <<entity>> {
+  + id : AutoField
+  + nro_comprobante : CharField
+  + fecha : DateField
+  + persona : ForeignKey
+  + monto_total : DecimalField
+  + vuelto : DecimalField
+  + observacion : TextField
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+class "CobranzaDet" <<entity>> {
+  + id : AutoField
+  + cobranza : ForeignKey
+  + cta_cobrar : ForeignKey
+  + monto_cobrado : DecimalField
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+class "ValorRecibidoCob" <<entity>> {
+  + id : AutoField
+  + cobranza : ForeignKey
+  + forma_pago : ForeignKey
+  + cta_mcb : ForeignKey
+  + monto : DecimalField
+  + nro_referencia : CharField
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+class "CtaCobrar" <<entity>> {
+  + id : AutoField
+  + venta_fact_cab : ForeignKey
+  + persona : ForeignKey
+  + nro_cuota : IntegerField
+  + monto_original : DecimalField
+  + saldo : DecimalField
+  + fecha_vencimiento : DateField
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+class "MovimientoCajaBanco" <<entity>> {
+  + id : AutoField
+  + cta : ForeignKey
+  + fecha : DateField
+  + nro_comprobante : CharField
+  + concepto : CharField
+  + monto_ingreso : DecimalField
+  + monto_egreso : DecimalField
+  + vrc_id : ForeignKey
+  + vfdc_id : ForeignKey
+  + cob_id : ForeignKey
+  + pago_id : ForeignKey
+  + is_deleted : BooleanField
+  + fecha_creacion : DateTimeField
+  + fecha_eliminacion : DateTimeField
+  + id_usu_creator : ForeignKey
+  + id_usu_modificator : ForeignKey
+}
+
+"Administrador" --> "CobranzasPage" : interactúa
+"Recepcionista" --> "CobranzasPage" : interactúa
+
+"CobranzasPage" --> "CobranzaViewSet" : gestiona cobranzas
+
+"CobranzaViewSet" --> "Cobranza" : accede
+"CobranzaViewSet" --> "CobranzaDet" : accede
+"CobranzaViewSet" --> "ValorRecibidoCob" : accede
+"CobranzaViewSet" --> "CtaCobrar" : accede
+"CobranzaViewSet" --> "MovimientoCajaBanco" : genera
+
+"CobranzaDet" --> "Cobranza" : cobranza >
+"CobranzaDet" --> "CtaCobrar" : cta_cobrar >
+"ValorRecibidoCob" --> "Cobranza" : cobranza >
+"MovimientoCajaBanco" --> "Cobranza" : cob_id >
+
+@enduml

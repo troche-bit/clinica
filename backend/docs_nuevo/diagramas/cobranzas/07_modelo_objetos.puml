@@ -1,0 +1,110 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>> {
+}
+
+class "Recepcionista" <<actor>> {
+}
+
+class "CobranzasPage" <<boundary>> {
+  - terminoBusqueda
+  - fechaDesde
+  - fechaHasta
+  - modalAbierto
+  --
+  + mostrarTabla()
+  + abrirModalNuevo()
+  + buscarClientes()
+  + mostrarCuotasPendientes()
+  + confirmarEliminar()
+  + exportarPDF()
+  + exportarExcel()
+}
+
+class "CobranzaViewSet" <<control>> {
+  + list()
+  + create()
+  + destroy()
+  + siguiente_numero()
+  + clientes_con_pendientes()
+  + cuotas_pendientes()
+  + recibo_pdf()
+  + reporte_pdf()
+  + reporte_excel()
+}
+
+class "Cobranza" <<entity>> {
+  + id
+  + nro_comprobante
+  + fecha
+  + persona
+  + monto_total
+  + vuelto
+  + is_deleted
+}
+
+class "CobranzaDet" <<entity>> {
+  + id
+  + cobranza
+  + cta_cobrar
+  + monto_cobrado
+  + is_deleted
+}
+
+class "ValorRecibidoCob" <<entity>> {
+  + id
+  + cobranza
+  + forma_pago
+  + cta_mcb
+  + monto
+  + is_deleted
+}
+
+class "CtaCobrar" <<entity>> {
+  + id
+  + persona
+  + nro_cuota
+  + monto_original
+  + saldo
+  + fecha_vencimiento
+  + is_deleted
+}
+
+class "MovimientoCajaBanco" <<entity>> {
+  + id
+  + cta
+  + fecha
+  + monto_ingreso
+  + monto_egreso
+  + cob_id
+  + is_deleted
+}
+
+"Administrador" --> "CobranzasPage" : interactúa
+"Recepcionista" --> "CobranzasPage" : interactúa
+
+"CobranzasPage" --> "CobranzaViewSet" : gestiona cobranzas
+
+"CobranzaViewSet" --> "Cobranza" : accede
+"CobranzaViewSet" --> "CobranzaDet" : accede
+"CobranzaViewSet" --> "ValorRecibidoCob" : accede
+"CobranzaViewSet" --> "CtaCobrar" : accede
+"CobranzaViewSet" --> "MovimientoCajaBanco" : genera
+
+"CobranzaDet" --> "Cobranza" : pertenece a
+"CobranzaDet" --> "CtaCobrar" : descuenta
+"ValorRecibidoCob" --> "Cobranza" : pertenece a
+"MovimientoCajaBanco" --> "Cobranza" : originado por
+
+@enduml
