@@ -1,0 +1,38 @@
+@startuml 07_modelo_objetos_timbrado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
+
+class "TimbradoPage" <<boundary>>
+
+class "TimbradoViewSet" <<control>>
+
+class "Timbrado" <<entity>>
+class "VentaFactCab" <<entity>>
+
+' Relaciones actores -> boundary
+"Administrador" --> "TimbradoPage" : gestiona timbrados
+"Recepcionista" --> "TimbradoPage" : consulta vigencia
+
+' Relaciones boundary -> control
+"TimbradoPage" --> "TimbradoViewSet" : llama
+
+' Relaciones control -> entidades
+"TimbradoViewSet" --> "Timbrado" : crea / consulta / elimina
+"TimbradoViewSet" --> "VentaFactCab" : verifica facturas asociadas
+
+' Relaciones entre entidades
+"Timbrado" "1" *-- "0..*" "VentaFactCab" : ampara facturas
+
+@enduml

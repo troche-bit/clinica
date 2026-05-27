@@ -1,0 +1,83 @@
+@startuml 06_secuencia_timbrado_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+actor Recepcionista
+
+participant "Página de\nTimbrado" as GUI
+participant "Gestión de\nTimbrado" as SRV
+participant "Página de\nFacturación" as FACT_GUI
+participant "Base de datos" as BD
+
+== Creación de un nuevo timbrado ==
+
+Administrador -> GUI : Hace clic en "Nuevo timbrado"
+GUI --> Administrador : Se abre el formulario de alta
+
+Administrador -> GUI : Completa los datos del timbrado\n(número, vigencia, punto de sucursal,\npunto de expedición y rango de comprobantes)
+GUI -> GUI : Verifica que no existe un timbrado duplicado
+GUI -> SRV : Envía los datos para crear el timbrado
+SRV -> SRV : Valida que la fecha de fin sea posterior al inicio,\nque el rango sea correcto y que no haya duplicados
+SRV -> BD : Guarda el nuevo timbrado
+BD --> SRV : Registro creado
+SRV -> BD : Guarda el registro de auditoría
+BD --> SRV : Auditoría registrada
+SRV --> GUI : Timbrado creado con éxito (código 201)
+GUI -> SRV : Refresca la lista de timbrados
+GUI --> Administrador : Notificación de éxito "Timbrado creado correctamente"
+
+== Visualización del estado de vigencia ==
+
+GUI -> SRV : Solicita la lista de timbrados activos
+SRV -> BD : Consulta timbrados no eliminados
+BD --> SRV : Lista de timbrados
+SRV -> SRV : Calcula los días restantes de vigencia de cada timbrado
+SRV --> GUI : Lista con estado de vigencia y días restantes
+GUI -> GUI : Determina el color de la barra de progreso según los días restantes
+GUI --> Administrador : Muestra el estado del timbrado: barra verde y etiqueta "Vigente —\n226 días restantes"
+
+== La recepcionista emite una factura con el timbrado activo ==
+
+Recepcionista -> FACT_GUI : Abre el formulario de nueva factura
+FACT_GUI -> SRV : Verifica que existe un timbrado válido disponible
+SRV -> BD : Busca timbrados vigentes y con comprobantes disponibles
+BD --> SRV : Timbrado válido encontrado
+SRV --> FACT_GUI : Confirmación de validez del timbrado
+
+FACT_GUI -> SRV : Solicita el siguiente número de comprobante disponible
+SRV -> BD : Consulta el máximo número de factura emitida con ese timbrado
+BD --> SRV : Próximo número: 1
+SRV --> FACT_GUI : Siguiente número disponible: 001-001-0000001
+
+Recepcionista -> FACT_GUI : Completa y confirma la factura
+FACT_GUI -> SRV : Registra la nueva factura
+SRV -> BD : Guarda el encabezado de la factura
+BD --> SRV : Factura guardada
+SRV --> FACT_GUI : Factura emitida con éxito
+FACT_GUI --> Recepcionista : Confirmación de emisión de la factura
+
+== Actualización del panel del timbrado ==
+
+GUI -> SRV : Solicita datos actualizados del timbrado
+SRV -> BD : Consulta el estado actual del timbrado
+BD --> SRV : Próximo número: 2, comprobantes disponibles: 998
+SRV --> GUI : Datos actualizados
+GUI --> Administrador : Panel actualizado con el próximo número y los disponibles restantes
+
+== Intento de eliminación de un timbrado con facturas asociadas ==
+
+Administrador -> GUI : Hace clic en el botón "Eliminar" de un timbrado
+GUI --> Administrador : Muestra el diálogo de confirmación
+Administrador -> GUI : Confirma la eliminación
+GUI -> SRV : Envía la solicitud de eliminación del timbrado
+SRV -> SRV : Verifica si el timbrado tiene facturas asociadas
+SRV -> BD : Consulta facturas activas vinculadas a ese timbrado
+BD --> SRV : Sí tiene facturas asociadas
+SRV --> GUI : Error 400 — "No se puede eliminar: tiene facturas registradas"
+GUI --> Administrador : Notificación de error — La acción fue bloqueada
+
+@enduml
