@@ -1,0 +1,47 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+title Módulo Grupos y Productos — Modelo de objetos BCE (abstracto)
+
+' ── Actores ──────────────────────────────────────────────
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
+
+' ── Boundary ─────────────────────────────────────────────
+class "GruposPage" <<boundary>>
+
+' ── Controls ─────────────────────────────────────────────
+class "GrupoViewSet" <<control>>
+class "ProductoServicioViewSet" <<control>>
+
+' ── Entities ─────────────────────────────────────────────
+class "GrupoProducto" <<entity>>
+class "ProductoServicio" <<entity>>
+
+' ── Relaciones actor → boundary ──────────────────────────
+"Administrador"  --> "GruposPage" : usa
+"Recepcionista"  --> "GruposPage" : consulta productos
+
+' ── Relaciones boundary → control ────────────────────────
+"GruposPage" --> "GrupoViewSet"          : invoca
+"GruposPage" --> "ProductoServicioViewSet" : invoca
+
+' ── Relaciones control → entity ──────────────────────────
+"GrupoViewSet"           --> "GrupoProducto"    : crea / lista / edita / elimina
+"ProductoServicioViewSet" --> "ProductoServicio" : crea / lista / edita / elimina
+"ProductoServicioViewSet" --> "GrupoProducto"    : filtra por grupo
+
+' ── Relaciones entre entidades ────────────────────────────
+"GrupoProducto" "1" *-- "0..*" "ProductoServicio" : agrupa
+
+@enduml

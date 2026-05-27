@@ -1,0 +1,112 @@
+@startuml 06_secuencia_pago_prestador_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+
+participant "Página de\nPago a Prestadores" as GUI
+participant "Gestión de Pagos" as SRV
+participant "Base de datos" as BD
+
+== Apertura de la sección ==
+
+Administrador -> GUI : Ingresa a la sección de pago a prestadores
+GUI -> SRV : Solicita la lista de pagos registrados
+SRV -> BD : Consulta pagos activos (no eliminados)
+BD --> SRV : Devuelve lista paginada
+SRV --> GUI : Lista con médico, número, fecha, horas, monto/hora, total y estado
+GUI --> Administrador : Tabla con todos los pagos registrados
+
+== Búsqueda y filtrado ==
+
+Administrador -> GUI : Escribe el nombre de un médico
+GUI -> SRV : Solicita pagos que coincidan con la búsqueda (con retardo de 300 ms)
+SRV -> BD : Consulta filtrando por nombre del médico
+BD --> SRV : Resultados filtrados
+SRV --> GUI : Lista actualizada
+GUI --> Administrador : Tabla con resultados del filtro
+
+Administrador -> GUI : Aplica filtro de estado o rango de fechas
+GUI -> SRV : Solicita pagos con los filtros combinados
+SRV -> BD : Consulta con todos los parámetros activos
+BD --> SRV : Resultados combinados
+SRV --> GUI : Lista filtrada
+GUI --> Administrador : Tabla actualizada según los filtros
+
+== Registro de un nuevo pago ==
+
+Administrador -> GUI : Hace clic en "Nuevo pago"
+GUI -> SRV : Solicita médicos con turnos pendientes de pago
+SRV -> BD : Consulta turnos realizados aún no pagados, agrupados por médico
+BD --> SRV : Lista de médicos con bloques pendientes
+SRV --> GUI : Médicos disponibles para selección
+GUI --> Administrador : Muestra formulario con desplegable de médicos
+
+Administrador -> GUI : Selecciona el médico "García, Juan"
+GUI -> SRV : Solicita bloques de turnos pendientes del médico seleccionado
+SRV -> BD : Filtra turnos realizados no pagados, agrupa por horario y fecha
+BD --> SRV : Bloques con fecha, hora, especialidad, horas e identificadores de agenda
+SRV --> GUI : Tabla de bloques pendientes con casillas de selección
+GUI --> Administrador : Bloques disponibles para seleccionar
+
+Administrador -> GUI : Selecciona los bloques del 01/05 al 10/05
+Administrador -> GUI : Ingresa el monto por hora (150 000 Gs.)
+GUI --> Administrador : Calcula automáticamente: 24 horas trabajadas = 3 600 000 Gs. en total
+
+== Número de comprobante ==
+
+GUI --> Administrador : Sugiere el siguiente número disponible (auto-calculado)
+
+alt El administrador ingresa el número manualmente
+    Administrador -> GUI : Escribe el número de comprobante
+    GUI -> SRV : Verifica si el número está disponible
+    SRV -> BD : Consulta si existe otro pago con ese número
+    BD --> SRV : Número libre
+    SRV --> GUI : Confirmación de disponibilidad
+    GUI --> Administrador : Indicador verde "Disponible"
+end
+
+== Forma de pago ==
+
+Administrador -> GUI : Selecciona Efectivo + Caja Chica por 3 600 000 Gs.
+GUI --> Administrador : Indicador "Pago completo — sin saldo pendiente"
+
+== Confirmación y guardado ==
+
+Administrador -> GUI : Hace clic en "Guardar"
+GUI -> GUI : Valida que todos los campos requeridos estén completos
+GUI -> SRV : Envía el pago con médico, monto/hora, bloques seleccionados y forma de pago
+SRV -> BD : Inicia transacción
+SRV -> BD : Registra el pago (número de comprobante, horas, monto total)
+SRV -> BD : Marca los turnos seleccionados como pagados al prestador
+SRV -> BD : Guarda el detalle de la forma de pago
+SRV -> BD : Registra el movimiento de egreso en la cuenta de caja/banco
+SRV -> BD : Guarda el registro de auditoría
+SRV -> BD : Confirma la transacción
+BD --> SRV : Todo guardado correctamente
+SRV --> GUI : Pago creado con éxito (código 201)
+GUI -> SRV : Refresca listas de pagos, movimientos y cuentas
+GUI --> Administrador : El modal se cierra y aparece la nueva fila en la tabla
+
+== Impresión del recibo ==
+
+Administrador -> GUI : Hace clic en el ícono de impresora de un pago
+GUI -> SRV : Solicita el recibo en formato PDF
+SRV -> SRV : Genera el documento con los datos del pago
+SRV --> GUI : Archivo PDF listo
+GUI --> Administrador : El recibo se abre en una nueva pestaña del navegador
+
+== Reporte general ==
+
+Administrador -> GUI : Hace clic en "PDF" o "Excel"
+GUI -> SRV : Solicita el reporte general de pagos
+SRV -> BD : Consulta todos los registros para el reporte
+BD --> SRV : Datos del reporte
+SRV -> SRV : Genera el documento PDF o planilla Excel
+SRV --> GUI : Archivo generado
+GUI --> Administrador : El archivo se descarga automáticamente
+
+@enduml

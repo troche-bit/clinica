@@ -1,0 +1,99 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+title Módulo Grupos y Productos — Modelo de objetos BCE (detallado)
+
+' ── Actores ──────────────────────────────────────────────
+class "Administrador" <<actor>>
+class "Recepcionista" <<actor>>
+
+' ── Boundary ─────────────────────────────────────────────
+class "GruposPage" <<boundary>> {
+  +lst_grupos
+  +tbl_productos
+  +txt_buscar
+  +btn_nuevo_grupo
+  +btn_nuevo_producto
+  +btn_editar
+  +btn_eliminar
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+  +pnl_detalle_grupo
+}
+
+' ── Controls ─────────────────────────────────────────────
+class "GrupoViewSet" <<control>> {
+  +queryset : GrupoProducto.objects.filter(is_deleted=False)
+  +search_fields : descripcion
+  +list() : GET /api/grupos/
+  +create() : POST /api/grupos/
+  +update() : PATCH /api/grupos/{id}/
+  +destroy() : DELETE /api/grupos/{id}/
+  +eliminados() : GET /api/grupos/eliminados/
+}
+
+class "ProductoServicioViewSet" <<control>> {
+  +queryset : ProductoServicio.objects.filter(is_deleted=False)
+  +search_fields : descripcion
+  +list() : GET /api/productos/
+  +create() : POST /api/productos/
+  +update() : PATCH /api/productos/{id}/
+  +destroy() : DELETE /api/productos/{id}/
+  +eliminados() : GET /api/productos/eliminados/
+}
+
+' ── Entities ─────────────────────────────────────────────
+class "GrupoProducto" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +activo : BooleanField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  .. db_table: grupo_producto ..
+}
+
+class "ProductoServicio" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +grupo : ForeignKey
+  +impuesto : CharField
+  +activo : BooleanField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+  .. db_table: producto_servicio ..
+}
+
+' ── Relaciones actor → boundary ──────────────────────────
+"Administrador"  --> "GruposPage" : usa
+"Recepcionista"  --> "GruposPage" : consulta productos
+
+' ── Relaciones boundary → control ────────────────────────
+"GruposPage" --> "GrupoViewSet"             : invoca
+"GruposPage" --> "ProductoServicioViewSet"  : invoca
+
+' ── Relaciones control → entity ──────────────────────────
+"GrupoViewSet"            --> "GrupoProducto"    : crea / lista / edita / elimina
+"ProductoServicioViewSet" --> "ProductoServicio" : crea / lista / edita / elimina
+"ProductoServicioViewSet" --> "GrupoProducto"    : filtra por grupo
+
+' ── Relaciones entre entidades ────────────────────────────
+"GrupoProducto" "1" *-- "0..*" "ProductoServicio" : agrupa
+
+@enduml

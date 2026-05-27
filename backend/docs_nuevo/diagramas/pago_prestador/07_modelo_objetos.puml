@@ -1,0 +1,42 @@
+@startuml 07_modelo_objetos_pago_prestador
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+
+class "PagoPrestadorPage" <<boundary>>
+
+class "PagoPrestadorViewSet" <<control>>
+
+class "PagoPrestador" <<entity>>
+class "PagoPrestadorDetCobranza" <<entity>>
+class "Agenda" <<entity>>
+class "MovimientoCajaBanco" <<entity>>
+
+' Relaciones actor -> boundary
+"Administrador" --> "PagoPrestadorPage" : interactúa
+
+' Relaciones boundary -> control
+"PagoPrestadorPage" --> "PagoPrestadorViewSet" : llama
+
+' Relaciones control -> entidades
+"PagoPrestadorViewSet" --> "PagoPrestador" : crea / consulta
+"PagoPrestadorViewSet" --> "PagoPrestadorDetCobranza" : crea
+"PagoPrestadorViewSet" --> "Agenda" : actualiza pagado_prestador
+"PagoPrestadorViewSet" --> "MovimientoCajaBanco" : registra egreso
+
+' Relaciones entre entidades
+"PagoPrestador" "1" *-- "0..*" "PagoPrestadorDetCobranza" : detalle de pago
+"PagoPrestador" "1" o-- "0..*" "Agenda" : turnos pagados
+"PagoPrestadorDetCobranza" "1" -- "0..*" "MovimientoCajaBanco" : origina movimiento
+
+@enduml

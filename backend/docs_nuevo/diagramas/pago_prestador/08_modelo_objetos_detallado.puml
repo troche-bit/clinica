@@ -1,0 +1,118 @@
+@startuml 08_modelo_objetos_detallado_pago_prestador
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+' ── ACTOR ──────────────────────────────────────────────────────────────────
+class "Administrador" <<actor>>
+
+' ── BOUNDARY ───────────────────────────────────────────────────────────────
+class "PagoPrestadorPage" <<boundary>> {
+  +tbl_pagos
+  +txt_buscar
+  +sel_estado
+  +sel_fecha_desde
+  +sel_fecha_hasta
+  +btn_nuevo_pago
+  +btn_pdf
+  +btn_excel
+  +modal_nuevo_pago
+  +sel_medico
+  +tbl_bloques
+  +inp_monto_hora
+  +tbl_forma_pago
+  +btn_guardar
+  +btn_cancelar
+  +btn_confirmar
+}
+
+' ── CONTROL ────────────────────────────────────────────────────────────────
+class "PagoPrestadorViewSet" <<control>> {
+  queryset : PagoPrestador.activos
+  search_fields : [persona_rrhh__persona__apellido]
+  filterset_fields : [estado, fecha_pago]
+  get_permissions()
+  get_serializer_class()
+  list()
+  create()
+  update()
+  destroy()
+  eliminados()
+  perform_destroy()
+  medicos_con_pendientes()
+  bloques_pendientes()
+  validar_numero()
+  recibo_pdf()
+  reporte_pdf()
+  reporte_excel()
+}
+
+' ── ENTIDADES ──────────────────────────────────────────────────────────────
+class "PagoPrestador" <<entity>> {
+  id : AutoField
+  persona_rrhh : ForeignKey
+  nro_comprobante : PositiveIntegerField [nullable]
+  fecha_pago : DateField
+  monto_hora : DecimalField
+  total_hora : DecimalField
+  monto_total : DecimalField
+  saldo : DecimalField
+  estado : CharField
+  is_deleted : BooleanField
+  id_usu_creator : ForeignKey
+  id_usu_modificator : ForeignKey
+  fecha_creacion : DateTimeField
+  fecha_eliminacion : DateTimeField
+}
+
+class "PagoPrestadorDetCobranza" <<entity>> {
+  id : AutoField
+  pago_prestador : ForeignKey
+  forma_pago : ForeignKey
+  cta : ForeignKey
+  monto : DecimalField
+  voucher : CharField
+  is_deleted : BooleanField
+}
+
+class "Agenda" <<entity>> {
+  id : AutoField
+  fecha : DateField
+  hora_desde : TimeField
+  hora_hasta : TimeField
+  estado : CharField
+  pagado_prestador : BooleanField
+  pago_prestador : ForeignKey [nullable]
+}
+
+class "MovimientoCajaBanco" <<entity>> {
+  id : AutoField
+  cta : ForeignKey
+  fecha : DateField
+  monto_egreso : DecimalField
+  ppdc_id : IntegerField
+}
+
+' ── RELACIONES ─────────────────────────────────────────────────────────────
+"Administrador" --> "PagoPrestadorPage" : interactúa
+
+"PagoPrestadorPage" --> "PagoPrestadorViewSet" : llama
+
+"PagoPrestadorViewSet" --> "PagoPrestador" : crea / consulta
+"PagoPrestadorViewSet" --> "PagoPrestadorDetCobranza" : crea
+"PagoPrestadorViewSet" --> "Agenda" : actualiza pagado_prestador
+"PagoPrestadorViewSet" --> "MovimientoCajaBanco" : registra egreso
+
+"PagoPrestador" "1" *-- "0..*" "PagoPrestadorDetCobranza" : detalle de pago
+"PagoPrestador" "1" o-- "0..*" "Agenda" : turnos pagados
+"PagoPrestadorDetCobranza" "1" -- "0..*" "MovimientoCajaBanco" : origina movimiento
+
+@enduml

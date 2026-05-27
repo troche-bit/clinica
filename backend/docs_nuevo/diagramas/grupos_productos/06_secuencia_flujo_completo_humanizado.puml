@@ -1,0 +1,101 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+title Módulo Grupos y Productos — Flujo completo humanizado
+
+actor Administrador
+actor Recepcionista
+participant "Página de\nGrupos" as GUI
+participant "Gestión de Grupos\ny Productos" as VIEW
+participant "Base de datos" as BD
+
+== Consulta del listado de grupos ==
+Administrador -> GUI : Abre la página de grupos
+GUI -> VIEW : Solicita la lista de grupos activos
+VIEW -> BD : Consulta grupos no eliminados
+BD --> VIEW : Devuelve registros
+VIEW --> GUI : Tarjetas de grupos con nombre y estado
+GUI --> Administrador : Grupos visibles en pantalla
+
+== Crear un grupo nuevo ==
+Administrador -> GUI : Hace clic en "Nuevo grupo"
+Administrador -> GUI : Escribe la descripción "Servicios Médicos"
+GUI -> VIEW : Envía el nuevo grupo
+VIEW -> BD : Verifica que no exista otro grupo activo con el mismo nombre
+BD --> VIEW : Nombre disponible
+VIEW -> BD : Guarda el nuevo grupo
+BD --> VIEW : Grupo creado correctamente
+VIEW -> BD : Registra el evento en la auditoría
+VIEW --> GUI : 201 Creado
+GUI -> GUI : Refresca la lista de grupos
+GUI --> Administrador : Nueva tarjeta "Servicios Médicos" visible
+
+== Navegar al grupo y ver sus productos ==
+Administrador -> GUI : Hace clic sobre la tarjeta "Servicios Médicos"
+GUI -> VIEW : Solicita los productos del grupo seleccionado
+VIEW -> BD : Filtra productos por grupo y estado activo
+BD --> VIEW : Lista vacía (grupo recién creado)
+VIEW --> GUI : Sin productos todavía
+GUI --> Administrador : Mensaje "Sin productos en este grupo"
+
+== Crear un producto dentro del grupo ==
+Administrador -> GUI : Hace clic en "Nuevo producto"
+Administrador -> GUI : Completa descripción "Consulta General", precio Gs. 150.000, IVA 10 %
+GUI -> VIEW : Envía el nuevo producto asociado al grupo
+VIEW -> BD : Guarda el producto con los datos de impuesto
+BD --> VIEW : Producto creado correctamente
+VIEW -> BD : Registra el evento en la auditoría
+VIEW --> GUI : 201 Creado
+GUI -> GUI : Refresca la tabla de productos del grupo
+GUI --> Administrador : "Consulta General" aparece en la tabla
+
+== Usar el producto en una factura ==
+Recepcionista -> GUI : Abre la página de facturación y crea una nueva factura
+Recepcionista -> GUI : Escribe "Consulta" en el buscador de productos
+GUI -> VIEW : Busca productos activos por nombre
+VIEW -> BD : Filtra productos activos con esa descripción
+BD --> VIEW : Devuelve "Consulta General — Gs. 150.000 — IVA 10 %"
+VIEW --> GUI : Sugerencia en el autocompletado
+Recepcionista -> GUI : Selecciona "Consulta General"
+GUI -> GUI : Calcula IVA 10 %: base = 136.364 Gs. · IVA = 13.636 Gs.
+Recepcionista -> GUI : Hace clic en "Emitir factura"
+GUI -> VIEW : Envía la factura con el detalle del producto
+VIEW -> BD : Guarda cabecera y detalle de la venta
+BD --> VIEW : Factura registrada
+VIEW --> GUI : Factura emitida correctamente
+GUI --> Recepcionista : Número de comprobante generado
+
+== Desactivar un producto ==
+Administrador -> GUI : Abre el formulario de edición del producto
+Administrador -> GUI : Cambia el estado de Activo a Inactivo
+GUI -> VIEW : Envía la actualización parcial del estado
+VIEW -> BD : Actualiza el campo activo a falso
+BD --> VIEW : Cambio guardado
+VIEW --> GUI : Producto actualizado
+GUI --> Administrador : El producto ya no aparece en búsquedas de facturación
+
+== Intento de eliminar un producto con facturas vinculadas ==
+Administrador -> GUI : Hace clic en "Eliminar" sobre "Consulta General"
+GUI -> GUI : Muestra diálogo de confirmación
+Administrador -> GUI : Confirma la eliminación
+GUI -> VIEW : Solicita la eliminación del producto
+VIEW -> BD : Verifica si el producto está referenciado en facturas activas
+BD --> VIEW : Existen facturas activas que lo usan
+VIEW --> GUI : Error 400 — No se puede eliminar
+GUI --> Administrador : Mensaje de error con la explicación
+
+== Intento de eliminar un grupo con productos activos ==
+Administrador -> GUI : Hace clic en "Eliminar" sobre el grupo "Servicios Médicos"
+GUI -> GUI : Muestra diálogo de confirmación
+Administrador -> GUI : Confirma la eliminación
+GUI -> VIEW : Solicita la eliminación del grupo
+VIEW -> BD : Verifica si el grupo tiene productos activos vinculados
+BD --> VIEW : Existe al menos un producto activo en ese grupo
+VIEW --> GUI : Error 400 — No se puede eliminar
+GUI --> Administrador : Mensaje de error con la explicación
+
+@enduml
