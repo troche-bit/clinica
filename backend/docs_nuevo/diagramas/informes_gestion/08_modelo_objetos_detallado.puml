@@ -1,0 +1,193 @@
+@startuml 08_modelo_objetos_detallado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+
+class "InformesGestionPage" <<boundary>> {
+  +lst_cards_listados
+  +lst_cards_dashboards
+  +modal_productos
+  +sel_grupo
+  +modal_facturas
+  +txt_buscar_cliente
+  +sel_fecha_desde
+  +sel_fecha_hasta
+  +sel_condicion_vta
+  +chk_agrupar_cliente
+  +modal_estado_cuenta
+  +sel_modo_ecta
+  +chk_usar_rango
+  +chk_incluir_saldo_cero
+  +btn_ver_pdf
+  +btn_descargar_excel
+  --
+  +abrirModalProductos()
+  +abrirModalFacturas()
+  +abrirModalEstadoCuenta()
+  +generarPDF()
+  +descargarExcel()
+  +navegarDashboard()
+}
+
+class "ProductoServicioViewSet" <<control>> {
+  +queryset : ProductoServicio.activos
+  +search_fields : [descripcion]
+  +filtro_grupo : grupo
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +reporte_productos()
+  +reporte_excel()
+}
+
+class "VentaFactCabViewSet" <<control>> {
+  +queryset : VentaFactCab.activos
+  +search_fields : [persona__razon_social, nro_comprobante]
+  +filtro_persona : persona
+  +filtro_fecha_desde : fecha_desde
+  +filtro_fecha_hasta : fecha_hasta
+  +filtro_condicion : condicion_vta
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +reporte_pdf()
+  +reporte_excel()
+  +estado_cuenta_pdf()
+  +estado_cuenta_excel()
+  +dashboard_mensual()
+}
+
+class "CobranzaViewSet" <<control>> {
+  +queryset : Cobranza.activos
+  +search_fields : [persona__razon_social]
+  +filtro_fecha_desde : fecha_desde
+  +filtro_fecha_hasta : fecha_hasta
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +dashboard_mensual()
+}
+
+class "CuentaMcbViewSet" <<control>> {
+  +queryset : CuentaMcb.activos
+  +search_fields : [descripcion]
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +dashboard_mensual()
+}
+
+class "PagoPrestadorViewSet" <<control>> {
+  +queryset : PagoPrestador.activos
+  +search_fields : [persona_rrhh__persona__razon_social]
+  +filtro_fecha_desde : fecha_desde
+  +filtro_fecha_hasta : fecha_hasta
+  --
+  +get_permissions()
+  +get_serializer_class()
+  +list()
+  +reporte_pdf()
+  +reporte_excel()
+}
+
+class "ProductoServicio" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +grupo : ForeignKey
+  +impuesto : CharField
+  +activo : BooleanField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "VentaFactCab" <<entity>> {
+  +id : AutoField
+  +fecha : DateField
+  +persona : ForeignKey
+  +timbrado : ForeignKey
+  +establecimiento : CharField
+  +expedicion : CharField
+  +nro_comprobante : IntegerField
+  +condicion_vta : BooleanField
+  +monto_total : DecimalField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "CtaCobrar" <<entity>> {
+  +id : AutoField
+  +vfc : ForeignKey
+  +persona : ForeignKey
+  +nro_cuota : IntegerField
+  +cant_cuota : IntegerField
+  +monto_cuota : DecimalField
+  +saldo : DecimalField
+  +fecha_vencimiento : DateField
+  +estado : CharField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "Cobranza" <<entity>> {
+  +id : AutoField
+  +persona : ForeignKey
+  +fecha : DateField
+  +comprobante_nro : IntegerField
+  +monto : DecimalField
+  +vuelto : DecimalField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+class "CuentaMcb" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +saldo : DecimalField
+  +is_deleted : BooleanField
+  +id_usu_creator : ForeignKey
+  +id_usu_modificator : ForeignKey
+  +fecha_creacion : DateTimeField
+  +fecha_eliminacion : DateTimeField
+}
+
+Administrador --> InformesGestionPage
+
+InformesGestionPage --> ProductoServicioViewSet
+InformesGestionPage --> VentaFactCabViewSet
+InformesGestionPage --> CobranzaViewSet
+InformesGestionPage --> CuentaMcbViewSet
+InformesGestionPage --> PagoPrestadorViewSet
+
+ProductoServicioViewSet --> ProductoServicio
+VentaFactCabViewSet     --> VentaFactCab
+VentaFactCabViewSet     --> CtaCobrar
+CobranzaViewSet         --> Cobranza
+CuentaMcbViewSet        --> CuentaMcb
+
+@enduml

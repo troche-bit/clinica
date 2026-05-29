@@ -1,0 +1,106 @@
+@startuml 06_secuencia_flujo_completo_humanizado
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor Administrador
+
+boundary "Página de Informes" as GUI
+boundary "Dashboard Facturación" as DASHFAC
+boundary "Dashboard Finanzas" as DASHFIN
+boundary "Dashboard Cobranzas" as DASHCOB
+control "Gestión de Informes" as VIEW
+database "Base de datos" as BD
+
+== 1. Administrador abre la página de informes ==
+
+Administrador -> GUI : navega a la sección Informes — Gestión
+GUI --> Administrador : muestra la página con\n8 listados exportables y 3 dashboards disponibles\nsin cargar datos todavía
+
+== 2. Administrador genera PDF de productos por grupo ==
+
+Administrador -> GUI : hace clic en "Productos por grupo"
+GUI -> VIEW : solicita la lista de grupos activos
+VIEW -> BD : consulta grupos activos
+BD --> VIEW : lista de grupos
+VIEW --> GUI : grupos disponibles
+GUI --> Administrador : abre ventana con selector de grupo
+
+Administrador -> GUI : selecciona grupo "Consultas"\nhace clic en "Ver PDF"
+GUI -> VIEW : solicita el informe de productos del grupo
+VIEW -> BD : consulta productos del grupo seleccionado
+BD --> VIEW : productos encontrados
+VIEW --> GUI : genera el PDF y lo envía
+GUI --> Administrador : PDF abierto en nueva pestaña\ncon los productos y sus precios
+
+== 3. Administrador genera listado de facturas con filtros ==
+
+Administrador -> GUI : hace clic en "Listado de facturas"\nselecciona cliente, rango de fechas y condición
+Administrador -> GUI : hace clic en "Ver PDF"
+GUI -> VIEW : solicita el informe con los filtros aplicados
+VIEW -> BD : consulta facturas dentro del rango y filtros
+BD --> VIEW : facturas encontradas
+VIEW --> GUI : genera el PDF agrupado por cliente
+GUI --> Administrador : PDF con el listado de facturas
+
+Administrador -> GUI : hace clic en "Descargar Excel"
+GUI -> VIEW : solicita el mismo informe en formato Excel
+VIEW --> GUI : archivo Excel generado
+GUI --> Administrador : descarga del archivo iniciada
+
+== 4. Administrador genera estado de cuenta ==
+
+Administrador -> GUI : hace clic en "Estado de cuenta"\nselecciona modo "Resumido" y fecha límite
+Administrador -> GUI : hace clic en "Ver PDF"
+GUI -> VIEW : solicita el estado de cuenta con los parámetros
+VIEW -> BD : consulta cuotas pendientes agrupadas por cliente
+BD --> VIEW : resumen de deuda por cliente
+VIEW --> GUI : genera el PDF
+GUI --> Administrador : PDF con el estado de cuenta resumido\nuna fila por cliente con total de deuda
+
+== 5. Administrador navega al Dashboard de Facturación ==
+
+Administrador -> GUI : hace clic en la card "Dashboard Facturación"
+GUI -> DASHFAC : redirige al dashboard
+DASHFAC -> VIEW : solicita estadísticas del mes
+VIEW -> BD : consulta totales del día, mes, top clientes
+BD --> VIEW : datos del mes en curso
+VIEW --> DASHFAC : estadísticas completas
+DASHFAC --> Administrador : muestra el dashboard con\nfacturas del día, ticket promedio,\ngráfico de barras diario y top 8 clientes
+
+Administrador -> DASHFAC : hace clic en "Semana"
+DASHFAC --> Administrador : reorganiza las barras por semana\nsin nueva consulta al servidor
+
+Administrador -> DASHFAC : hace clic en "Volver a Informes"
+DASHFAC -> GUI : regresa a la página de informes
+
+== 6. Administrador navega al Dashboard de Finanzas ==
+
+Administrador -> GUI : hace clic en la card "Dashboard Finanzas"
+GUI -> DASHFIN : redirige al dashboard
+DASHFIN -> VIEW : solicita estadísticas del mes de caja/banco
+VIEW -> BD : consulta ingresos, egresos y saldos por cuenta
+BD --> VIEW : datos del mes en curso
+VIEW --> DASHFIN : resumen financiero
+DASHFIN --> Administrador : muestra ingresos, egresos, saldo neto\ny flujo diario de caja por cuenta
+
+Administrador -> DASHFIN : hace clic en "Volver"
+DASHFIN -> GUI : regresa a la página de informes
+
+== 7. Administrador navega al Dashboard de Cobranzas ==
+
+Administrador -> GUI : hace clic en la card "Dashboard Cobranzas"
+GUI -> DASHCOB : redirige al dashboard
+DASHCOB -> VIEW : solicita estadísticas de cobranzas del mes
+VIEW -> BD : consulta cobrado, pendiente y top deudores
+BD --> VIEW : datos del mes en curso
+VIEW --> DASHCOB : estadísticas de cobranzas
+DASHCOB --> Administrador : muestra total cobrado, deuda pendiente,\nporcentaje de cobro y top 10 deudores
+
+Administrador -> DASHCOB : hace clic en "Volver"
+DASHCOB -> GUI : regresa a la página de informes
+GUI --> Administrador : vista completa de informes y dashboards
+
+@enduml

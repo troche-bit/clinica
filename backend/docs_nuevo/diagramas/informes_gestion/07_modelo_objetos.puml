@@ -1,0 +1,123 @@
+@startuml 07_modelo_objetos
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #000000
+  ArrowColor #000000
+}
+
+class "Administrador" <<actor>>
+
+class "InformesGestionPage" <<boundary>> {
+  +vistaActiva
+  +filtrosListado
+  --
+  +abrirModalProductos()
+  +abrirModalFacturas()
+  +abrirModalEstadoCuenta()
+  +generarPDF()
+  +descargarExcel()
+  +navegarDashboard()
+}
+
+class "ProductoServicioViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +reporte_productos()
+  +reporte_excel()
+}
+
+class "VentaFactCabViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +reporte_pdf()
+  +reporte_excel()
+  +estado_cuenta_pdf()
+  +estado_cuenta_excel()
+  +dashboard_mensual()
+}
+
+class "CobranzaViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +dashboard_mensual()
+}
+
+class "CuentaMcbViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +dashboard_mensual()
+}
+
+class "PagoPrestadorViewSet" <<control>> {
+  +get_permissions()
+  --
+  +list()
+  +reporte_pdf()
+  +reporte_excel()
+}
+
+class "ProductoServicio" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +grupo : ForeignKey
+  +impuesto : CharField
+  +activo : BooleanField
+  +is_deleted : BooleanField
+}
+
+class "VentaFactCab" <<entity>> {
+  +id : AutoField
+  +fecha : DateField
+  +persona : ForeignKey
+  +monto_total : DecimalField
+  +condicion_vta : BooleanField
+  +is_deleted : BooleanField
+}
+
+class "CtaCobrar" <<entity>> {
+  +id : AutoField
+  +saldo : DecimalField
+  +fecha_vencimiento : DateField
+  +estado : CharField
+  +is_deleted : BooleanField
+}
+
+class "Cobranza" <<entity>> {
+  +id : AutoField
+  +fecha : DateField
+  +monto : DecimalField
+  +is_deleted : BooleanField
+}
+
+class "CuentaMcb" <<entity>> {
+  +id : AutoField
+  +descripcion : CharField
+  +saldo : DecimalField
+  +is_deleted : BooleanField
+}
+
+Administrador --> InformesGestionPage
+
+InformesGestionPage --> ProductoServicioViewSet
+InformesGestionPage --> VentaFactCabViewSet
+InformesGestionPage --> CobranzaViewSet
+InformesGestionPage --> CuentaMcbViewSet
+InformesGestionPage --> PagoPrestadorViewSet
+
+ProductoServicioViewSet --> ProductoServicio
+VentaFactCabViewSet     --> VentaFactCab
+VentaFactCabViewSet     --> CtaCobrar
+CobranzaViewSet         --> Cobranza
+CuentaMcbViewSet        --> CuentaMcb
+
+@enduml
