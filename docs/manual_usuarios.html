@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Usuarios del Sistema · Clínica Lichi</title>
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #111827;
+      background: #f0f4f8;
+    }
+
+    /* ── Layout ── */
+    .page-wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 2px 32px rgba(0,0,0,0.10);
+    }
+
+    /* ── Portada ── */
+    .cover {
+      background: #1a3a5c;
+      color: #fff;
+      padding: 60px 64px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      top: -120px; right: -80px;
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      bottom: -60px; left: -40px;
+    }
+    .cover-tag {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 20px;
+    }
+    .cover h1 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 42px;
+      font-weight: 400;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .cover-subtitle {
+      font-size: 16px;
+      color: rgba(255,255,255,0.72);
+      margin-bottom: 36px;
+    }
+    .cover-meta {
+      display: flex;
+      gap: 32px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      border-top: 1px solid rgba(255,255,255,0.12);
+      padding-top: 20px;
+    }
+    .cover-meta span strong { color: rgba(255,255,255,0.9); }
+
+    /* ── Tabla de contenidos ── */
+    .toc {
+      padding: 36px 64px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e8edf2;
+    }
+    .toc h2 {
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 16px;
+    }
+    .toc ol {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 40px;
+    }
+    .toc li a {
+      text-decoration: none;
+      color: #1a3a5c;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .toc li a:hover { color: #15304d; }
+    .toc .num {
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      min-width: 20px;
+    }
+
+    /* ── Contenido ── */
+    .content {
+      padding: 0 64px 64px;
+    }
+
+    /* ── Secciones ── */
+    .section {
+      margin-top: 52px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #e8edf2;
+    }
+    .section-number {
+      background: #1a3a5c;
+      color: #fff;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a3a5c;
+    }
+    .section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+      margin: 28px 0 10px;
+    }
+    .section p {
+      color: #374151;
+      margin-bottom: 14px;
+    }
+
+    /* ── Capturas ── */
+    .screenshot {
+      margin: 20px 0 24px;
+      border: 1px solid #e8edf2;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    .screenshot img {
+      width: 100%;
+      display: block;
+    }
+    .screenshot-caption {
+      background: #f8fafc;
+      border-top: 1px solid #e8edf2;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    /* ── Tablas ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 14px;
+    }
+    th {
+      background: #f8fafc;
+      border: 1px solid #e8edf2;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #374151;
+      font-size: 13px;
+    }
+    td {
+      border: 1px solid #e8edf2;
+      padding: 10px 14px;
+      vertical-align: top;
+      color: #374151;
+    }
+    tr:nth-child(even) td { background: #fafbfc; }
+    td code {
+      background: #f0f4f8;
+      border: 1px solid #e8edf2;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #1a3a5c;
+    }
+
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout.info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .callout.warn { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .callout.danger { background: #fff5f5; border-left: 4px solid #dc2626; }
+    .callout.ok { background: #f0fdf4; border-left: 4px solid #22c55e; }
+    .callout-body { color: #374151; }
+    .callout-body strong { color: #111827; }
+
+    /* ── Pasos numerados ── */
+    .steps {
+      list-style: none;
+      counter-reset: steps;
+      margin: 12px 0 20px;
+    }
+    .steps li {
+      counter-increment: steps;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+    .steps li::before {
+      content: counter(steps);
+      background: #e8f0fe;
+      color: #1a3a5c;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .steps li .step-text { color: #374151; font-size: 14px; }
+    .steps li .step-text strong { color: #111827; }
+
+    /* ── Badges de rol ── */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 20px;
+      vertical-align: middle;
+    }
+    .badge-admin    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .badge-recep    { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .badge-medico   { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .badge-secr     { background: #fefce8; color: #ca8a04; border: 1px solid #fde68a; }
+    .badge-estado-activo   { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .badge-estado-inactivo { background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; }
+
+    /* ── Acciones de tabla (descripción) ── */
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 6px 0;
+      font-size: 14px;
+    }
+    .action-icon {
+      background: #f8fafc;
+      border: 1px solid #e8edf2;
+      border-radius: 6px;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ── Divisor ── */
+    hr { border: none; border-top: 1px solid #e8edf2; margin: 40px 0; }
+
+    /* ── Footer ── */
+    .footer {
+      background: #1a3a5c;
+      color: rgba(255,255,255,0.55);
+      text-align: center;
+      padding: 24px 64px;
+      font-size: 12px;
+      margin-top: 0;
+    }
+    .footer strong { color: rgba(255,255,255,0.8); }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; font-size: 13px; }
+      .page-wrap { box-shadow: none; max-width: 100%; }
+      .cover { padding: 40px; }
+      .content { padding: 0 40px 40px; }
+      .toc { padding: 24px 40px; }
+      .section { page-break-inside: avoid; }
+      .screenshot { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Usuarios del Sistema</h1>
+    <p class="cover-subtitle">Gestión de accesos, roles y contraseñas para el personal de la clínica</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Administración → Usuarios</span>
+      <span><strong>Acceso</strong> Solo Administrador</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDOS ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar y filtrar usuarios</a></li>
+      <li><a href="#s5"><span class="num">05</span> Crear un usuario nuevo</a></li>
+      <li><a href="#s6"><span class="num">06</span> Ver detalle de un usuario</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un usuario</a></li>
+      <li><a href="#s8"><span class="num">08</span> Activar / desactivar usuario</a></li>
+      <li><a href="#s9"><span class="num">09</span> Resetear contraseña (admin)</a></li>
+      <li><a href="#s10"><span class="num">10</span> Cambiar propia contraseña</a></li>
+      <li><a href="#s11"><span class="num">11</span> Roles del sistema</a></li>
+      <li><a href="#s12"><span class="num">12</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 - Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Usuarios del sistema</strong> permite al administrador gestionar todas las cuentas de acceso
+        de la clínica: crear nuevos usuarios, asignarles roles, vincularlos a prestadores de salud (cuando corresponde),
+        y controlar si pueden ingresar al sistema.
+      </p>
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el rol Administrador</strong> puede acceder a este módulo.
+          Los demás roles (Recepcionista, Médico, Secretaria de médico) no ven la opción "Usuarios" en el menú.
+        </div>
+      </div>
+      <p>
+        Cada usuario del sistema tiene asociado un <strong>Perfil</strong> con su rol y, opcionalmente,
+        un vínculo a un prestador de la clínica. El rol determina a qué partes del sistema tiene acceso.
+      </p>
+    </div>
+
+    <!-- 2 - Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, bajo la sección <strong>Configuración</strong>, hacé clic en
+        <strong>Usuarios</strong>.
+      </p>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Si el ítem <strong>Usuarios</strong> no aparece en el menú, tu cuenta no tiene rol de Administrador.
+          Contactá al administrador del sistema para que lo habilite.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 - Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado de usuarios</h2>
+      </div>
+      <p>
+        Al ingresar al módulo se muestra la lista completa de usuarios registrados en el sistema.
+      </p>
+      <div class="screenshot">
+        <img src="imagenes/usuarios/01_listado.png" alt="Listado de usuarios del sistema" />
+        <div class="screenshot-caption">Vista principal del módulo — listado completo de usuarios</div>
+      </div>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Columna</th>
+            <th>Descripción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Usuario</strong></td>
+            <td>
+              Muestra el nombre completo del usuario (si tiene) o su nombre de usuario. Debajo aparece
+              el <code>@username</code> y el texto "Ver detalle›" que indica que la fila es clickeable.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Rol</strong></td>
+            <td>Badge de color que indica el rol asignado: Administrador, Médico, Recepcionista, Secretaria de médico.</td>
+          </tr>
+          <tr>
+            <td><strong>Prestador vinculado</strong></td>
+            <td>Nombre del prestador de salud asociado a la cuenta, cuando corresponde. Muestra "—" si no tiene.</td>
+          </tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>
+              <span class="badge badge-estado-activo">Activo</span> puede ingresar al sistema. &nbsp;
+              <span class="badge badge-estado-inactivo">Inactivo</span> tiene acceso bloqueado.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>
+              Tres botones de acción rápida (aparecen al pasar el cursor sobre la fila):<br><br>
+              <div class="action-row"><div class="action-icon">✏️</div> <span><strong>Editar</strong> — abre el formulario de edición</span></div>
+              <div class="action-row"><div class="action-icon">🔑</div> <span><strong>Resetear contraseña</strong> — asigna nueva contraseña al usuario</span></div>
+              <div class="action-row"><div class="action-icon">👤</div> <span><strong>Activar / Desactivar</strong> — cambia el estado del usuario</span></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          El usuario <strong>master</strong> (superusuario del sistema) se identifica con el badge
+          <span style="background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:1px 8px;font-size:11px;font-weight:700;color:#92400e;">⭐ MASTER</span>.
+          Su rol no puede modificarse y no puede desactivarse.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 - Buscar y filtrar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar y filtrar usuarios</h2>
+      </div>
+      <p>
+        La barra de herramientas superior incluye tres controles de búsqueda y filtrado que actúan
+        en tiempo real sobre la tabla.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/02_busqueda.png" alt="Búsqueda por nombre de usuario" />
+        <div class="screenshot-caption">Resultado de búsqueda por nombre o usuario</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Control</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Campo de búsqueda</strong><br><em>"Buscar por nombre o usuario…"</em></td>
+            <td>
+              Filtra por nombre completo o <code>@username</code>. La búsqueda tiene un
+              retardo de 300 ms para no hacer peticiones en cada tecla. Borrá el texto para
+              volver a ver todos los usuarios.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Todos los roles</strong></td>
+            <td>
+              Desplegable para filtrar por un rol específico: Administrador, Médico,
+              Recepcionista o Secretaria de médico.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Activos e inactivos</strong></td>
+            <td>
+              Permite ver solo usuarios <em>Activos</em>, solo <em>Inactivos</em>,
+              o ambos al mismo tiempo (valor por defecto).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/03_filtro_rol.png" alt="Filtro por rol Recepcionista" />
+        <div class="screenshot-caption">Filtro por rol aplicado — muestra solo Recepcionistas</div>
+      </div>
+    </div>
+
+    <!-- 5 - Crear usuario -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Crear un usuario nuevo</h2>
+      </div>
+      <p>
+        Hacé clic en el botón <strong>+ Nuevo usuario</strong> en la esquina superior derecha.
+        Se abrirá el formulario de creación.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/04_modal_nuevo_vacio.png" alt="Formulario de nuevo usuario vacío" />
+        <div class="screenshot-caption">Formulario de creación — campos vacíos</div>
+      </div>
+
+      <h3>Pasos para crear un usuario</h3>
+      <ol class="steps">
+        <li><div class="step-text">En el campo <strong>Usuario *</strong> ingresá el nombre de usuario en formato <code>nombre.apellido</code> (sin mayúsculas ni espacios). Este campo no se puede cambiar después.</div></li>
+        <li><div class="step-text">Completá <strong>Nombre</strong> y <strong>Apellido</strong> (opcionales, pero ayudan a identificar al usuario en la tabla).</div></li>
+        <li><div class="step-text">Ingresá el <strong>Email</strong> del usuario si corresponde (opcional).</div></li>
+        <li><div class="step-text">Escribí una <strong>Contraseña</strong> de al menos 8 caracteres. El indicador de fuerza muestra si es débil, media o fuerte.</div></li>
+        <li><div class="step-text">Repetí la contraseña en <strong>Confirmar contraseña</strong>. Si no coinciden, se muestra una advertencia en rojo debajo del campo.</div></li>
+        <li><div class="step-text">Seleccioná el <strong>Rol</strong> que tendrá el usuario (por defecto: Recepcionista). Ver sección 11 para los permisos de cada rol.</div></li>
+        <li><div class="step-text">Opcionalmente, vinculá al usuario con un <strong>Prestador</strong>: escribí el nombre o documento en el buscador. Dejalo vacío si no aplica.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Crear usuario</strong>. El modal se cierra y el usuario aparece en la lista.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/05_modal_nuevo_completo.png" alt="Formulario completado listo para guardar" />
+        <div class="screenshot-caption">Formulario completo — indicador de contraseña "Fuerte"</div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Reglas del nombre de usuario:</strong>
+          <ul style="margin-top:6px;margin-left:16px;font-size:14px;">
+            <li>Solo letras minúsculas, números, puntos y guiones bajos.</li>
+            <li>Sin espacios ni mayúsculas (se convierten automáticamente a minúsculas).</li>
+            <li>Debe ser único — no puede repetirse en el sistema.</li>
+            <li>No se puede cambiar una vez creado.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Errores posibles al crear</h3>
+      <div class="screenshot">
+        <img src="imagenes/usuarios/06_modal_error_duplicado.png" alt="Error usuario duplicado" />
+        <div class="screenshot-caption">Error al intentar crear un usuario con nombre de usuario que ya existe</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Error</th><th>Causa</th><th>Solución</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>"Ya existe un usuario con ese nombre de usuario"</td>
+            <td>El <code>@username</code> ingresado ya está registrado.</td>
+            <td>Usá un nombre de usuario diferente (ej: agregá un número o iniciales adicionales).</td>
+          </tr>
+          <tr>
+            <td>"El nombre de usuario no puede contener espacios"</td>
+            <td>Se ingresó un espacio en el campo usuario.</td>
+            <td>Reemplazá el espacio por un punto o guión bajo. Ej: <code>maria.garcia</code></td>
+          </tr>
+          <tr>
+            <td>"La contraseña debe tener al menos 8 caracteres"</td>
+            <td>La contraseña es demasiado corta.</td>
+            <td>Ingresá una contraseña de 8 caracteres o más.</td>
+          </tr>
+          <tr>
+            <td>"Las contraseñas no coinciden"</td>
+            <td>El campo Contraseña y Confirmar contraseña tienen valores distintos.</td>
+            <td>Volvé a escribir la misma contraseña en ambos campos.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 6 - Ver detalle -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Ver detalle de un usuario</h2>
+      </div>
+      <p>
+        Hacé clic en cualquier parte de una fila de la tabla (excepto en los botones de acciones)
+        para abrir el panel de detalle del usuario.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/07_ver_detalle.png" alt="Panel de detalle de usuario" />
+        <div class="screenshot-caption">Modal de detalle — información completa del usuario seleccionado</div>
+      </div>
+
+      <p>El detalle muestra:</p>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2;">
+        <li>Avatar con las iniciales del nombre</li>
+        <li>Nombre completo y <code>@username</code></li>
+        <li>Badge de rol</li>
+        <li>Email registrado</li>
+        <li>Estado (Activo / Inactivo) y Rol en formato expandido</li>
+        <li>Prestador vinculado y médicos asignados (cuando aplica al rol)</li>
+      </ul>
+
+      <p>Desde el panel de detalle podés ejecutar tres acciones:</p>
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;">Editar</div> <span style="font-size:14px;color:#374151;">Abre el formulario de edición del usuario.</span></div>
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;">Resetear contraseña</div> <span style="font-size:14px;color:#374151;">Abre el modal para asignar una nueva contraseña.</span></div>
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;color:#dc2626;border-color:#fecaca;">Desactivar / Activar</div> <span style="font-size:14px;color:#374151;">Cambia el estado del usuario tras confirmar.</span></div>
+    </div>
+
+    <!-- 7 - Editar -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un usuario</h2>
+      </div>
+      <p>
+        Podés abrir el formulario de edición desde el botón <strong>✏️</strong> en la fila de la tabla,
+        o desde el botón <strong>Editar</strong> en el panel de detalle.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/08_modal_editar.png" alt="Modal de edición de usuario" />
+        <div class="screenshot-caption">Formulario de edición — el campo Usuario no puede modificarse</div>
+      </div>
+
+      <p>
+        Al editar, el campo <strong>Usuario</strong> (<code>@username</code>) no aparece ya que no es modificable.
+        Se pueden cambiar:
+      </p>
+      <table>
+        <thead>
+          <tr><th>Campo</th><th>Editable</th><th>Notas</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Nombre y Apellido</td><td>Sí</td><td>Actualiza el nombre completo visible en la tabla.</td></tr>
+          <tr><td>Email</td><td>Sí</td><td>Opcional.</td></tr>
+          <tr><td>Rol</td><td>Sí *</td><td>* El rol del usuario <strong>master</strong> no puede cambiarse.</td></tr>
+          <tr><td>Prestador vinculado</td><td>Sí</td><td>Buscador por nombre o documento. Dejar vacío para desvincular.</td></tr>
+          <tr><td>Médicos asignados</td><td>Sí</td><td>Solo aparece si el rol es <em>Secretaria de médico</em>. Permite asignar múltiples médicos.</td></tr>
+          <tr><td>Contraseña</td><td>No</td><td>Para cambiar la contraseña usá la opción "Resetear contraseña".</td></tr>
+        </tbody>
+      </table>
+
+      <ol class="steps">
+        <li><div class="step-text">Modificá los campos necesarios.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar cambios</strong>. El modal se cierra y la tabla se actualiza.</div></li>
+        <li><div class="step-text">Para cancelar sin guardar, hacé clic en <strong>Cancelar</strong> o en la <strong>X</strong> del modal.</div></li>
+      </ol>
+    </div>
+
+    <!-- 8 - Activar / desactivar -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Activar / desactivar un usuario</h2>
+      </div>
+      <p>
+        Desactivar un usuario le impide iniciar sesión sin eliminar su cuenta ni su historial.
+        Es útil cuando un empleado se va temporalmente o deja la clínica.
+      </p>
+
+      <h3>Desde la tabla</h3>
+      <p>
+        Pasá el cursor sobre la fila del usuario y hacé clic en el botón
+        <span class="action-icon" style="display:inline-flex;vertical-align:middle;">👤</span> (cambiar estado).
+      </p>
+
+      <h3>Desde el detalle</h3>
+      <p>
+        Abrí el detalle del usuario (clic en la fila) y hacé clic en el botón
+        <strong style="color:#dc2626;">Desactivar</strong> (o <strong>Activar</strong>, según el estado actual).
+      </p>
+
+      <p>En ambos casos, el sistema pide confirmación antes de ejecutar el cambio:</p>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/09_confirm_estado.png" alt="Confirmación de desactivación de usuario" />
+        <div class="screenshot-caption">Diálogo de confirmación — "¿Desactivar a test_e2e_recep? No podrá ingresar al sistema."</div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>Restricciones importantes:</strong>
+          <ul style="margin-top:6px;margin-left:16px;font-size:14px;">
+            <li>El usuario <strong>master</strong> (superusuario) no puede desactivarse.</li>
+            <li>No podés desactivar tu propia cuenta (la que está actualmente conectada).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Para <strong>reactivar</strong> un usuario inactivo, aplicá el mismo procedimiento — el botón mostrará
+          <strong>Activar</strong> en lugar de Desactivar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 - Resetear contraseña -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Resetear contraseña (acción del administrador)</h2>
+      </div>
+      <p>
+        Cuando un usuario olvidó su contraseña o es necesario cambiarla por seguridad, el administrador
+        puede asignarle una nueva sin necesidad de conocer la contraseña actual.
+      </p>
+
+      <h3>Pasos</h3>
+      <ol class="steps">
+        <li><div class="step-text">Ubicá el usuario en la tabla (podés usar la búsqueda).</div></li>
+        <li><div class="step-text">Hacé clic en el botón <span class="action-icon" style="display:inline-flex;vertical-align:middle;">🔑</span> de la fila, o abrí el detalle y presioná <strong>Resetear contraseña</strong>.</div></li>
+        <li><div class="step-text">En el modal, ingresá la <strong>Nueva contraseña</strong> (mínimo 8 caracteres).</div></li>
+        <li><div class="step-text">Repetí la contraseña en <strong>Confirmar contraseña</strong>.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Cambiar contraseña</strong>.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/usuarios/10_modal_resetear.png" alt="Modal para resetear contraseña" />
+        <div class="screenshot-caption">Modal "Resetear contraseña" — el administrador define la nueva contraseña</div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          La nueva contraseña <strong>no puede ser igual a la contraseña actual</strong> del usuario.
+          Si se intenta poner la misma, el sistema mostrará un error.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Recordá comunicarle la nueva contraseña al usuario por un canal seguro.
+          El sistema no envía notificaciones automáticas por email.
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 - Cambiar propia contraseña -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Cambiar la propia contraseña</h2>
+      </div>
+      <p>
+        Cualquier usuario puede cambiar su propia contraseña desde el <strong>menú de perfil</strong>,
+        ubicado en la parte inferior del menú lateral izquierdo.
+      </p>
+
+      <h3>Pasos</h3>
+      <ol class="steps">
+        <li><div class="step-text">En el sidebar, hacé clic sobre tu nombre de usuario (esquina inferior izquierda).</div></li>
+        <li><div class="step-text">En el menú desplegable, seleccioná <strong>Cambiar contraseña</strong>.</div></li>
+        <li><div class="step-text">Ingresá tu <strong>contraseña actual</strong>.</div></li>
+        <li><div class="step-text">Ingresá y confirmá la <strong>nueva contraseña</strong>.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Cambiar contraseña</strong>.</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Esta opción está disponible para <strong>todos los roles</strong> (Administrador, Recepcionista, Médico, Secretaria de médico).
+          No requiere acceso al módulo Usuarios.
+        </div>
+      </div>
+    </div>
+
+    <!-- 11 - Roles -->
+    <div class="section" id="s11">
+      <div class="section-header">
+        <div class="section-number">11</div>
+        <h2>Roles del sistema</h2>
+      </div>
+      <p>
+        El rol define a qué módulos y acciones tiene acceso el usuario al ingresar al sistema.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Rol</th>
+            <th>Acceso principal</th>
+            <th>Restricciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-admin">Administrador</span></td>
+            <td>Acceso completo a todos los módulos: pacientes, agenda, consultas, facturación, finanzas, RRHH, informes, usuarios, mantenimiento y auditoría.</td>
+            <td>Sin restricciones. Pantalla de inicio: Dashboard de prestadores.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-recep">Recepcionista</span></td>
+            <td>Pacientes, agenda, consultas, facturación, finanzas, mantenimiento e informes.</td>
+            <td>No puede acceder a Usuarios, Auditoría ni RRHH. No puede eliminar registros.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-medico">Médico</span></td>
+            <td>Pacientes (solo lectura), agenda del día, consultas propias.</td>
+            <td>Solo ve la agenda y consultas de su propia agenda. Acceso muy limitado. Pantalla de inicio: Consultas.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-secr">Secretaria de médico</span></td>
+            <td>Pacientes, agenda, consultas de los médicos asignados.</td>
+            <td>Solo gestiona la agenda de los médicos indicados en "Médicos asignados". Pantalla de inicio: Consultas.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Al crear un usuario con rol <strong>Secretaria de médico</strong>, aparecerá el campo
+          <strong>Médicos asignados</strong> en el formulario. Seleccioná al menos un médico para
+          que la secretaria pueda ver su agenda.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Los roles <strong>Médico</strong> y <strong>Secretaria de médico</strong> requieren que la
+          cuenta esté <strong>vinculada a un Prestador</strong> de la base de datos (campo "Prestador vinculado").
+          Sin este vínculo, la funcionalidad de esos roles queda limitada.
+        </div>
+      </div>
+    </div>
+
+    <!-- 12 - Mensajes de error -->
+    <div class="section" id="s12">
+      <div class="section-header">
+        <div class="section-number">12</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Mensaje</th>
+            <th>Situación</th>
+            <th>Qué hacer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>"Ya existe un usuario con ese nombre de usuario"</td>
+            <td>Al crear un usuario, el <code>@username</code> ya está en uso.</td>
+            <td>Elegí un nombre de usuario diferente.</td>
+          </tr>
+          <tr>
+            <td>"El nombre de usuario no puede contener espacios"</td>
+            <td>Se ingresó un espacio en el campo Usuario.</td>
+            <td>Usá <code>punto</code> o <code>guión_bajo</code> en lugar de espacio.</td>
+          </tr>
+          <tr>
+            <td>"Las contraseñas no coinciden"</td>
+            <td>Los campos Contraseña y Confirmar contraseña tienen valores distintos.</td>
+            <td>Volvé a escribir ambas contraseñas asegurándote que sean idénticas.</td>
+          </tr>
+          <tr>
+            <td>"La contraseña debe tener al menos 8 caracteres"</td>
+            <td>La contraseña es demasiado corta.</td>
+            <td>Usá 8 caracteres o más. Recomendación: combinar letras, números y símbolos.</td>
+          </tr>
+          <tr>
+            <td>"La nueva contraseña no puede ser igual a la actual"</td>
+            <td>Al resetear o cambiar contraseña, se ingresó la misma que ya tenía.</td>
+            <td>Ingresá una contraseña distinta a la actual.</td>
+          </tr>
+          <tr>
+            <td>"No se puede desactivar al usuario master"</td>
+            <td>Se intenta desactivar al superusuario del sistema.</td>
+            <td>El usuario master no puede desactivarse por diseño de seguridad.</td>
+          </tr>
+          <tr>
+            <td>"No podés desactivar tu propia cuenta"</td>
+            <td>El administrador intenta desactivar su propia sesión activa.</td>
+            <td>Pedile a otro administrador que realice la acción, o creá otro usuario admin primero.</td>
+          </tr>
+          <tr>
+            <td>"Credenciales incorrectas"</td>
+            <td>En el login, usuario o contraseña incorrectos.</td>
+            <td>Verificá el nombre de usuario (todo en minúsculas) y la contraseña. Si no recordás la contraseña, pedile al administrador que la resetee.</td>
+          </tr>
+          <tr>
+            <td>"Usuario desactivado. Contacte al administrador"</td>
+            <td>En el login, el usuario existe pero está inactivo.</td>
+            <td>Contactá al administrador para que reactive la cuenta.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="callout ok" style="margin-top:32px;">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Trazabilidad:</strong> todas las operaciones en este módulo (crear usuario, editar, cambiar estado,
+        resetear contraseña) quedan registradas en el módulo <strong>Auditoría</strong>
+        (<em>Configuración → Auditoría</em>) con fecha, hora, usuario que realizó la acción y los valores antes/después.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Módulo Usuarios v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

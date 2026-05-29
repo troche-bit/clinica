@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.db import transaction
-from django.db.models import Max, Q
+from django.db.models import Max, Sum, Count, Q
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -11,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.administracion.auditoria.mixins import AuditoriaMixin, _serializar
 from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
 from apps.administracion.persona.models import Persona
 from apps.forma_pago.models import FormaPago
@@ -42,7 +42,7 @@ class CobranzaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve', 'siguiente_numero', 'validar_numero',
                            'cuotas_pendientes', 'clientes_con_pendientes',
-                           'recibo_pdf', 'reporte_pdf', 'reporte_excel'):
+                           'recibo_pdf', 'reporte_pdf', 'reporte_excel', 'dashboard_mensual'):
             return [IsAuthenticated()]
         if self.action in ('destroy', 'eliminados'):
             return [IsAuthenticated(), IsAdminRole()]
@@ -195,6 +195,7 @@ class CobranzaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                 )
                 saldo_pendiente -= ingreso
 
+        self._registrar('CREAR', cab, datos_antes=None, datos_despues=_serializar(cab))
         return Response(CobranzaDetalleSerializer(cab).data, status=201)
 
     def perform_destroy(self, instance):
@@ -392,6 +393,71 @@ class CobranzaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         )
         resp['Content-Disposition'] = f'attachment; filename="cobranzas_{fecha_str}.xlsx"'
         return resp
+
+    @action(detail=False, methods=['get'], url_path='dashboard-mensual')
+    def dashboard_mensual(self, request):
+        from datetime import timedelta
+        from apps.finanzas.estadocuenta.models import CtaCobrar
+        from apps.facturacion.ventas.models import VentaFactCab
+
+        MESES = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                 'agosto','septiembre','octubre','noviembre','diciembre']
+        hoy        = timezone.localtime().date()
+        inicio_mes = hoy.replace(day=1)
+
+        cobs_mes = Cobranza.objects.filter(is_deleted=False, fecha__gte=inicio_mes, fecha__lte=hoy)
+        agg      = cobs_mes.aggregate(total=Sum('monto'), cant=Count('id'))
+        total_mes   = float(agg['total'] or 0)
+        cantidad_mes = agg['cant'] or 0
+
+        por_dia_qs = cobs_mes.values('fecha').annotate(
+            total=Sum('monto'), cantidad=Count('id')
+        ).order_by('fecha')
+        por_dia_map = {
+            item['fecha'].isoformat(): {
+                'total':    float(item['total'] or 0),
+                'cantidad': item['cantidad'],
+            }
+            for item in por_dia_qs
+        }
+
+        dias = []
+        d = inicio_mes
+        while d <= hoy:
+            k = d.isoformat()
+            dias.append({'fecha': k, 'dia': d.day, **por_dia_map.get(k, {'total': 0, 'cantidad': 0})})
+            d += timedelta(days=1)
+
+        agg_pend = CtaCobrar.objects.filter(is_deleted=False, saldo__gt=0).aggregate(t=Sum('saldo'))
+        total_pendiente = float(agg_pend['t'] or 0)
+
+        agg_fac = VentaFactCab.objects.filter(
+            is_deleted=False, is_anulado=False, condicion_vta=False,
+        ).aggregate(t=Sum('monto_total'))
+        total_facturado = float(agg_fac['t'] or 0)
+
+        top_deudores_qs = (
+            CtaCobrar.objects
+            .filter(is_deleted=False, saldo__gt=0, vfc__is_deleted=False, vfc__persona__is_deleted=False)
+            .values('vfc__persona__razon_social')
+            .annotate(deuda=Sum('saldo'))
+            .order_by('-deuda')[:5]
+        )
+        top_deudores = [
+            {'nombre': t['vfc__persona__razon_social'], 'deuda': float(t['deuda'])}
+            for t in top_deudores_qs
+        ]
+
+        return Response({
+            'total_cobrado_mes':    total_mes,
+            'cantidad_recibos_mes': cantidad_mes,
+            'total_pendiente':      total_pendiente,
+            'total_facturado':      total_facturado,
+            'por_dia':              dias,
+            'top_deudores':         top_deudores,
+            'mes':                  f"{MESES[inicio_mes.month - 1]} {inicio_mes.year}",
+            'fecha':                hoy.isoformat(),
+        })
 
     @action(detail=False, methods=['get'], url_path='cuotas-pendientes')
     def cuotas_pendientes(self, request):

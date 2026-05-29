@@ -14,8 +14,8 @@ import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
 
 const PERMISOS = {
-  admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'usuarios', 'mantenimiento', 'auditoria'],
-  recepcionista:     ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'mantenimiento', 'informes'],
+  admin:             ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'rrhh', 'informes', 'informes_gestion', 'usuarios', 'mantenimiento', 'auditoria'],
+  recepcionista:     ['pacientes', 'agenda', 'consultas', 'facturacion', 'finanzas', 'mantenimiento', 'informes', 'informes_gestion'],
   medico:            ['pacientes', 'agenda', 'consultas'],
   secretaria_medico: ['pacientes', 'agenda', 'consultas'],
 }
@@ -90,6 +90,12 @@ const MENU = [
         sub: [
           { to: '/rrhh/personal', label: 'Persona RRHH' },
         ],
+      },
+      {
+        id: 'informes_gestion',
+        label: 'Informes',
+        icon: BarChart2,
+        to: '/informes/stock',
       },
     ],
   },
@@ -632,6 +638,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                       <NavLink
                         key={id}
                         to={to}
+                        end
                         data-tip={label}
                         className={({ isActive }) =>
                           `sb-link-item sb-tooltip ${isActive ? 'active' : ''}`

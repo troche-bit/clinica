@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'rest_framework_simplejwt.token_blacklist',
     # Propias
+    'apps.core',
     'apps.administracion.users',
     'apps.mantenimiento.ubicacion',
     'apps.administracion.persona',

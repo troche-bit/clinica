@@ -20,7 +20,10 @@ import { extraerMensajeError } from '../../utils/errores'
 import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 import apiClient from '../../api/client'
 
-function hoy() { return new Date().toISOString().split('T')[0] }
+function hoy() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 function fmt(n) { if (n == null) return '—'; return Number(n).toLocaleString('es-PY') }
 function fmtFecha(d) {
   if (!d) return '—'
@@ -154,6 +157,7 @@ function ModalNuevoPago({ onClose, onCreado, showToast, onIsDirtyChange }) {
   const [nroComprobante, setNroComprobante] = useState('')
   const [nroAValidar, setNroAValidar]       = useState(null)
   const [intentoEnvio, setIntentoEnvio]     = useState(false)
+  const prevSigNroRef                       = useRef(null)
 
   const { data: sigNro }                              = useSiguienteNumeroPago()
   const { data: bloques, isLoading: cargandoBloques } = useBloquesPendientes(medico?.id, fechaHasta)
@@ -163,8 +167,11 @@ function ModalNuevoPago({ onClose, onCreado, showToast, onIsDirtyChange }) {
   const createPago                                    = useCreatePagoPrestador()
 
   useEffect(() => {
-    if (sigNro?.siguiente != null && nroComprobante === '') {
-      setNroComprobante(String(sigNro.siguiente).padStart(7, '0'))
+    if (sigNro?.siguiente == null) return
+    const formatted = String(sigNro.siguiente).padStart(7, '0')
+    if (nroComprobante === '' || nroComprobante === prevSigNroRef.current) {
+      prevSigNroRef.current = formatted
+      setNroComprobante(formatted)
     }
   }, [sigNro])
 

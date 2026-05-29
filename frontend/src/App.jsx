@@ -26,10 +26,14 @@ import RecordatoriosPage from './pages/clinica/RecordatoriosPage'
 import RecordatoriosConfigPage from './pages/clinica/RecordatoriosConfigPage'
 import TimbradoPage from './pages/facturacion/TimbradoPage'
 import GruposPage from './pages/stock/GruposPage'
+import InformesStockPage from './pages/stock/InformesStockPage'
 import CuentasMcbPage from './pages/finanzas/CuentasMcbPage'
 import FacturacionPage from './pages/facturacion/FacturacionPage'
+import DashboardFacturacionPage from './pages/facturacion/DashboardFacturacionPage'
 import CobranzasPage from './pages/finanzas/CobranzasPage'
 import PagoPrestadorPage from './pages/finanzas/PagoPrestadorPage'
+import DashboardFinanzasPage from './pages/finanzas/DashboardFinanzasPage'
+import DashboardCobranzasPage from './pages/finanzas/DashboardCobranzasPage'
 import UsuariosPage from './pages/administracion/UsuariosPage'
 import AuditoriaPage from './pages/administracion/AuditoriaPage'
 
@@ -332,6 +336,51 @@ export default function App() {
             <PrivateRoute>
               <Layout>
                 <GruposPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/facturacion"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardFacturacionPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/finanzas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardFinanzasPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/informes/dashboard/cobranzas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <DashboardCobranzasPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        {/* Ruta para informes de stock */}
+        <Route
+          path="/informes/stock"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <InformesStockPage />
               </Layout>
             </PrivateRoute>
           }

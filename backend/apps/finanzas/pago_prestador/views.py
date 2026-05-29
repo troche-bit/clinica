@@ -12,7 +12,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.administracion.auditoria.mixins import AuditoriaMixin
+from apps.administracion.auditoria.mixins import AuditoriaMixin, _serializar
 from apps.core.permissions import IsAdminRole
 from apps.forma_pago.models import FormaPago
 from apps.finanzas.caja_banco.models import CuentaMcb, MovimientoCajaBanco
@@ -146,6 +146,7 @@ class PagoPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
                 id_usu_creator  = request.user,
             )
 
+        self._registrar('CREAR', pago, datos_antes=None, datos_despues=_serializar(pago))
         return Response(PagoPrestadorDetalleSerializer(pago).data, status=201)
 
     def perform_destroy(self, instance):

@@ -1,0 +1,849 @@
+{
+  "config": {
+    "configFile": "/home/enzo_coronel/clinica/frontend/playwright.config.js",
+    "rootDir": "/home/enzo_coronel/clinica/frontend/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "/home/enzo_coronel/clinica/frontend/e2e/global-setup.js",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/enzo_coronel/clinica/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "setup",
+        "name": "setup",
+        "testDir": "/home/enzo_coronel/clinica/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/auth\\.setup\\.js/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/enzo_coronel/clinica/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "usuarios",
+        "name": "usuarios",
+        "testDir": "/home/enzo_coronel/clinica/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/usuarios\\.spec\\.js/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/enzo_coronel/clinica/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "login",
+        "name": "login",
+        "testDir": "/home/enzo_coronel/clinica/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/login\\.spec\\.js/"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "../tests/logs/usuarios_e2e.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "auth.setup.js",
+      "file": "auth.setup.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "autenticar como admin y guardar estado",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1381,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-28T18:56:36.148Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "f376efe52c54b1a876fd-4e37438719db2ee6c65b",
+          "file": "auth.setup.js",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "usuarios.spec.js",
+      "file": "usuarios.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Gestión de usuarios (admin)",
+          "file": "usuarios.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "admin puede acceder a la página de usuarios",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1191,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:58.914Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-adc4e1eaca9785b94e61",
+              "file": "usuarios.spec.js",
+              "line": 12,
+              "column": 3
+            },
+            {
+              "title": "la tabla muestra usuarios existentes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1123,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:57.654Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-395168c0a54a48121d8a",
+              "file": "usuarios.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "buscar por username filtra la tabla",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1393,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:58.793Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-230ced225dcd56cf18a6",
+              "file": "usuarios.spec.js",
+              "line": 22,
+              "column": 3
+            },
+            {
+              "title": "buscar por texto inexistente muestra tabla vacía",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1373,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:00.201Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-4457c79447e8c2d1f581",
+              "file": "usuarios.spec.js",
+              "line": 31,
+              "column": 3
+            },
+            {
+              "title": "abrir modal de nuevo usuario",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1289,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:01.586Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-2c5bd93bdaa478c86884",
+              "file": "usuarios.spec.js",
+              "line": 40,
+              "column": 3
+            },
+            {
+              "title": "crear usuario con datos válidos aparece en la lista",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 9530,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/creado correctamente/i)\nExpected: visible\nTimeout: 8000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 8000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/creado correctamente/i)\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/creado correctamente/i)\nExpected: visible\nTimeout: 8000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 8000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/creado correctamente/i)\u001b[22m\n\n    at /home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js:59:59",
+                        "location": {
+                          "file": "/home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js",
+                          "column": 59,
+                          "line": 59
+                        },
+                        "snippet": "  57 |     await page.getByRole('button', { name: /crear usuario/i }).click()\n  58 |\n> 59 |     await expect(page.getByText(/creado correctamente/i)).toBeVisible({ timeout: 8000 })\n     |                                                           ^\n  60 |\n  61 |     await page.fill('.usu-search-input', username)\n  62 |     await page.waitForTimeout(400)"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js",
+                            "column": 59,
+                            "line": 59
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/creado correctamente/i)\nExpected: visible\nTimeout: 8000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 8000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/creado correctamente/i)\u001b[22m\n\n\n  57 |     await page.getByRole('button', { name: /crear usuario/i }).click()\n  58 |\n> 59 |     await expect(page.getByText(/creado correctamente/i)).toBeVisible({ timeout: 8000 })\n     |                                                           ^\n  60 |\n  61 |     await page.fill('.usu-search-input', username)\n  62 |     await page.waitForTimeout(400)\n    at /home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js:59:59"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:02.890Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/usuarios-Gestión-de-usuari-35172-válidos-aparece-en-la-lista-usuarios/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/usuarios-Gestión-de-usuari-35172-válidos-aparece-en-la-lista-usuarios/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/usuarios-Gestión-de-usuari-35172-válidos-aparece-en-la-lista-usuarios/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js",
+                        "column": 59,
+                        "line": 59
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-4c4c4742e2bea20213ba",
+              "file": "usuarios.spec.js",
+              "line": 46,
+              "column": 3
+            },
+            {
+              "title": "crear usuario con username que ya existe muestra error",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1683,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:13.354Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-cd3c6c5b11c29bd2c0ed",
+              "file": "usuarios.spec.js",
+              "line": 66,
+              "column": 3
+            },
+            {
+              "title": "crear usuario con contraseñas que no coinciden muestra error",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1628,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/no coinciden/i)\nExpected: visible\nError: strict mode violation: getByText(/no coinciden/i) resolved to 2 elements:\n    1) <div class=\"usu-error\">Las contraseñas no coinciden.</div> aka getByText('Las contraseñas no coinciden.')\n    2) <span>Las contraseñas no coinciden</span> aka getByText('Las contraseñas no coinciden', { exact: true })\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 6000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/no coinciden/i)\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/no coinciden/i)\nExpected: visible\nError: strict mode violation: getByText(/no coinciden/i) resolved to 2 elements:\n    1) <div class=\"usu-error\">Las contraseñas no coinciden.</div> aka getByText('Las contraseñas no coinciden.')\n    2) <span>Las contraseñas no coinciden</span> aka getByText('Las contraseñas no coinciden', { exact: true })\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 6000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/no coinciden/i)\u001b[22m\n\n    at /home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js:81:51",
+                        "location": {
+                          "file": "/home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js",
+                          "column": 51,
+                          "line": 81
+                        },
+                        "snippet": "  79 |     await page.fill('input[placeholder=\"Repetí la contraseña\"]', 'OtraPass5678!')\n  80 |     await page.getByRole('button', { name: /crear usuario/i }).click()\n> 81 |     await expect(page.getByText(/no coinciden/i)).toBeVisible({ timeout: 6000 })\n     |                                                   ^\n  82 |   })\n  83 |\n  84 |   // ── Ver detalle ──────────────────────────────────────────────────────────"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js",
+                            "column": 51,
+                            "line": 81
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText(/no coinciden/i)\nExpected: visible\nError: strict mode violation: getByText(/no coinciden/i) resolved to 2 elements:\n    1) <div class=\"usu-error\">Las contraseñas no coinciden.</div> aka getByText('Las contraseñas no coinciden.')\n    2) <span>Las contraseñas no coinciden</span> aka getByText('Las contraseñas no coinciden', { exact: true })\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 6000ms\u001b[22m\n\u001b[2m  - waiting for getByText(/no coinciden/i)\u001b[22m\n\n\n  79 |     await page.fill('input[placeholder=\"Repetí la contraseña\"]', 'OtraPass5678!')\n  80 |     await page.getByRole('button', { name: /crear usuario/i }).click()\n> 81 |     await expect(page.getByText(/no coinciden/i)).toBeVisible({ timeout: 6000 })\n     |                                                   ^\n  82 |   })\n  83 |\n  84 |   // ── Ver detalle ──────────────────────────────────────────────────────────\n    at /home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js:81:51"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:15.158Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/usuarios-Gestión-de-usuari-3fc68--no-coinciden-muestra-error-usuarios/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/usuarios-Gestión-de-usuari-3fc68--no-coinciden-muestra-error-usuarios/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/usuarios-Gestión-de-usuari-3fc68--no-coinciden-muestra-error-usuarios/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/enzo_coronel/clinica/frontend/e2e/usuarios.spec.js",
+                        "column": 51,
+                        "line": 81
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-9c04fbc229e0cc43445f",
+              "file": "usuarios.spec.js",
+              "line": 75,
+              "column": 3
+            },
+            {
+              "title": "click en fila abre el detalle del usuario",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1725,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:17.710Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-9c8fff80c6f39b4d65bb",
+              "file": "usuarios.spec.js",
+              "line": 86,
+              "column": 3
+            },
+            {
+              "title": "filtro por rol muestra solo usuarios con ese rol",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "usuarios",
+                  "projectName": "usuarios",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1415,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:57:19.579Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e98ff54e5ccf85d4b47-352fedfcac843cbb5373",
+              "file": "usuarios.spec.js",
+              "line": 96,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "login.spec.js",
+      "file": "login.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Login",
+          "file": "login.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "login exitoso como admin redirige al dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "login",
+                  "projectName": "login",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1253,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:38.490Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "badc1754af1944f68b2b-7e4fa394b904c672cce6",
+              "file": "login.spec.js",
+              "line": 9,
+              "column": 3
+            },
+            {
+              "title": "credenciales incorrectas muestra mensaje de error",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "login",
+                  "projectName": "login",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 6494,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.error-msg')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.error-msg')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.error-msg')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.error-msg')\u001b[22m\n\n    at /home/enzo_coronel/clinica/frontend/e2e/login.spec.js:23:46",
+                        "location": {
+                          "file": "/home/enzo_coronel/clinica/frontend/e2e/login.spec.js",
+                          "column": 46,
+                          "line": 23
+                        },
+                        "snippet": "  21 |     // Esperar que el botón deje de estar en estado loading\n  22 |     await page.waitForSelector('button[type=\"submit\"]:not([disabled])', { timeout: 8000 })\n> 23 |     await expect(page.locator('.error-msg')).toBeVisible()\n     |                                              ^\n  24 |   })\n  25 |\n  26 |   test('usuario inactivo no puede ingresar', async ({ page }) => {"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/enzo_coronel/clinica/frontend/e2e/login.spec.js",
+                            "column": 46,
+                            "line": 23
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.error-msg')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.error-msg')\u001b[22m\n\n\n  21 |     // Esperar que el botón deje de estar en estado loading\n  22 |     await page.waitForSelector('button[type=\"submit\"]:not([disabled])', { timeout: 8000 })\n> 23 |     await expect(page.locator('.error-msg')).toBeVisible()\n     |                                              ^\n  24 |   })\n  25 |\n  26 |   test('usuario inactivo no puede ingresar', async ({ page }) => {\n    at /home/enzo_coronel/clinica/frontend/e2e/login.spec.js:23:46"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:39.871Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/login-Login-credenciales-i-865b0-as-muestra-mensaje-de-error-login/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/login-Login-credenciales-i-865b0-as-muestra-mensaje-de-error-login/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/login-Login-credenciales-i-865b0-as-muestra-mensaje-de-error-login/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/enzo_coronel/clinica/frontend/e2e/login.spec.js",
+                        "column": 46,
+                        "line": 23
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "badc1754af1944f68b2b-ef9fb63d9858b5464c9b",
+              "file": "login.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "usuario inactivo no puede ingresar",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "login",
+                  "projectName": "login",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 7414,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.error-msg')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.error-msg')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.error-msg')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.error-msg')\u001b[22m\n\n    at /home/enzo_coronel/clinica/frontend/e2e/login.spec.js:52:46",
+                        "location": {
+                          "file": "/home/enzo_coronel/clinica/frontend/e2e/login.spec.js",
+                          "column": 46,
+                          "line": 52
+                        },
+                        "snippet": "  50 |     await page.click('button[type=\"submit\"]')\n  51 |     await page.waitForSelector('button[type=\"submit\"]:not([disabled])', { timeout: 8000 })\n> 52 |     await expect(page.locator('.error-msg')).toBeVisible()\n     |                                              ^\n  53 |\n  54 |     // Reactivar para no afectar otros tests\n  55 |     if (recep) {"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/home/enzo_coronel/clinica/frontend/e2e/login.spec.js",
+                            "column": 46,
+                            "line": 52
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.error-msg')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.error-msg')\u001b[22m\n\n\n  50 |     await page.click('button[type=\"submit\"]')\n  51 |     await page.waitForSelector('button[type=\"submit\"]:not([disabled])', { timeout: 8000 })\n> 52 |     await expect(page.locator('.error-msg')).toBeVisible()\n     |                                              ^\n  53 |\n  54 |     // Reactivar para no afectar otros tests\n  55 |     if (recep) {\n    at /home/enzo_coronel/clinica/frontend/e2e/login.spec.js:52:46"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:47.297Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/login-Login-usuario-inactivo-no-puede-ingresar-login/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/login-Login-usuario-inactivo-no-puede-ingresar-login/error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "/home/enzo_coronel/clinica/frontend/test-results/login-Login-usuario-inactivo-no-puede-ingresar-login/trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/enzo_coronel/clinica/frontend/e2e/login.spec.js",
+                        "column": 46,
+                        "line": 52
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "badc1754af1944f68b2b-959517cc50545b4821c2",
+              "file": "login.spec.js",
+              "line": 26,
+              "column": 3
+            },
+            {
+              "title": "campo contraseña tiene toggle mostrar/ocultar",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "login",
+                  "projectName": "login",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1048,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:55.756Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "badc1754af1944f68b2b-b25c87240d45fb459ed1",
+              "file": "login.spec.js",
+              "line": 62,
+              "column": 3
+            },
+            {
+              "title": "no puede acceder a ruta protegida sin autenticar",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "login",
+                  "projectName": "login",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1147,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-05-28T18:56:56.931Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "badc1754af1944f68b2b-3ce8f6902c0d9826645b",
+              "file": "login.spec.js",
+              "line": 70,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-28T18:56:32.404Z",
+    "duration": 51272.737,
+    "expected": 12,
+    "skipped": 0,
+    "unexpected": 4,
+    "flaky": 0
+  }
+}

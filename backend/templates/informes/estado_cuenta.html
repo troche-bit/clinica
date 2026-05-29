@@ -1,0 +1,182 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr       { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left  { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right { display: table-cell; vertical-align: bottom; text-align: right; }
+.rpt-clinica   { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo    { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-modo      { font-size: 8pt; color: #1a3a5c; font-weight: bold; margin-top: 2pt; }
+.rpt-meta      { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-filtros   { font-size: 8pt; color: #555; margin-bottom: 8pt; padding: 3pt 6pt;
+                 background: #f8fafc; border-left: 3px solid #1a3a5c; }
+
+.rpt-table th  { background: #1a3a5c; color: #fff; font-size: 7.5pt; text-transform: uppercase;
+                 letter-spacing: .04em; padding: 4pt 5pt; text-align: left; }
+.rpt-table td  { font-size: 8.5pt; padding: 3pt 5pt; border-bottom: 1px solid #e8e8e8; vertical-align: middle; }
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+/* Detallado */
+.rpt-grupo-hdr {
+  font-size: 9pt; font-weight: bold; color: #1a3a5c;
+  background: #eef2f7; padding: 4pt 6pt;
+  border-left: 3px solid #1a3a5c; margin-top: 8pt; margin-bottom: 1pt;
+}
+.rpt-grupo-hdr span { font-size: 7.5pt; font-weight: normal; color: #6b7280; margin-left: 6pt; }
+
+.col-comp  { width: 17%; text-align: center; }
+.col-ffact { width: 9%;  text-align: center; }
+.col-fvenc { width: 10%; text-align: center; }
+.col-cuota { width: 7%;  text-align: center; }
+.col-monto { width: 15%; text-align: right; }
+.col-saldo { width: 15%; text-align: right; font-weight: bold; }
+.col-estado { width: 10%; text-align: center; }
+
+.rpt-subtotal {
+  text-align: right; font-size: 8pt; font-weight: bold; color: #1e3a5f;
+  padding: 3pt 5pt; background: #dbeafe; border-top: 1px solid #bfdbfe;
+}
+.rpt-subtotal-label { text-align: left; }
+
+/* Resumido */
+.col-r-nro  { width: 5%;  text-align: center; }
+.col-r-cli  { width: 38%; }
+.col-r-doc  { width: 13%; text-align: center; }
+.col-r-ctas { width: 8%;  text-align: center; }
+.col-r-monto { width: 16%; text-align: right; }
+.col-r-saldo { width: 16%; text-align: right; font-weight: bold; color: #dc2626; }
+
+.saldo-cero { color: #6b7280; font-weight: normal; }
+
+.rpt-gran-total {
+  margin-top: 10pt; display: table; width: 100%;
+  background: #1a3a5c; padding: 5pt 8pt;
+  border-top: 2px solid #1a3a5c;
+}
+.rpt-gran-total-label { display: table-cell; font-size: 9pt; font-weight: bold; color: #fff; }
+.rpt-gran-total-vals  { display: table-cell; text-align: right; font-size: 9pt; font-weight: bold; color: #fff; }
+
+.badge-pendiente { background: #fef3c7; color: #92400e; padding: 1pt 4pt; border-radius: 3pt; font-size: 7pt; }
+.badge-pagado    { background: #d1fae5; color: #065f46; padding: 1pt 4pt; border-radius: 3pt; font-size: 7pt; }
+
+.rpt-footer { margin-top: 10pt; text-align: right; font-size: 7.5pt; color: #777;
+              border-top: 1px solid #ccc; padding-top: 5pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Estado de Cuenta</div>
+      <div class="rpt-modo">Modo: {% if modo == 'detallado' %}Detallado{% else %}Resumido{% endif %}</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }} · Clientes: {{ total_clientes }}</div>
+    </div>
+  </div>
+
+  {% if filtros_str %}
+  <div class="rpt-filtros">{{ filtros_str }}</div>
+  {% endif %}
+
+  {% if modo == 'detallado' %}
+
+    {% for grupo in grupos %}
+    <div class="rpt-grupo-hdr">
+      {{ grupo.cliente }}
+      <span>{{ grupo.documento }}</span>
+    </div>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th class="col-comp">Comprobante</th>
+          <th class="col-ffact">F. Factura</th>
+          <th class="col-fvenc">F. Vencimiento</th>
+          <th class="col-cuota">Cuota</th>
+          <th class="col-monto">Monto</th>
+          <th class="col-saldo">Saldo</th>
+          <th class="col-estado">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in grupo.cuotas %}
+        <tr>
+          <td class="col-comp mono">{{ c.comprobante }}</td>
+          <td class="col-ffact center">{{ c.fecha_factura|date:"d/m/Y" }}</td>
+          <td class="col-fvenc center">{{ c.fecha_vencimiento|date:"d/m/Y" }}</td>
+          <td class="col-cuota center">{{ c.nro_cuota }}/{{ c.cant_cuota }}</td>
+          <td class="col-monto right">{{ c.monto_cuota|gs }}</td>
+          <td class="col-saldo right">{{ c.saldo|gs }}</td>
+          <td class="col-estado center">
+            {% if c.saldo == 0 %}
+            <span class="badge-pagado">Pagado</span>
+            {% else %}
+            <span class="badge-pendiente">Pendiente</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="rpt-subtotal rpt-subtotal-label">Subtotal {{ grupo.cliente }}</td>
+          <td class="rpt-subtotal right">{{ grupo.total_monto|gs }}</td>
+          <td class="rpt-subtotal right">{{ grupo.total_saldo|gs }}</td>
+          <td class="rpt-subtotal"></td>
+        </tr>
+      </tfoot>
+    </table>
+    {% empty %}
+    <p style="color:#6b7280;font-size:9pt;margin-top:12pt;">Sin registros con los filtros seleccionados.</p>
+    {% endfor %}
+
+  {% else %}
+
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th class="col-r-nro">#</th>
+          <th class="col-r-cli">Cliente</th>
+          <th class="col-r-doc">Documento</th>
+          <th class="col-r-ctas">Cuotas</th>
+          <th class="col-r-monto">Total Facturado</th>
+          <th class="col-r-saldo">Saldo Pendiente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for grupo in grupos %}
+        <tr>
+          <td class="col-r-nro center">{{ forloop.counter }}</td>
+          <td class="col-r-cli">{{ grupo.cliente }}</td>
+          <td class="col-r-doc center">{{ grupo.documento }}</td>
+          <td class="col-r-ctas center">{{ grupo.cuotas|length }}</td>
+          <td class="col-r-monto right">{{ grupo.total_monto|gs }}</td>
+          <td class="col-r-saldo right {% if grupo.total_saldo == 0 %}saldo-cero{% endif %}">
+            {{ grupo.total_saldo|gs }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:10pt;">Sin registros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  {% endif %}
+
+  <div class="rpt-gran-total">
+    <div class="rpt-gran-total-label">TOTAL GENERAL — {{ total_clientes }} cliente{{ total_clientes|pluralize:",s" }}</div>
+    <div class="rpt-gran-total-vals">
+      Total: {{ gran_total_monto|gs }} &nbsp;|&nbsp; Saldo: {{ gran_total_saldo|gs }}
+    </div>
+  </div>
+
+  <div class="rpt-footer">Generado el {{ fecha|date:"d/m/Y" }} — Clínica Lichi</div>
+
+</div>
+{% endblock %}

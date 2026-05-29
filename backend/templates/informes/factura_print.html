@@ -51,6 +51,22 @@
 .tfoot-liq td      { background: #e8e8e8; font-size: 8pt; border-top: 1px solid #bbb; padding: 4pt 5pt; }
 .liq-mini-lbl      { font-size: 7pt; text-transform: uppercase; letter-spacing: .04em; color: #666; margin-bottom: 1pt; }
 
+/* Marca de agua anulado */
+.anulado-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 90pt;
+  font-weight: bold;
+  color: rgba(220, 38, 38, 0.18);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+}
+
 /* Pie */
 .obs-row        { margin-bottom: 16pt; }
 .obs-lbl        { font-weight: bold; font-size: 8.5pt; }
@@ -63,6 +79,7 @@
 
 {% block content %}
 {% load factura_tags %}
+{% if is_anulado %}<div class="anulado-watermark">ANULADO</div>{% endif %}
 <div class="fac-wrap">
 
   {# ── Header ──────────────────────────────────────────── #}

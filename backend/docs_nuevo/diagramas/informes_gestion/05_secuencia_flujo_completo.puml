@@ -1,0 +1,162 @@
+@startuml 05_secuencia_flujo_completo
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor ADMIN
+boundary "InformesStockPage.jsx" as INFPAGE
+boundary "DashboardFacturacionPage.jsx" as DASHFAC
+boundary "DashboardFinanzasPage.jsx" as DASHFIN
+boundary "DashboardCobranzasPage.jsx" as DASHCOB
+control "apiClient\n(axios)" as CLIENT
+control "ProductoServicioViewSet" as PVIEW
+control "VentaFactCabViewSet" as FVIEW
+control "CobranzaViewSet" as COBVIEW
+control "CuentaMcbViewSet" as CTAVIEW
+control "PagoPrestadorViewSet" as PPVIEW
+database "PostgreSQL" as BD
+control "WeasyPrint" as WEASY
+control "openpyxl" as OPENPYXL
+
+== 1. Admin abre Informes — Gestion ==
+
+ADMIN -> INFPAGE : navega a /informes/stock
+
+INFPAGE --> ADMIN : pagina renderizada sin fetch:\n- Seccion "Listados exportables" (8 cards)\n  Productos / Facturas / Control /\n  Estado cuenta / Extracto / Cobranzas /\n  Movimientos / Pagos Prestadores\n- Seccion "Dashboards analiticos" (3 cards)\n  Facturacion / Finanzas / Cobranzas
+
+== 2. Admin genera PDF de Productos filtrado por grupo ==
+
+ADMIN -> INFPAGE : click card "Productos por grupo"
+
+INFPAGE -> CLIENT : GET /api/grupos/?page_size=200&activo=true
+CLIENT -> PVIEW : list(request)
+PVIEW -> BD : SELECT * FROM grupo\nWHERE is_deleted=False AND activo=True
+BD --> PVIEW : grupos activos
+PVIEW --> CLIENT : { results: [...] }
+CLIENT --> INFPAGE : grupos → setGrupos(grupos)
+
+INFPAGE --> ADMIN : Modal "Productos por grupo"\nSelect grupo: "Consultas (id=3)"
+
+ADMIN -> INFPAGE : selecciona grupo "Consultas"\nclick "Ver PDF"
+
+INFPAGE -> CLIENT : GET /api/productos/reporte-productos/\n?grupo=3\n{ responseType: 'blob' }
+
+CLIENT -> PVIEW : reporte_productos(request)
+PVIEW -> BD : SELECT producto JOIN grupo\nWHERE producto.is_deleted=False\nAND grupo_id=3\nORDER BY grupo__descripcion, descripcion
+BD --> PVIEW : 12 productos del grupo Consultas
+PVIEW -> WEASY : render_to_string(\n  'informes/producto_lista.html',\n  { grupos_productos, fecha_gen })
+WEASY --> PVIEW : bytes PDF
+PVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> INFPAGE : blob
+INFPAGE -> INFPAGE : url=URL.createObjectURL(blob)\nwindow.open(url, '_blank')
+INFPAGE --> ADMIN : PDF en nueva pestana\n(12 productos, con precio y estado)
+
+== 3. Admin genera listado de facturas con filtros ==
+
+ADMIN -> INFPAGE : click card "Listado de facturas"\nbusca y selecciona cliente\n"Farmacia ABC" (id=7)\nfecha_desde=2026-05-01\nfecha_hasta=2026-05-28\ncondicion_vta='' (Todas)\nagrupar_cliente=true
+
+INFPAGE -> INFPAGE : buildFactQS():\n  '?persona=7&fecha_desde=2026-05-01\n  &fecha_hasta=2026-05-28\n  &agrupar_cliente=true'
+
+ADMIN -> INFPAGE : click "Ver PDF"
+
+INFPAGE -> CLIENT : GET /api/facturacion/reporte-pdf/\n?persona=7&fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28&agrupar_cliente=true\n{ responseType: 'blob' }
+
+CLIENT -> FVIEW : reporte_pdf(request)
+FVIEW -> BD : SELECT ventafactcab JOIN persona\nWHERE is_deleted=False AND is_anulado=False\nAND persona_id=7\nAND fecha BETWEEN rango\nORDER BY fecha
+BD --> FVIEW : 8 facturas de Farmacia ABC
+
+FVIEW -> FVIEW : agrupar_cliente=True:\nagrupa por persona → subtotal\nN° facturas + monto por grupo
+
+FVIEW -> WEASY : render_to_string(\n  'informes/factura_lista.html',\n  { grupos_cliente, filtros,\n    totales, fecha_gen })
+WEASY --> FVIEW : bytes PDF
+FVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> INFPAGE : blob → window.open(url, '_blank')
+INFPAGE --> ADMIN : PDF Listado de Facturas\n(8 facturas — Farmacia ABC —\nagrupadas por cliente con subtotal)
+
+ADMIN -> INFPAGE : click "Descargar Excel"
+INFPAGE -> CLIENT : GET /api/facturacion/reporte-excel/\n?persona=7&...&agrupar_cliente=true\n{ responseType: 'blob' }
+CLIENT -> FVIEW : reporte_excel(request)
+FVIEW -> OPENPYXL : Workbook() — mismos filtros\nheader #1A3A5C, separadores de cliente\nColumnas: N° / Fecha / N°Comp /\nCondicion / Monto
+OPENPYXL --> FVIEW : workbook
+FVIEW --> CLIENT : HttpResponse(.xlsx, attachment)
+CLIENT --> INFPAGE : blob .xlsx
+INFPAGE -> INFPAGE : link.download='facturas_20260528.xlsx'\nlink.click()
+INFPAGE --> ADMIN : descarga iniciada
+
+== 4. Admin genera Estado de Cuenta (modo resumido) ==
+
+ADMIN -> INFPAGE : click card "Estado de cuenta"\nModo: "Resumido"\nRango: false (sin fecha_desde)\nHasta: 2026-05-28\nCliente: [sin seleccionar]\nIncluir saldo cero: false\nclick "Ver PDF"
+
+INFPAGE -> INFPAGE : buildEctaQS():\n  modo=resumido\n  usar_rango=false\n  fecha_hasta=2026-05-28
+
+INFPAGE -> CLIENT : GET /api/facturacion/estado-cuenta-pdf/\n?modo=resumido&usar_rango=false\n&fecha_hasta=2026-05-28\n{ responseType: 'blob' }
+
+CLIENT -> FVIEW : estado_cuenta_pdf(request)
+FVIEW -> BD : SELECT persona__razon_social,\nCOUNT(*) total_cuotas,\nSUM(saldo) saldo_acumulado\nFROM ctacobrar\nWHERE fecha_vcto <= 2026-05-28\nAND saldo > 0 AND is_deleted=False\nGROUP BY persona\nORDER BY persona__razon_social
+BD --> FVIEW : resumen por cliente (32 clientes)
+
+FVIEW -> WEASY : render_to_string(\n  'informes/estado_cuenta.html',\n  { modo:'resumido', clientes,\n    total_general, fecha_gen })
+WEASY --> FVIEW : bytes PDF
+FVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> INFPAGE : blob → window.open
+INFPAGE --> ADMIN : PDF Estado de Cuenta Resumido\n(32 clientes — 1 fila por cliente\ncon total cuotas y saldo acumulado)
+
+== 5. Admin navega al Dashboard de Facturacion ==
+
+ADMIN -> INFPAGE : click card "Dashboard Facturacion"
+INFPAGE -> DASHFAC : navigate('/informes/dashboard/facturacion')
+
+DASHFAC -> CLIENT : GET /api/facturacion/dashboard-mensual/
+CLIENT -> FVIEW : dashboard_mensual(request)
+FVIEW -> BD : [stats_hoy, totales_mes, por_dia,\npor_semana, por_mes, top_clientes[:8]]
+BD --> FVIEW : datos del mes Mayo 2026
+FVIEW --> CLIENT : JSON completo
+CLIENT --> DASHFAC : setData(data)
+
+DASHFAC --> ADMIN : dashboard renderizado:\n- Emitidas hoy: 5 / Monto hoy: ₲ 2.500.000\n- Anuladas hoy: 0\n- Ticket promedio mes: ₲ 480.000\n- Barras dia (contado azul / credito ambar)\n- Resumen mes + Donut condicion\n- Top 8 clientes barra horizontal
+
+ADMIN -> DASHFAC : click "Semana"
+DASHFAC -> DASHFAC : setVista('semana') [sin fetch]\nrenderBars(por_semana)
+DASHFAC --> ADMIN : barras agrupadas por semana
+
+ADMIN -> DASHFAC : click "Volver a Informes"
+DASHFAC -> INFPAGE : navigate('/informes/stock')
+
+== 6. Admin navega al Dashboard de Finanzas ==
+
+ADMIN -> INFPAGE : click card "Dashboard Finanzas"
+INFPAGE -> DASHFIN : navigate('/informes/dashboard/finanzas')
+
+DASHFIN -> CLIENT : GET /api/cuentas-mcb/dashboard-mensual/
+CLIENT -> CTAVIEW : dashboard_mensual(request)
+CTAVIEW -> BD : [resumen_mes, cuentas con saldo, por_dia]
+BD --> CTAVIEW : datos
+CTAVIEW --> CLIENT : {\n  resumen_mes: { total_ingresos,\n    total_egresos, saldo_neto },\n  cuentas: [{descripcion, saldo},...],\n  por_dia: [{dia, ingresos, egresos},...31]\n}
+CLIENT --> DASHFIN : setData(data)
+
+DASHFIN --> ADMIN : dashboard finanzas:\n- Ingresos mes: ₲ 18.500.000 (verde)\n- Egresos mes: ₲ 12.300.000 (rojo)\n- Saldo neto: ₲ 6.200.000 (verde)\n- Saldo por cuenta (barras horizontales)\n- Flujo diario: barras dobles Ing/Egr
+
+ADMIN -> DASHFIN : click "Volver"
+DASHFIN -> INFPAGE : navigate('/informes/stock')
+
+== 7. Admin navega al Dashboard de Cobranzas ==
+
+ADMIN -> INFPAGE : click card "Dashboard Cobranzas"
+INFPAGE -> DASHCOB : navigate('/informes/dashboard/cobranzas')
+
+DASHCOB -> CLIENT : GET /api/cobranzas/dashboard-mensual/
+CLIENT -> COBVIEW : dashboard_mensual(request)
+COBVIEW -> BD : [total_cobrado_mes, total_facturado,\npor_dia, top_deudores[:10]]
+BD --> COBVIEW : datos
+COBVIEW --> CLIENT : {\n  total_cobrado_mes,\n  total_facturado,\n  pct_cobro: 68.5,\n  por_dia: [{dia, cantidad, total},...],\n  top_deudores: [{cliente, deuda},...10]\n}
+CLIENT --> DASHCOB : setData(data)
+
+DASHCOB --> ADMIN : dashboard cobranzas:\n- Cobrado mes: ₲ 9.800.000\n- Deuda pendiente: ₲ 4.550.000 (rojo)\n- % de cobro: 68.5%\n- Barras diarias de recibos\n- Top 10 deudores (barras rojas)
+
+ADMIN -> DASHCOB : click "Volver"
+DASHCOB -> INFPAGE : navigate('/informes/stock')
+INFPAGE --> ADMIN : regresa a pagina Informes — Gestion\nlas 8 cards de listados + 3 dashboards
+
+@enduml

@@ -62,6 +62,18 @@ export function useDeleteFactura() {
   })
 }
 
+export function useAnularFactura() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => apiClient.post(`${BASE}${id}/anular/`).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['facturas'] })
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] })
+      queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })
+    },
+  })
+}
+
 export function useValidarTimbrado() {
   return useMutation({
     mutationFn: (data) => apiClient.post(`${BASE}validar-timbrado/`, data).then(r => r.data),

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   FileText, Plus, Search, Trash2, CheckCircle, XCircle, X,
-  AlertTriangle, Info, Pencil, Check, Printer, FileDown,
+  AlertTriangle, Info, Pencil, Check, Printer, FileDown, Ban,
 } from 'lucide-react'
 import apiClient from '../../api/client'
 import Modal from '../../components/ui/Modal'
@@ -10,6 +10,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../hooks/useToast'
 import {
   useFacturas, useFacturaDetalle, useCreateFactura, useUpdateFactura, useDeleteFactura,
+  useAnularFactura,
   useValidarTimbrado, useSiguienteNumero,
   useFormaPago, useBuscarPersonas, useBuscarProductos,
 } from '../../hooks/facturacion/useFacturacion'
@@ -17,7 +18,10 @@ import { useCuentasMcb } from '../../hooks/finanzas/useCuentasMcb'
 import { extraerMensajeError } from '../../utils/errores'
 import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 
-function hoy() { return new Date().toISOString().split('T')[0] }
+function hoy() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function formatGs(v) {
   const n = Number(v) || 0
@@ -780,7 +784,7 @@ function TabCuentaCobrar({ cuotas, setCuotas, montoTotal, fecha, errores }) {
   )
 }
 
-function ModalVerFactura({ id, onClose, onEliminar, showToast, initialModo = 'ver', onDirtyChange }) {
+function ModalVerFactura({ id, onClose, onEliminar, onAnular, showToast, initialModo = 'ver', onDirtyChange }) {
   const { data: fac, isLoading } = useFacturaDetalle(id)
   const actualizar      = useUpdateFactura()
   const validarTimbrado = useValidarTimbrado()
@@ -905,6 +909,8 @@ function ModalVerFactura({ id, onClose, onEliminar, showToast, initialModo = 've
     }
     onEliminar(fac)
   }
+
+  const handleAnularFac = () => onAnular(fac)
 
   const editTotales = useMemo(() => calcularTotales(editDetalle), [editDetalle])
 
@@ -1176,12 +1182,24 @@ function ModalVerFactura({ id, onClose, onEliminar, showToast, initialModo = 've
   return (
     <div className="fac-ver-wrap">
       <div className="fac-ver-toolbar">
-        <button className="fac-ver-btn edit" onClick={handleIniciarEdicion}>
-          <Pencil size={13} /> Editar
-        </button>
+        {fac.is_anulado ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#991b1b', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6, padding: '4px 10px' }}>
+            <Ban size={13} /> Factura anulada
+          </span>
+        ) : (
+          <button className="fac-ver-btn edit" onClick={handleIniciarEdicion}>
+            <Pencil size={13} /> Editar
+          </button>
+        )}
         <button className="fac-ver-btn print" onClick={() => window.open(`/api/facturacion/${fac.id}/pdf/`, '_blank')}>
           <Printer size={13} /> Visualizar / Imprimir
         </button>
+        {!fac.is_anulado && (
+          <button className="fac-ver-btn" style={{ color: '#b45309', borderColor: '#fde68a' }}
+            onClick={handleAnularFac}>
+            <Ban size={13} /> Anular
+          </button>
+        )}
         <button className="fac-ver-btn del" onClick={handleEliminarFac}>
           <Trash2 size={13} /> Eliminar
         </button>
@@ -1502,6 +1520,7 @@ export default function FacturacionPage() {
   const [modalAbierto, setModalAbierto]   = useState(false)
   const [facturaViendo, setFacturaViendo] = useState(null)
   const [confirmFac, setConfirmFac]       = useState(null)
+  const [confirmAnularFac, setConfirmAnularFac] = useState(null)
   const [filtros, setFiltros]             = useState({ search: '', condicion_vta: '', fecha_desde: '', fecha_hasta: '' })
   const debounceRef                       = useRef(null)
   const [confirmDescartarNueva, setConfirmDescartarNueva] = useState(false)
@@ -1514,6 +1533,7 @@ export default function FacturacionPage() {
   const { toast, showToast } = useToast()
   const { data, isLoading }  = useFacturas(filtros)
   const eliminarFactura      = useDeleteFactura()
+  const anularFactura        = useAnularFactura()
   const facturas = data?.results ?? data ?? []
 
   useAtajosTeclado({
@@ -1590,6 +1610,20 @@ export default function FacturacionPage() {
     }
   }
 
+  const handleAnular = (fac) => setConfirmAnularFac(fac)
+
+  const handleAnularConfirmado = async () => {
+    try {
+      await anularFactura.mutateAsync(confirmAnularFac.id)
+      setConfirmAnularFac(null)
+      setFacturaViendo(null)
+      showToast('Factura anulada correctamente.', 'success')
+    } catch (err) {
+      showToast(extraerMensajeError(err), 'error')
+      setConfirmAnularFac(null)
+    }
+  }
+
   return (
     <>
       <style>{`
@@ -1620,11 +1654,14 @@ export default function FacturacionPage() {
         .fac-tr:nth-child(even) .fac-td { background: #f9fafb; }
         .fac-tr-clickable { cursor: pointer; }
         .fac-tr-clickable:hover .fac-td { background: #eff6ff !important; }
+        .fac-tr-anulado .fac-td { background: #fff5f5 !important; }
+        .fac-tr-anulado:hover .fac-td { background: #fee2e2 !important; }
         .fac-td-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
         .fac-td-acciones { display: flex; gap: 4px; justify-content: flex-end; }
         .fac-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
-        .fac-badge.contado { background: #dcfce7; color: #166534; }
+        .fac-badge.contado  { background: #dcfce7; color: #166534; }
         .fac-badge.credito  { background: #fef3c7; color: #92400e; }
+        .fac-badge.anulado  { background: #fee2e2; color: #991b1b; }
         .fac-row-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7280; }
         .fac-row-btn:hover { background: #f3f4f6; }
         .fac-row-btn.danger { border-color: #fecaca; color: #dc2626; }
@@ -1856,7 +1893,7 @@ export default function FacturacionPage() {
                   {facturas.map(f => (
                     <tr
                       key={f.id}
-                      className="fac-tr fac-tr-clickable"
+                      className={`fac-tr fac-tr-clickable${f.is_anulado ? ' fac-tr-anulado' : ''}`}
                       onClick={() => setFacturaViendo({ id: f.id, modo: 'ver' })}
                     >
                       <td className="fac-td fac-mono" style={{ fontWeight: 600 }}>{f.nro_comprobante_formateado}</td>
@@ -1867,23 +1904,35 @@ export default function FacturacionPage() {
                       </td>
                       <td className="fac-td fac-mono fac-td-doc" style={{ color: '#6b7280' }}>{f.cliente_documento}</td>
                       <td className="fac-td">
-                        <span className={`fac-badge ${f.condicion_vta ? 'contado' : 'credito'}`}>
-                          {f.condicion_vta ? 'Contado' : 'Crédito'}
-                        </span>
+                        {f.is_anulado ? (
+                          <span className="fac-badge anulado">Anulada</span>
+                        ) : (
+                          <span className={`fac-badge ${f.condicion_vta ? 'contado' : 'credito'}`}>
+                            {f.condicion_vta ? 'Contado' : 'Crédito'}
+                          </span>
+                        )}
                       </td>
-                      <td className="fac-td fac-mono" style={{ textAlign: 'right', fontWeight: 600 }}>
+                      <td className="fac-td fac-mono" style={{ textAlign: 'right', fontWeight: 600, color: f.is_anulado ? '#9ca3af' : undefined, textDecoration: f.is_anulado ? 'line-through' : undefined }}>
                         {formatGs(f.monto_total)}
                       </td>
                       <td className="fac-td" onClick={e => e.stopPropagation()}>
                         <div className="fac-td-acciones">
-                          <button className="fac-row-btn" title="Editar"
-                            onClick={() => setFacturaViendo({ id: f.id, modo: 'editar' })}>
-                            <Pencil size={12} />
-                          </button>
+                          {!f.is_anulado && (
+                            <button className="fac-row-btn" title="Editar"
+                              onClick={() => setFacturaViendo({ id: f.id, modo: 'editar' })}>
+                              <Pencil size={12} />
+                            </button>
+                          )}
                           <button className="fac-row-btn" title="Imprimir"
                             onClick={() => window.open(`/api/facturacion/${f.id}/pdf/`, '_blank')}>
                             <Printer size={12} />
                           </button>
+                          {!f.is_anulado && (
+                            <button className="fac-row-btn" title="Anular" style={{ color: '#b45309', borderColor: '#fde68a' }}
+                              onClick={() => handleAnular(f)}>
+                              <Ban size={12} />
+                            </button>
+                          )}
                           <button className="fac-row-btn danger" title="Eliminar"
                             onClick={() => handleEliminar(f)}>
                             <Trash2 size={12} />
@@ -1922,6 +1971,7 @@ export default function FacturacionPage() {
             initialModo={facturaViendo.modo}
             onClose={handleCloseModalVer}
             onEliminar={handleEliminar}
+            onAnular={handleAnular}
             showToast={showToast}
             onDirtyChange={(dirty) => { verDirtyRef.current = dirty }}
           />
@@ -1935,6 +1985,16 @@ export default function FacturacionPage() {
         onConfirm={handleEliminarConfirmado}
         onCancel={() => setConfirmFac(null)}
         loading={eliminarFactura.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmAnularFac}
+        title="Anular factura"
+        description={`¿Anular la factura ${confirmAnularFac?.nro_comprobante_formateado}? El comprobante quedará marcado como anulado. No se podrá editar, pero seguirá visible en el listado. Si tiene cobranza asociada, debe eliminarla primero.`}
+        confirmText="Anular factura"
+        onConfirm={handleAnularConfirmado}
+        onCancel={() => setConfirmAnularFac(null)}
+        loading={anularFactura.isPending}
       />
 
       <ConfirmDialog

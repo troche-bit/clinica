@@ -1,0 +1,101 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr        { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left   { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right  { display: table-cell; vertical-align: bottom; text-align: right; }
+.rpt-clinica    { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo     { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-meta       { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-filtros    { font-size: 8pt; color: #555; margin-bottom: 6pt; padding: 3pt 6pt;
+                  background: #f8fafc; border-left: 3px solid #1a3a5c; }
+
+.rpt-table th { background: #1a3a5c; color: #fff; font-size: 7.5pt; text-transform: uppercase;
+                letter-spacing: .04em; padding: 4pt 5pt; text-align: left; }
+.rpt-table td { font-size: 9pt; padding: 4pt 5pt; border-bottom: 1px solid #e8e8e8; vertical-align: middle; }
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+.col-nro   { width: 4%;  text-align: center; }
+.col-fecha { width: 9%;  text-align: center; }
+.col-cta   { width: 28%; }
+.col-comp  { width: 14%; text-align: center; }
+.col-ing   { width: 18%; text-align: right; color: #166534; font-weight: bold; }
+.col-egr   { width: 18%; text-align: right; color: #dc2626; }
+
+.rpt-total {
+  display: table; width: 100%; background: #eef2f7;
+  padding: 4pt 6pt; margin-top: 4pt; border-top: 2px solid #1a3a5c;
+  font-size: 8.5pt; font-weight: bold; color: #1a3a5c;
+}
+.rpt-total-label { display: table-cell; }
+.rpt-total-vals  { display: table-cell; text-align: right; }
+.rpt-total-ing   { color: #166534; margin-right: 18pt; }
+.rpt-total-egr   { color: #dc2626; }
+
+.rpt-footer { margin-top: 10pt; text-align: right; font-size: 7.5pt; color: #777;
+              border-top: 1px solid #ccc; padding-top: 5pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Movimientos de Caja / Banco</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }}</div>
+      <div class="rpt-meta">Total: {{ total }} registro{{ total|pluralize:",s" }}</div>
+    </div>
+  </div>
+
+  {% if filtros_str %}
+  <div class="rpt-filtros">Filtros: {{ filtros_str }}</div>
+  {% endif %}
+
+  <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+    <thead>
+      <tr>
+        <th class="col-nro">#</th>
+        <th class="col-fecha">Fecha</th>
+        <th class="col-cta">Cuenta</th>
+        <th class="col-comp">N° Comprobante</th>
+        <th class="col-ing">Ingreso (Gs.)</th>
+        <th class="col-egr">Egreso (Gs.)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr>
+        <td class="col-nro center">{{ f.nro }}</td>
+        <td class="col-fecha center">{{ f.fecha|date:"d/m/Y" }}</td>
+        <td class="col-cta">{{ f.cuenta }}</td>
+        <td class="col-comp center mono">{{ f.nro_comprobante }}</td>
+        <td class="col-ing right mono">{% if f.ingreso %}{{ f.ingreso|gs }}{% else %}—{% endif %}</td>
+        <td class="col-egr right mono">{% if f.egreso %}{{ f.egreso|gs }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center; color:#888; padding:10pt;">Sin registros</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="rpt-total">
+    <div class="rpt-total-label">TOTALES</div>
+    <div class="rpt-total-vals">
+      <span class="rpt-total-ing">Ingresos: {{ total_ingresos|gs }}</span>
+      <span class="rpt-total-egr">Egresos: {{ total_egresos|gs }}</span>
+    </div>
+  </div>
+
+  <div class="rpt-footer">
+    Generado el {{ fecha|date:"d/m/Y" }} — Sistema de Gestión Clínica Lichi
+  </div>
+
+</div>
+{% endblock %}

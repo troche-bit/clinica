@@ -3,6 +3,7 @@ MODULOS = {
     'Persona':              'Administración',
     'PerfilUsuario':        'Administración',
     'PersonaRRHH':          'Administración',
+    'TipoDocumento':        'Administración',
     # Clínica
     'Paciente':             'Clínica',
     'PacienteResponsable':  'Clínica',
@@ -13,6 +14,7 @@ MODULOS = {
     'Agenda':               'Clínica',
     'Consulta':             'Clínica',
     'DocumentoDigPaciente': 'Clínica',
+    'DocumentoDigPrestador': 'Clínica',
     # Facturación
     'VentaFactCab':         'Facturación',
     'Timbrado':             'Facturación',
@@ -23,6 +25,11 @@ MODULOS = {
     'MovimientoCajaBanco':  'Finanzas',
     'Cobranza':             'Finanzas',
     'PagoPrestador':        'Finanzas',
+    # Mantenimiento
+    'Pais':                 'Mantenimiento',
+    'Departamento':         'Mantenimiento',
+    'Ciudad':               'Mantenimiento',
+    'TipoDocDigital':       'Mantenimiento',
     # Notificaciones
     'notificacion':         'Notificaciones',
 }

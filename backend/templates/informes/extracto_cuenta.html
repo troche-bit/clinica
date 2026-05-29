@@ -1,0 +1,202 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr       { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left  { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right { display: table-cell; vertical-align: bottom; text-align: right; }
+.rpt-clinica   { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo    { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-modo      { font-size: 8pt; color: #1a3a5c; font-weight: bold; margin-top: 2pt; }
+.rpt-meta      { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-filtros   { font-size: 8pt; color: #555; margin-bottom: 8pt; padding: 3pt 6pt;
+                 background: #f8fafc; border-left: 3px solid #1a3a5c; }
+
+.rpt-table     { width: 100%; border-collapse: collapse; margin-bottom: 4pt; }
+.rpt-table th  { background: #1a3a5c; color: #fff; font-size: 7.5pt; text-transform: uppercase;
+                 letter-spacing: .04em; padding: 4pt 5pt; text-align: left; }
+.rpt-table td  { font-size: 8.5pt; padding: 3pt 5pt; border-bottom: 1px solid #e8e8e8; vertical-align: middle; }
+.rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
+
+.rpt-grupo-hdr {
+  font-size: 9pt; font-weight: bold; color: #1a3a5c;
+  background: #eef2f7; padding: 4pt 6pt;
+  border-left: 3px solid #1a3a5c; margin-top: 8pt; margin-bottom: 1pt;
+}
+.rpt-grupo-hdr span { font-size: 7.5pt; font-weight: normal; color: #6b7280; margin-left: 6pt; }
+
+/* Modo normal — columnas */
+.col-fecha   { width: 10%; text-align: center; }
+.col-tipo    { width: 10%; text-align: center; }
+.col-comp    { width: 20%; text-align: center; }
+.col-deb     { width: 18%; text-align: right; }
+.col-cred    { width: 18%; text-align: right; }
+.col-saldo   { width: 18%; text-align: right; font-weight: bold; }
+
+/* Modo por factura — columnas */
+.col-pf-comp  { width: 22%; text-align: center; }
+.col-pf-fecha { width: 10%; text-align: center; }
+.col-pf-monto { width: 18%; text-align: right; }
+.col-pf-cob   { width: 18%; text-align: right; }
+.col-pf-saldo { width: 18%; text-align: right; font-weight: bold; }
+
+.fila-factura td { background: #eff6ff !important; font-weight: bold; color: #1e3a5f; }
+.fila-cobranza td { font-size: 8pt; color: #374151; padding-left: 20pt !important; }
+
+.badge-factura  { background: #dbeafe; color: #1e40af; padding: 1pt 4pt; border-radius: 3pt; font-size: 7pt; font-weight: bold; }
+.badge-cobranza { background: #d1fae5; color: #065f46; padding: 1pt 4pt; border-radius: 3pt; font-size: 7pt; font-weight: bold; }
+
+.rpt-subtotal { text-align: right; font-size: 8pt; font-weight: bold; color: #1e3a5f;
+                padding: 3pt 5pt; background: #dbeafe; border-top: 1px solid #bfdbfe; }
+.rpt-subtotal-label { text-align: left; }
+
+.rpt-gran-total {
+  margin-top: 10pt; display: table; width: 100%;
+  background: #1a3a5c; padding: 5pt 8pt;
+  border-top: 2px solid #1a3a5c;
+}
+.rpt-gran-total-label { display: table-cell; font-size: 9pt; font-weight: bold; color: #fff; }
+.rpt-gran-total-vals  { display: table-cell; text-align: right; font-size: 9pt; font-weight: bold; color: #fff; }
+
+.saldo-neg { color: #dc2626; }
+.saldo-pos { color: #065f46; }
+
+.rpt-footer { margin-top: 10pt; text-align: right; font-size: 7.5pt; color: #777;
+              border-top: 1px solid #ccc; padding-top: 5pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Extracto de Cuenta — Clientes</div>
+      <div class="rpt-modo">{% if agrupar %}Agrupado por factura{% else %}Cronológico por cliente{% endif %}</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }} · Clientes: {{ total_clientes }}</div>
+    </div>
+  </div>
+
+  {% if filtros_str %}
+  <div class="rpt-filtros">{{ filtros_str }}</div>
+  {% endif %}
+
+  {% if agrupar %}
+
+    {% for grupo in grupos %}
+    <div class="rpt-grupo-hdr">
+      {{ grupo.cliente }}
+      <span>{{ grupo.documento }}</span>
+    </div>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th class="col-pf-comp">Comprobante</th>
+          <th class="col-pf-fecha">Fecha</th>
+          <th class="col-pf-monto">Monto Factura</th>
+          <th class="col-pf-cob">Total Cobrado</th>
+          <th class="col-pf-saldo">Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fact in grupo.facturas %}
+        <tr class="fila-factura">
+          <td class="col-pf-comp mono">{{ fact.comprobante }}</td>
+          <td class="col-pf-fecha center">{{ fact.fecha|date:"d/m/Y" }}</td>
+          <td class="col-pf-monto right">{{ fact.monto_total|gs }}</td>
+          <td class="col-pf-cob right">{{ fact.total_cobrado|gs }}</td>
+          <td class="col-pf-saldo right {% if fact.saldo > 0 %}saldo-neg{% else %}saldo-pos{% endif %}">{{ fact.saldo|gs }}</td>
+        </tr>
+        {% for cob in fact.cobros %}
+        <tr class="fila-cobranza">
+          <td class="col-pf-comp mono"><span class="badge-cobranza">Recibo</span> {{ cob.comprobante }}</td>
+          <td class="col-pf-fecha center">{{ cob.fecha|date:"d/m/Y" }}</td>
+          <td class="col-pf-monto"></td>
+          <td class="col-pf-cob right">{{ cob.monto|gs }}</td>
+          <td class="col-pf-saldo"></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" class="rpt-subtotal rpt-subtotal-label">Subtotal {{ grupo.cliente }}</td>
+          <td class="rpt-subtotal right">{{ grupo.total_debito|gs }}</td>
+          <td class="rpt-subtotal right">{{ grupo.total_credito|gs }}</td>
+          <td class="rpt-subtotal right">{{ grupo.saldo_final|gs }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    {% empty %}
+    <p style="color:#6b7280;font-size:9pt;margin-top:12pt;">Sin registros con los filtros seleccionados.</p>
+    {% endfor %}
+
+  {% else %}
+
+    {% for grupo in grupos %}
+    <div class="rpt-grupo-hdr">
+      {{ grupo.cliente }}
+      <span>{{ grupo.documento }}</span>
+    </div>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th class="col-fecha">Fecha</th>
+          <th class="col-tipo">Tipo</th>
+          <th class="col-comp">Comprobante</th>
+          <th class="col-deb">Débito (Gs.)</th>
+          <th class="col-cred">Crédito (Gs.)</th>
+          <th class="col-saldo">Saldo (Gs.)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in grupo.movimientos %}
+        <tr>
+          <td class="col-fecha center">{{ m.fecha|date:"d/m/Y" }}</td>
+          <td class="col-tipo center">
+            {% if m.tipo == 'factura' %}
+            <span class="badge-factura">Factura</span>
+            {% else %}
+            <span class="badge-cobranza">Recibo</span>
+            {% endif %}
+          </td>
+          <td class="col-comp mono">{{ m.comprobante }}</td>
+          <td class="col-deb right">{% if m.debito %}{{ m.debito|gs }}{% else %}—{% endif %}</td>
+          <td class="col-cred right">{% if m.credito %}{{ m.credito|gs }}{% else %}—{% endif %}</td>
+          <td class="col-saldo right {% if m.saldo > 0 %}saldo-neg{% else %}saldo-pos{% endif %}">{{ m.saldo|gs }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="rpt-subtotal rpt-subtotal-label">Subtotal {{ grupo.cliente }}</td>
+          <td class="rpt-subtotal right">{{ grupo.total_debito|gs }}</td>
+          <td class="rpt-subtotal right">{{ grupo.total_credito|gs }}</td>
+          <td class="rpt-subtotal right">{{ grupo.saldo_final|gs }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    {% empty %}
+    <p style="color:#6b7280;font-size:9pt;margin-top:12pt;">Sin registros con los filtros seleccionados.</p>
+    {% endfor %}
+
+  {% endif %}
+
+  <div class="rpt-gran-total">
+    <div class="rpt-gran-total-label">TOTAL GENERAL — {{ total_clientes }} cliente{{ total_clientes|pluralize:",s" }}</div>
+    <div class="rpt-gran-total-vals">
+      Débito: {{ gran_total_debito|gs }} &nbsp;|&nbsp;
+      Crédito: {{ gran_total_credito|gs }} &nbsp;|&nbsp;
+      Saldo: {{ gran_total_saldo|gs }}
+    </div>
+  </div>
+
+  <div class="rpt-footer">Generado el {{ fecha|date:"d/m/Y" }} — Clínica Lichi</div>
+
+</div>
+{% endblock %}

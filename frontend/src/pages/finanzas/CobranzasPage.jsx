@@ -21,7 +21,8 @@ import { useAtajosTeclado } from '../../hooks/useAtajosTeclado'
 import apiClient from '../../api/client'
 
 function hoy() {
-  return new Date().toISOString().split('T')[0]
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 function fmt(n) {
   if (n == null) return '—'
@@ -209,6 +210,7 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
   const [errores, setErrores]           = useState({})
   const [guardando, setGuardando]       = useState(false)
   const nroDebounceRef                  = useRef(null)
+  const prevSigNroRef                   = useRef(null)
 
   const { data: sigNro }                            = useSiguienteNumeroCob()
   const { data: validacionNro }                     = useValidarNroCobranza(nroAValidar)
@@ -223,8 +225,12 @@ function ModalNuevaCobranza({ onClose, onCreado, showToast }) {
   })
 
   useEffect(() => {
-    if (sigNro?.siguiente != null && nroComprobante === '')
-      setNroComp(String(sigNro.siguiente).padStart(7, '0'))
+    if (sigNro?.siguiente == null) return
+    const formatted = String(sigNro.siguiente).padStart(7, '0')
+    if (nroComprobante === '' || nroComprobante === prevSigNroRef.current) {
+      prevSigNroRef.current = formatted
+      setNroComp(formatted)
+    }
   }, [sigNro])
 
   useEffect(() => { setDetalle({}) }, [persona])

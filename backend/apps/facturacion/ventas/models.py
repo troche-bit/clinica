@@ -24,6 +24,8 @@ class VentaFactCab(BaseModel):
     observacion     = models.TextField(blank=True, default='')
     nro_comprobante = models.IntegerField(null=True)
 
+    is_anulado = models.BooleanField(default=False)
+
     # Totales desnormalizados — evita recalcular al consultar
     grav_5        = models.DecimalField(max_digits=18, decimal_places=2, default=0)
     grav_10       = models.DecimalField(max_digits=18, decimal_places=2, default=0)

@@ -37,6 +37,7 @@ export function useCreatePagoPrestador() {
     mutationFn: (data) => apiClient.post(BASE, data).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos-prestador'] })
+      queryClient.invalidateQueries({ queryKey: ['pago-prestador-siguiente'] })
       queryClient.invalidateQueries({ queryKey: ['medicos-con-pendientes'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })
@@ -51,6 +52,7 @@ export function useDeletePagoPrestador() {
     mutationFn: (id) => apiClient.delete(`${BASE}${id}/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pagos-prestador'] })
+      queryClient.invalidateQueries({ queryKey: ['pago-prestador-siguiente'] })
       queryClient.invalidateQueries({ queryKey: ['medicos-con-pendientes'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })

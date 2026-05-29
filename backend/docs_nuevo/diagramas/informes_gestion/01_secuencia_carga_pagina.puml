@@ -1,0 +1,89 @@
+@startuml 01_secuencia_carga_pagina
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+boundary "InformesStockPage.jsx" as GUI
+control "apiClient\n(axios)" as CLIENT
+control "ProductoServicioViewSet" as PVIEW
+control "CuentaMcbViewSet" as CVIEW
+database "PostgreSQL" as BD
+
+== 1. Usuario navega a /informes/stock ==
+
+USUARIO -> GUI : navigate('/informes/stock')
+
+GUI --> USUARIO : pagina renderizada sin fetch inicial:\n- Seccion "Listados exportables" (8 cards)\n- Seccion "Dashboards analiticos" (3 cards)\nNinguna llamada HTTP al montar la pagina
+
+note right of GUI
+  Solo se carga al abrir
+  modales especificos que
+  necesiten datos previos.
+end note
+
+== 2. Usuario abre modal "Productos por grupo" ==
+
+USUARIO -> GUI : click card "Productos por grupo"
+
+GUI -> GUI : setProductosAbierto(true)\nsetFiltrosProd({ grupo: '' })
+
+GUI -> GUI : useEffect([productosAbierto]):\nsi grupos.length === 0 → fetch
+note right : Carga diferida — solo la primera\nvez que se abre el modal.
+
+GUI -> CLIENT : GET /api/grupos/\n?page_size=200&activo=true
+CLIENT -> PVIEW : list(request)
+PVIEW -> BD : SELECT * FROM grupo\nWHERE is_deleted=False\nAND activo=True\nORDER BY descripcion
+BD --> PVIEW : grupos activos
+PVIEW --> CLIENT : { results: [{ id, descripcion }, ...] }
+CLIENT --> GUI : grupos
+
+GUI --> USUARIO : Modal "Productos por grupo":\n- Select "Grupo": Todos / [lista de grupos]\n- Botones: "Ver PDF" · "Descargar Excel"
+
+== 3. Usuario abre modal "Movimientos Caja / Banco" ==
+
+USUARIO -> GUI : click card "Movimientos Caja/Banco"
+
+GUI -> GUI : setMovAbierto(true)\nmovCuenta='', movTipo=''\nmovFechaDesde=hoy(), movFechaHasta=hoy()
+
+GUI -> GUI : useEffect([movAbierto]):\nsi cuentas.length === 0 → fetch
+note right : Carga diferida igual\nque grupos.
+
+GUI -> CLIENT : GET /api/cuentas-mcb/\n?page_size=100
+CLIENT -> CVIEW : list(request)
+CVIEW -> BD : SELECT * FROM cuenta_mcb\nWHERE is_deleted=False\nORDER BY descripcion
+BD --> CVIEW : cuentas con saldo anotado
+CVIEW --> CLIENT : { results: [{ id, descripcion, saldo }, ...] }
+CLIENT --> GUI : cuentas
+
+GUI --> USUARIO : Modal "Movimientos Caja / Banco":\n- Select "Cuenta": Todas / [cuentas]\n- Select "Tipo": Todos / Ingresos / Egresos\n- Fecha desde / Fecha hasta\n- Botones: "Ver PDF" · "Descargar Excel"
+
+== 4. Buscador con debounce — modales con busqueda de persona ==
+
+USUARIO -> GUI : abre modal "Listado de facturas"\ndigita "Mar" en campo Cliente
+
+GUI -> GUI : useEffect([clienteSearch]):\nq.length >= 2 → clearTimeout + setTimeout 300ms
+
+note right of GUI
+  4 modales usan debounce
+  para buscar Persona:
+  - Facturas (cliente)
+  - Estado de cuenta (cliente)
+  - Cobranzas (cliente)
+  - Extracto de cuenta (cliente)
+  Cada uno tiene su propio
+  ref y estado independiente.
+end note
+
+GUI -> CLIENT : GET /api/persona/\n?search=Mar&page_size=8\n(en FacturasModal: con_rol=true)
+CLIENT -> GUI : { results: [{ id, razon_social,\n  nro_documento }, ...] }
+GUI --> USUARIO : dropdown de resultados\n(max 8 personas)\nNavegacion: ↑↓ Enter Escape
+
+USUARIO -> GUI : selecciona "Maria Lopez"
+GUI -> GUI : setClienteId('12')\nsetClienteNombre('Maria Lopez')\nsetClienteSearch('')\nsetClienteRes([])
+
+GUI --> USUARIO : campo cliente muestra "Maria Lopez"\nboton ✕ para limpiar la seleccion
+
+@enduml

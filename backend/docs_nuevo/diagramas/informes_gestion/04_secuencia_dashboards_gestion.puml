@@ -1,0 +1,139 @@
+@startuml 04_secuencia_dashboards_gestion
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+boundary "InformesStockPage.jsx" as INFPAGE
+boundary "DashboardFacturacionPage.jsx" as DASHFAC
+boundary "DashboardFinanzasPage.jsx" as DASHFIN
+boundary "DashboardCobranzasPage.jsx" as DASHCOB
+control "apiClient\n(axios)" as CLIENT
+control "VentaFactCabViewSet" as FVIEW
+control "CuentaMcbViewSet" as CVIEW
+control "CobranzaViewSet" as COBVIEW
+database "PostgreSQL" as BD
+
+== 1. Usuario navega al Dashboard de Facturacion ==
+
+USUARIO -> INFPAGE : click card "Dashboard Facturacion"
+INFPAGE -> DASHFAC : navigate('/informes/dashboard/facturacion')
+
+DASHFAC -> DASHFAC : useEffect([], () => { cargar() })\nsetLoading(true)
+
+DASHFAC -> CLIENT : GET /api/facturacion/dashboard-mensual/
+CLIENT -> FVIEW : dashboard_mensual(request)
+
+FVIEW -> BD : [stats_hoy]\nSELECT COUNT(*) total,\nSUM(monto_total) monto_total,\nCOUNT(is_anulado=True) anuladas\nFROM ventafactcab\nWHERE fecha = localdate(hoy)\nAND is_deleted=False
+BD --> FVIEW : stats_hoy
+
+FVIEW -> BD : [totales_mes]\nSELECT\n  COUNT(*) total_facturas,\n  COUNT(condicion_vta='C') contado,\n  COUNT(condicion_vta='D') credito,\n  SUM(monto_total) monto_total,\n  AVG(monto_total) ticket_promedio,\n  COUNT(is_anulado=True) anuladas\nFROM ventafactcab\nWHERE MONTH(fecha)=mes_actual\nAND YEAR(fecha)=anio_actual\nAND is_deleted=False
+BD --> FVIEW : totales_mes
+
+FVIEW -> BD : [por_dia] todos los dias del mes:\nSELECT DAY(fecha), COUNT(*) total,\nCOUNT(condicion='C') contado,\nCOUNT(condicion='D') credito\nGROUP BY DAY(fecha)
+BD --> FVIEW : por_dia (con es_futuro)
+
+FVIEW -> BD : [por_semana] agrupado en\nbloques de 7 dias
+BD --> FVIEW : por_semana
+
+FVIEW -> BD : [por_mes] ultimos 6 meses:\nSELECT YEAR, MONTH, COUNT(*),\nCOUNT(contado), COUNT(credito)\nGROUP BY anio, mes LIMIT 6
+BD --> FVIEW : por_mes (label_corto: "Ene", "Feb"...)
+
+FVIEW -> BD : [top_clientes]\nSELECT persona__razon_social,\nCOUNT(*) total_facturas,\nSUM(monto_total) monto_total\nFROM ventafactcab\nWHERE mes_actual AND is_deleted=False\nGROUP BY persona\nORDER BY total_facturas DESC LIMIT 8
+BD --> FVIEW : top_clientes[:8]
+
+FVIEW --> CLIENT : {\n  mes_label: 'Mayo 2026',\n  stats_hoy: { total, monto_total,\n    monto_contado, monto_credito, anuladas },\n  totales_mes: { total_facturas, contado,\n    credito, monto_total, ticket_promedio,\n    monto_contado, monto_credito, anuladas },\n  por_dia: [{dia, total, contado, credito,\n    es_futuro, label_corto}, ...31],\n  por_semana: [{label_corto, total,\n    contado, credito}, ...],\n  por_mes: [{label_corto, total,\n    contado, credito}, ...6],\n  top_clientes: [{cliente, total_facturas,\n    monto_total}, ...8]\n}
+CLIENT --> DASHFAC : res.data → setData(data)
+
+DASHFAC -> DASHFAC : renderiza:\n[4 StatCards]\n- "Emitidas hoy": data.stats_hoy.total\n- "Monto hoy": fmtGs(stats_hoy.monto_total)\n  sub: Contado/Credito\n- "Anuladas hoy": stats_hoy.anuladas\n  (rojo si > 0)\n- "Ticket promedio": fmtGs(ticket_promedio)\n  sub: del mes
+
+DASHFAC -> DASHFAC : [FacturasBars — toggle Dia/Semana/Mes]\nvista = useState('dia') [local]\ndatos = por_dia (default)\nBarras apiladas: azul=contado / ambar=credito\nfuturo=true → barra atenuada\nTooltip: total / contado / credito
+
+DASHFAC -> DASHFAC : [FilaTotales — Resumen del mes]\ntotal_facturas + monto_total (bold)\ncontado / credito / anuladas\nticket_promedio al pie
+
+DASHFAC -> DASHFAC : [DonutCondicion — Condicion del mes]\nconic-gradient:\n  azul=#1a3a5c (contado)\n  ambar=#d97706 (credito)\ncentro: total facturas
+
+DASHFAC -> DASHFAC : [BarraH — Top clientes]\ncada barra: label=razon_social\nsub=fmtGs(monto_total)\nvalor=total_facturas\nancho proporcional al maximo
+
+DASHFAC --> USUARIO : dashboard renderizado:\n- 4 stat cards\n- Barras Dia/Semana/Mes con toggle\n- Resumen mes + Donut condicion\n- Top 8 clientes
+
+== 2. Toggle Dia / Semana / Mes (sin fetch) ==
+
+USUARIO -> DASHFAC : click boton "Semana"
+DASHFAC -> DASHFAC : setVista('semana') [local]\ndatos = por_semana\n[NO fetch — datos ya cargados]
+DASHFAC --> USUARIO : barras actualizadas por semana
+
+USUARIO -> DASHFAC : click boton "Mes"
+DASHFAC -> DASHFAC : setVista('mes')\ndatos = por_mes
+DASHFAC --> USUARIO : 6 barras mensuales\n(cada par azul+ambar = contado/credito)
+
+== 3. Usuario navega al Dashboard de Finanzas ==
+
+USUARIO -> DASHFAC : click "Volver a Informes"
+DASHFAC -> INFPAGE : navigate('/informes/stock')
+
+USUARIO -> INFPAGE : click card "Dashboard Finanzas"
+INFPAGE -> DASHFIN : navigate('/informes/dashboard/finanzas')
+
+DASHFIN -> DASHFIN : useEffect([], () => { cargar() })
+DASHFIN -> CLIENT : GET /api/cuentas-mcb/dashboard-mensual/
+CLIENT -> CVIEW : dashboard_mensual(request)
+
+CVIEW -> BD : [resumen_mes]\nSELECT SUM(monto) FILTER(tipo='ingreso')\n  AS total_ingresos,\nSUM(monto) FILTER(tipo='egreso')\n  AS total_egresos\nFROM movimientocajabanco\nWHERE MONTH(fecha)=mes_actual\nAND is_deleted=False
+BD --> CVIEW : total_ingresos, total_egresos
+
+CVIEW -> BD : [cuentas con saldo]\nSELECT cuenta, SUM(ingresos-egresos)\n  AS saldo\nFROM movimientocajabanco JOIN cuenta_mcb\nWHERE cuenta_mcb.is_deleted=False\nGROUP BY cuenta
+BD --> CVIEW : cuentas[{descripcion, saldo}]
+
+CVIEW -> BD : [por_dia] todos los dias del mes:\nSELECT DAY(fecha),\nSUM(monto) FILTER(tipo='ingreso')\n  AS ingresos,\nSUM(monto) FILTER(tipo='egreso')\n  AS egresos\nGROUP BY DAY(fecha)
+BD --> CVIEW : por_dia (con es_futuro)
+
+CVIEW --> CLIENT : {\n  mes_label: 'Mayo 2026',\n  resumen_mes: { total_ingresos,\n    total_egresos, saldo_neto },\n  cuentas: [{descripcion, saldo}, ...],\n  por_dia: [{dia, ingresos, egresos,\n    es_futuro}, ...31]\n}
+CLIENT --> DASHFIN : res.data → setData(data)
+
+DASHFIN -> DASHFIN : [3 StatCards]\n- "Ingresos del mes": fmtGs(total_ingresos)\n- "Egresos del mes": fmtGs(total_egresos)\n  (color rojo)\n- "Saldo neto": fmtGs(saldo_neto)\n  (verde si > 0, rojo si < 0)
+
+DASHFIN -> DASHFIN : [CuentasBarras]\ncada cuenta: barra proporcional\ncolor segun signo del saldo\nancho = (|saldo|/maxSaldo)*100%
+
+DASHFIN -> DASHFIN : [DualBars — flujo diario]\ncada dia: dos barras juntas\nverde=ingresos / rojo=egresos\nfuturo → barras transparentes
+
+DASHFIN --> USUARIO : dashboard finanzas:\n- Ingresos / Egresos / Saldo neto\n- Barras saldo por cuenta\n- Flujo diario ingresos vs egresos
+
+== 4. Usuario navega al Dashboard de Cobranzas ==
+
+USUARIO -> DASHFIN : click "Volver"
+DASHFIN -> INFPAGE : navigate('/informes/stock')
+
+USUARIO -> INFPAGE : click card "Dashboard Cobranzas"
+INFPAGE -> DASHCOB : navigate('/informes/dashboard/cobranzas')
+
+DASHCOB -> DASHCOB : useEffect([], () => { cargar() })
+DASHCOB -> CLIENT : GET /api/cobranzas/dashboard-mensual/
+CLIENT -> COBVIEW : dashboard_mensual(request)
+
+COBVIEW -> BD : [cobrado del mes]\nSELECT SUM(monto_total)\nFROM cobranza\nWHERE MONTH(fecha)=mes_actual\nAND is_deleted=False
+BD --> COBVIEW : total_cobrado_mes
+
+COBVIEW -> BD : [total facturado pendiente]\nSELECT SUM(saldo)\nFROM ctacobrar\nWHERE is_deleted=False
+BD --> COBVIEW : total_facturado (deuda total)
+
+COBVIEW -> BD : [por_dia] cada dia del mes:\nSELECT DAY(fecha), COUNT(*) cantidad,\nSUM(monto_total) total\nFROM cobranza\nGROUP BY DAY(fecha)
+BD --> COBVIEW : por_dia[{dia, cantidad, total}]
+
+COBVIEW -> BD : [top_deudores]\nSELECT persona__razon_social,\nSUM(saldo) AS deuda\nFROM ctacobrar\nWHERE saldo > 0 AND is_deleted=False\nGROUP BY persona\nORDER BY deuda DESC LIMIT 10
+BD --> COBVIEW : top_deudores[:10]
+
+COBVIEW --> CLIENT : {\n  mes_label: 'Mayo 2026',\n  total_cobrado_mes,\n  total_facturado,\n  pct_cobro: cobrado/facturado*100,\n  por_dia: [{dia, cantidad, total}, ...31],\n  top_deudores: [{cliente, deuda}, ...10]\n}
+CLIENT --> DASHCOB : res.data → setData(data)
+
+DASHCOB -> DASHCOB : [4 StatCards]\n- "Cobrado del mes": fmtGs(total_cobrado_mes)\n- "Deuda pendiente": fmtGs(total_facturado)\n  (color rojo)\n- "% de cobro": pct_cobro + '%'\n- "Recibos del mes": COUNT(cobranzas del mes)
+
+DASHCOB -> DASHCOB : [CobradoBars — barras por dia]\npor_dia: altura proporcional al total\ncada barra: label=dia, valor=cantidad recibos\ntooltip: monto del dia
+
+DASHCOB -> DASHCOB : [BarraH — Top deudores]\nbarra roja proporcional a la deuda\nlabel=razon_social, valor=fmtGs(deuda)
+
+DASHCOB --> USUARIO : dashboard cobranzas:\n- Cobrado / Deuda / % cobro\n- Barras de cobranza diaria\n- Top 10 deudores con monto pendiente
+
+@enduml

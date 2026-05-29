@@ -19,12 +19,38 @@
 .rpt-table tbody tr:nth-child(even) td { background: #f8fafc; }
 
 .col-nro        { width: 4%;  text-align: center; }
-.col-comp       { width: 13%; text-align: center; }
-.col-fecha      { width: 10%; text-align: center; }
+.col-comp       { width: 14%; text-align: center; }
+.col-fecha      { width: 9%;  text-align: center; }
 .col-cliente    { width: 30%; }
 .col-documento  { width: 12%; text-align: center; }
-.col-condicion  { width: 10%; text-align: center; }
-.col-total      { width: 16%; text-align: right; font-weight: bold; }
+.col-condicion  { width: 9%;  text-align: center; }
+.col-total      { width: 15%; text-align: right; font-weight: bold; }
+
+/* Agrupado */
+.rpt-grupo { margin-top: 10pt; }
+.rpt-grupo-nombre {
+  font-size: 9.5pt; font-weight: bold; color: #1a3a5c;
+  background: #eef2f7; padding: 4pt 6pt;
+  border-left: 3px solid #1a3a5c; margin-bottom: 2pt;
+}
+.rpt-grupo-nombre span { font-size: 8pt; font-weight: normal; color: #6b7280; margin-left: 6pt; }
+
+.col-comp-g    { width: 16%; text-align: center; }
+.col-fecha-g   { width: 10%; text-align: center; }
+.col-condicion-g { width: 11%; text-align: center; }
+.col-total-g   { width: 18%; text-align: right; font-weight: bold; }
+
+.rpt-subtotal {
+  text-align: right; font-size: 8.5pt; font-weight: bold;
+  color: #1e3a5f; padding: 3pt 5pt;
+  background: #dbeafe; border-top: 1px solid #bfdbfe;
+}
+
+.rpt-gran-total {
+  margin-top: 8pt; text-align: right; font-size: 10pt; font-weight: bold;
+  color: #1a3a5c; padding: 5pt 8pt;
+  background: #eef2f7; border-top: 2px solid #1a3a5c;
+}
 
 .rpt-footer { margin-top: 10pt; text-align: right; font-size: 7.5pt; color: #777;
               border-top: 1px solid #ccc; padding-top: 5pt; }
@@ -39,9 +65,9 @@
       <div class="rpt-clinica">Clínica Lichi</div>
     </div>
     <div class="rpt-hdr-right">
-      <div class="rpt-titulo">Listado de Facturas</div>
+      <div class="rpt-titulo">Listado de Facturas{% if agrupado %} — Por Cliente{% endif %}</div>
       <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }}</div>
-      <div class="rpt-meta">Total: {{ total }} registro{{ total|pluralize:",s" }}</div>
+      <div class="rpt-meta">Total: {{ total }} registro{{ total|pluralize:",s" }} · {{ total_monto|gs }} Gs.</div>
     </div>
   </div>
 
@@ -49,34 +75,82 @@
   <div class="rpt-filtros">Filtros: {{ filtros_str }}</div>
   {% endif %}
 
-  <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
-    <thead>
-      <tr>
-        <th class="col-nro">#</th>
-        <th class="col-comp">Nro. Comp.</th>
-        <th class="col-fecha">Fecha</th>
-        <th class="col-cliente">Cliente</th>
-        <th class="col-documento">Documento</th>
-        <th class="col-condicion">Condición</th>
-        <th class="col-total">Total (Gs.)</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in filas %}
-      <tr>
-        <td class="col-nro center">{{ f.nro }}</td>
-        <td class="col-comp center mono">{{ f.comprobante }}</td>
-        <td class="col-fecha center">{{ f.fecha|date:"d/m/Y" }}</td>
-        <td class="col-cliente">{{ f.cliente }}</td>
-        <td class="col-documento center mono">{{ f.documento }}</td>
-        <td class="col-condicion center">{{ f.condicion }}</td>
-        <td class="col-total right mono">{{ f.monto_total|gs }}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="7" style="text-align:center; color:#888; padding:10pt;">Sin registros</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if agrupado %}
+
+    {% for grupo in grupos %}
+    <div class="rpt-grupo">
+      <div class="rpt-grupo-nombre">
+        {{ grupo.cliente }}
+        <span>{{ grupo.documento }}</span>
+      </div>
+      <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+        <thead>
+          <tr>
+            <th class="col-nro">#</th>
+            <th class="col-comp-g">Nro. Comp.</th>
+            <th class="col-fecha-g">Fecha</th>
+            <th class="col-condicion-g">Condición</th>
+            <th class="col-total-g">Total (Gs.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in grupo.facturas %}
+          <tr>
+            <td class="col-nro center">{{ f.nro }}</td>
+            <td class="col-comp-g center mono">{{ f.comprobante }}</td>
+            <td class="col-fecha-g center">{{ f.fecha|date:"d/m/Y" }}</td>
+            <td class="col-condicion-g center">{{ f.condicion }}</td>
+            <td class="col-total-g right mono">{{ f.monto_total|gs }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center; color:#888; padding:6pt;">Sin facturas</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="rpt-subtotal">Subtotal {{ grupo.cliente }}: {{ grupo.subtotal|gs }} Gs.</div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; color:#888; padding:20pt;">Sin registros</div>
+    {% endfor %}
+
+    <div class="rpt-gran-total">Total general: {{ total_monto|gs }} Gs.</div>
+
+  {% else %}
+
+    <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+      <thead>
+        <tr>
+          <th class="col-nro">#</th>
+          <th class="col-comp">Nro. Comp.</th>
+          <th class="col-fecha">Fecha</th>
+          <th class="col-cliente">Cliente</th>
+          <th class="col-documento">Documento</th>
+          <th class="col-condicion">Condición</th>
+          <th class="col-total">Total (Gs.)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in filas %}
+        <tr>
+          <td class="col-nro center">{{ f.nro }}</td>
+          <td class="col-comp center mono">{{ f.comprobante }}</td>
+          <td class="col-fecha center">{{ f.fecha|date:"d/m/Y" }}</td>
+          <td class="col-cliente">{{ f.cliente }}</td>
+          <td class="col-documento center mono">{{ f.documento }}</td>
+          <td class="col-condicion center">{{ f.condicion }}</td>
+          <td class="col-total right mono">{{ f.monto_total|gs }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" style="text-align:center; color:#888; padding:10pt;">Sin registros</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if filas %}
+    <div class="rpt-gran-total">Total: {{ total_monto|gs }} Gs.</div>
+    {% endif %}
+
+  {% endif %}
 
   <div class="rpt-footer">
     Generado el {{ fecha|date:"d/m/Y" }} — Sistema de Gestión Clínica Lichi

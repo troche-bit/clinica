@@ -12,6 +12,84 @@ import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
 
 const MODULOS_OPTS = ['Administración', 'Clínica', 'Facturación', 'Finanzas', 'Notificaciones', 'Mantenimiento']
+
+const CAMPO_LABELS = {
+  // BaseModel — campos comunes a todos los modelos
+  id:                   'ID',
+  id_usu_creator:       'Creado por',
+  id_usu_modificator:   'Modificado por',
+  fecha_creacion:       'Fecha de creación',
+  fecha_modificacion:   'Fecha de modificación',
+  fecha_eliminacion:    'Fecha de eliminación',
+  is_deleted:           'Eliminado',
+  // Persona
+  nro_documento:        'N° documento',
+  razon_social:         'Nombre / Razón social',
+  fecha_nacimiento:     'Fecha de nacimiento',
+  tipo_documento:       'Tipo de documento',
+  sexo:                 'Sexo',
+  telefono:             'Teléfono',
+  email:                'E-mail',
+  ciudad:               'Ciudad',
+  pais:                 'País',
+  departamento:         'Departamento',
+  // Campos frecuentes
+  fecha:                'Fecha',
+  fecha_pago:           'Fecha de pago',
+  fecha_vencimiento:    'Fecha de vencimiento',
+  fecha_desde:          'Fecha desde',
+  fecha_hasta:          'Fecha hasta',
+  estado:               'Estado',
+  activo:               'Activo',
+  descripcion:          'Descripción',
+  nombre:               'Nombre',
+  observacion:          'Observación',
+  observaciones:        'Observaciones',
+  persona:              'Persona',
+  persona_rrhh:         'Prestador',
+  paciente:             'Paciente',
+  medico:               'Médico',
+  // Finanzas
+  monto:                'Monto',
+  monto_total:          'Monto total',
+  monto_hora:           'Monto por hora',
+  total_hora:           'Total horas',
+  monto_ingreso:        'Ingreso',
+  monto_egreso:         'Egreso',
+  saldo:                'Saldo',
+  vuelto:               'Vuelto',
+  comprobante_nro:      'N° comprobante',
+  nro_comprobante:      'N° comprobante',
+  forma_pago:           'Forma de pago',
+  cta:                  'Cuenta',
+  cta_cobrar:           'Cuota',
+  voucher:              'Voucher',
+  condicion_vta:        'Contado',
+  // Facturación
+  timbrado:             'Timbrado',
+  establecimiento:      'Establecimiento',
+  expedicion:           'Expedición',
+  is_anulado:           'Anulado',
+  // Agenda / Clínica
+  hora_desde:           'Hora desde',
+  hora_hasta:           'Hora hasta',
+  dia_semana:           'Día',
+  consultorio:          'Consultorio',
+  especialidad:         'Especialidad',
+  cargo:                'Cargo',
+  matricula:            'Matrícula',
+  // Stock
+  precio:               'Precio',
+  grupo:                'Grupo',
+  codigo:               'Código',
+  unidad:               'Unidad',
+  impuesto:             'Impuesto',
+}
+
+function labelCampo(key) {
+  if (CAMPO_LABELS[key]) return CAMPO_LABELS[key]
+  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
 const ACCIONES_OPTS = ['CREAR', 'EDITAR', 'ELIMINAR', 'VER', 'ENVIO_EMAIL']
 const ACCION_LABELS = { CREAR: 'Crear', EDITAR: 'Editar', ELIMINAR: 'Eliminar', VER: 'Ver', ENVIO_EMAIL: 'Email' }
 
@@ -77,20 +155,29 @@ function getCambios(reg) {
   }
 }
 
-function CampoRow({ label, value }) {
+const CAMPOS_OCULTOS = new Set(['is_deleted', 'fecha_eliminacion'])
+
+function CampoRow({ fieldKey, label: labelOverride, value }) {
+  const label = labelOverride ?? labelCampo(fieldKey ?? '')
+  const display = value === null || value === undefined
+    ? <em className="aud-null">—</em>
+    : typeof value === 'boolean'
+      ? <span className={`aud-bool ${value ? 'aud-bool-true' : 'aud-bool-false'}`}>{value ? 'Sí' : 'No'}</span>
+      : String(value)
   return (
     <div className="aud-det-row">
       <span className="aud-det-label">{label}</span>
-      <span className="aud-det-value">{value === null || value === undefined ? <em className="aud-null">null</em> : String(value)}</span>
+      <span className="aud-det-value">{display}</span>
     </div>
   )
 }
 
 function DatosBox({ datos, bgColor, borderColor }) {
   if (!datos) return <p className="aud-det-empty">Sin detalle disponible</p>
+  const entries = Object.entries(datos).filter(([k]) => !CAMPOS_OCULTOS.has(k))
   return (
     <div className="aud-datos-box" style={{ background: bgColor, borderColor }}>
-      {Object.entries(datos).map(([k, v]) => <CampoRow key={k} label={k} value={v} />)}
+      {entries.map(([k, v]) => <CampoRow key={k} fieldKey={k} value={v} />)}
     </div>
   )
 }
@@ -128,13 +215,13 @@ function DetalleContenido({ reg }) {
         <div>
           <p className="aud-col-title aud-col-antes">Antes</p>
           <div className="aud-datos-box" style={{ background: '#fff5f5', borderColor: '#fecaca' }}>
-            {diffs.map(k => <CampoRow key={k} label={k} value={cambios.antes[k] ?? null} />)}
+            {diffs.map(k => <CampoRow key={k} fieldKey={k} value={cambios.antes[k] ?? null} />)}
           </div>
         </div>
         <div>
           <p className="aud-col-title aud-col-despues">Después</p>
           <div className="aud-datos-box" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>
-            {diffs.map(k => <CampoRow key={k} label={k} value={cambios.despues[k] ?? null} />)}
+            {diffs.map(k => <CampoRow key={k} fieldKey={k} value={cambios.despues[k] ?? null} />)}
           </div>
         </div>
       </div>
@@ -476,6 +563,9 @@ export default function AuditoriaPage() {
         .aud-det-value { color: #111827; font-size: 13px; word-break: break-all; }
         .aud-det-empty { color: #6b7280; font-size: 13px; }
         .aud-null { color: #9ca3af; font-style: italic; }
+        .aud-bool { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
+        .aud-bool-true  { background: #dcfce7; color: #15803d; }
+        .aud-bool-false { background: #fee2e2; color: #dc2626; }
         .aud-datos-box {
           border: 1px solid;
           border-radius: 8px;

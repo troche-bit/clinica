@@ -56,6 +56,7 @@ class VentaFactCabListSerializer(serializers.ModelSerializer):
             'observacion',
             'grav_5', 'grav_10', 'iva_5', 'iva_10',
             'total_gravada', 'total_iva', 'monto_total', 'vuelto',
+            'is_anulado',
             'fecha_creacion',
         ]
 

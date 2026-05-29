@@ -83,7 +83,7 @@ class UsuarioCreateSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     first_name = serializers.CharField(max_length=150, required=False, default='')
     last_name = serializers.CharField(max_length=150, required=False, default='')
-    email = serializers.EmailField(required=False, default='')
+    email = serializers.EmailField(required=False, default='', allow_blank=True)
     rol = serializers.ChoiceField(choices=PerfilUsuario.ROLES)
     persona_rrhh = serializers.IntegerField(required=False, allow_null=True)
     medicos_asignados = serializers.ListField(
@@ -91,8 +91,10 @@ class UsuarioCreateSerializer(serializers.Serializer):
     )
 
     def validate_username(self, value):
-        value = value.strip()
-        if User.objects.filter(username=value).exists():
+        value = value.strip().lower()
+        if ' ' in value:
+            raise serializers.ValidationError('El nombre de usuario no puede contener espacios.')
+        if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError('Ya existe un usuario con ese nombre de usuario.')
         return value
 

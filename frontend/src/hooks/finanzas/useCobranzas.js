@@ -35,6 +35,7 @@ export function useCreateCobranza() {
     mutationFn: (data) => apiClient.post(BASE, data).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobranzas'] })
+      queryClient.invalidateQueries({ queryKey: ['cobranzas-siguiente-numero'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })
       queryClient.invalidateQueries({ queryKey: ['facturas'] })
@@ -49,6 +50,7 @@ export function useDeleteCobranza() {
     mutationFn: (id) => apiClient.delete(`${BASE}${id}/`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobranzas'] })
+      queryClient.invalidateQueries({ queryKey: ['cobranzas-siguiente-numero'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
       queryClient.invalidateQueries({ queryKey: ['cuentas-mcb'] })
       queryClient.invalidateQueries({ queryKey: ['facturas'] })

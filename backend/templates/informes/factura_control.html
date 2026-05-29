@@ -1,0 +1,116 @@
+{% extends "informes/base_informe.html" %}
+
+{% block extra_styles %}
+.rpt-wrap { width: 100%; }
+
+.rpt-hdr        { display: table; width: 100%; border-bottom: 2px solid #1a3a5c; padding-bottom: 7pt; margin-bottom: 8pt; }
+.rpt-hdr-left   { display: table-cell; vertical-align: bottom; }
+.rpt-hdr-right  { display: table-cell; vertical-align: bottom; text-align: right; }
+.rpt-clinica    { font-size: 13pt; font-weight: bold; text-transform: uppercase; color: #1a3a5c; }
+.rpt-titulo     { font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; }
+.rpt-meta       { font-size: 8pt; color: #555; margin-top: 2pt; }
+
+.rpt-filtros    { font-size: 8pt; color: #555; margin-bottom: 6pt; padding: 3pt 6pt;
+                  background: #f8fafc; border-left: 3px solid #1a3a5c; }
+
+.rpt-resumen    { display: table; width: 100%; margin-bottom: 8pt; }
+.rpt-resumen-cell { display: table-cell; width: 50%; }
+.rpt-stat       { display: inline-block; padding: 4pt 10pt; border-radius: 4pt; font-size: 9pt; font-weight: bold; margin-right: 6pt; }
+.rpt-stat-anulada  { background: #fee2e2; color: #991b1b; }
+.rpt-stat-noemit   { background: #fef9c3; color: #854d0e; }
+
+.rpt-table th { background: #1a3a5c; color: #fff; font-size: 7.5pt; text-transform: uppercase;
+                letter-spacing: .04em; padding: 4pt 5pt; text-align: left; }
+.rpt-table td { font-size: 9pt; padding: 4pt 5pt; border-bottom: 1px solid #e8e8e8; vertical-align: middle; }
+
+.rpt-tr-anulada td  { background: #fff5f5; }
+.rpt-tr-noemit  td  { background: #fefce8; }
+
+.col-nro    { width: 4%;  text-align: center; }
+.col-tipo   { width: 12%; text-align: center; }
+.col-comp   { width: 18%; text-align: center; }
+.col-fecha  { width: 9%;  text-align: center; }
+.col-cli    { width: 28%; }
+.col-cond   { width: 9%;  text-align: center; }
+.col-tim    { width: 12%; text-align: center; }
+
+.badge-anulada { display: inline-block; padding: 1pt 5pt; border-radius: 3pt; background: #fee2e2; color: #991b1b; font-size: 7.5pt; font-weight: bold; }
+.badge-noemit  { display: inline-block; padding: 1pt 5pt; border-radius: 3pt; background: #fef9c3; color: #854d0e; font-size: 7.5pt; font-weight: bold; }
+
+.rpt-empty      { text-align: center; color: #888; padding: 20pt; font-size: 9pt; }
+.rpt-gran-total { margin-top: 8pt; text-align: right; font-size: 10pt; font-weight: bold;
+                  color: #1a3a5c; padding: 5pt 8pt;
+                  background: #eef2f7; border-top: 2px solid #1a3a5c; }
+.rpt-footer { margin-top: 10pt; text-align: right; font-size: 7.5pt; color: #777;
+              border-top: 1px solid #ccc; padding-top: 5pt; }
+{% endblock %}
+
+{% block content %}
+{% load factura_tags %}
+<div class="rpt-wrap">
+
+  <div class="rpt-hdr">
+    <div class="rpt-hdr-left">
+      <div class="rpt-clinica">Clínica Lichi</div>
+    </div>
+    <div class="rpt-hdr-right">
+      <div class="rpt-titulo">Control de Comprobantes</div>
+      <div class="rpt-meta">Fecha: {{ fecha|date:"d/m/Y" }}</div>
+      <div class="rpt-meta">Total: {{ total }} registro{{ total|pluralize:",s" }}</div>
+    </div>
+  </div>
+
+  {% if filtros_str %}
+  <div class="rpt-filtros">Filtros: {{ filtros_str }}</div>
+  {% endif %}
+
+  <div class="rpt-resumen">
+    <div class="rpt-resumen-cell">
+      <span class="rpt-stat rpt-stat-anulada">Anuladas: {{ total_anuladas }}</span>
+      <span class="rpt-stat rpt-stat-noemit">No emitidas: {{ total_no_emitidas }}</span>
+    </div>
+  </div>
+
+  {% if filas %}
+  <table class="rpt-table" width="100%" cellspacing="0" cellpadding="0">
+    <thead>
+      <tr>
+        <th class="col-nro">#</th>
+        <th class="col-tipo">Tipo</th>
+        <th class="col-comp">Comprobante</th>
+        <th class="col-fecha">Fecha</th>
+        <th class="col-cli">Cliente</th>
+        <th class="col-cond">Condición</th>
+        <th class="col-tim">Timbrado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in filas %}
+      <tr class="{% if f.tipo == 'anulada' %}rpt-tr-anulada{% else %}rpt-tr-noemit{% endif %}">
+        <td class="col-nro center">{{ f.nro }}</td>
+        <td class="col-tipo center">
+          {% if f.tipo == 'anulada' %}
+            <span class="badge-anulada">Anulada</span>
+          {% else %}
+            <span class="badge-noemit">No emitida</span>
+          {% endif %}
+        </td>
+        <td class="col-comp center mono">{{ f.comprobante }}</td>
+        <td class="col-fecha center">{% if f.fecha %}{{ f.fecha|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td class="col-cli">{{ f.cliente }}</td>
+        <td class="col-cond center">{{ f.condicion }}</td>
+        <td class="col-tim center mono">{{ f.timbrado_nro }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="rpt-empty">No se encontraron registros con los filtros aplicados.</div>
+  {% endif %}
+
+  <div class="rpt-footer">
+    Generado el {{ fecha|date:"d/m/Y" }} — Sistema de Gestión Clínica Lichi
+  </div>
+
+</div>
+{% endblock %}

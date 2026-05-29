@@ -1,0 +1,144 @@
+@startuml 03_secuencia_listados_finanzas
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+boundary "InformesStockPage.jsx" as GUI
+control "apiClient\n(axios)" as CLIENT
+control "CobranzaViewSet" as COBVIEW
+control "MovimientoCajaBancoViewSet" as MOVVIEW
+control "PagoPrestadorViewSet" as PPVIEW
+control "VentaFactCabViewSet" as FVIEW
+database "PostgreSQL" as BD
+control "WeasyPrint" as WEASY
+control "openpyxl" as OPENPYXL
+
+== 1. Modal Estado de Cuenta — modo detallado ==
+
+USUARIO -> GUI : click card "Estado de cuenta"\nModo: "Detallado"\nRango: true, Desde=2026-01-01, Hasta=2026-05-28\nCliente: [sin seleccionar]\nIncluir saldo cero: false\nclick "Ver PDF"
+
+GUI -> GUI : buildEctaQS():\n  p.set('modo', 'detallado')\n  p.set('usar_rango', 'true')\n  p.set('fecha_desde', '2026-01-01')\n  p.set('fecha_hasta', '2026-05-28')\n  [omite persona y incluir_saldo_cero]
+
+GUI -> CLIENT : GET /api/facturacion/estado-cuenta-pdf/\n?modo=detallado&usar_rango=true\n&fecha_desde=2026-01-01\n&fecha_hasta=2026-05-28\n{ responseType: 'blob' }
+
+CLIENT -> FVIEW : estado_cuenta_pdf(request)
+
+FVIEW -> BD : SELECT ctacobrar JOIN ventafactcab\nJOIN persona\nWHERE ctacobrar.is_deleted=False\nAND ventafactcab.fecha BETWEEN\n  2026-01-01 AND 2026-05-28\n[AND saldo > 0 si no incluir_saldo_cero]\n[AND persona_id=X si filtro cliente]\nORDER BY persona__razon_social, fecha
+
+BD --> FVIEW : cuotas agrupadas por cliente
+
+note right of FVIEW
+  modo='detallado': cada cuota con
+  N°comprobante, fecha vcto, monto,
+  saldo, ordenadas por cliente.
+  modo='resumido': una fila por cliente
+  con total_cuotas y saldo_acumulado.
+end note
+
+FVIEW -> WEASY : render_to_string(\n  'informes/estado_cuenta.html',\n  { clientes [agrupados], modo,\n    filtros, totales, fecha_gen })
+WEASY --> FVIEW : bytes PDF
+FVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF Estado de Cuenta\nAgrupado por cliente:\nN° / Comprobante / Vto /\nMonto / Pagado / Saldo
+
+== 2. Modal Extracto de Cuenta — modo "Por factura" ==
+
+USUARIO -> GUI : click card "Extracto de cuenta"\nModo agrupacion: "Por factura"\nRango: true, Desde=2026-05-01, Hasta=2026-05-28\nCliente: "Juan Perez" (id=7)\nIncluir saldo cero: false\nclick "Ver PDF"
+
+GUI -> GUI : buildExtQS():\n  p.set('agrupar_por_factura', 'true')\n  p.set('usar_rango', 'true')\n  p.set('fecha_desde', '2026-05-01')\n  p.set('fecha_hasta', '2026-05-28')\n  p.set('persona', '7')
+
+GUI -> CLIENT : GET /api/facturacion/extracto-cuenta-pdf/\n?agrupar_por_factura=true\n&usar_rango=true&fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28&persona=7\n{ responseType: 'blob' }
+
+CLIENT -> FVIEW : extracto_cuenta_pdf(request)
+
+FVIEW -> BD : [Facturas] SELECT ventafactcab\nWHERE persona_id=7\nAND fecha BETWEEN rango\nAND is_deleted=False\nORDER BY fecha
+
+FVIEW -> BD : [Cobranzas aplicadas] SELECT cobranza\nJOIN ventafactdetcobranza\nWHERE cobranza.persona_id=7\nAND cobranza.fecha BETWEEN rango\nAND cobranza.is_deleted=False
+
+BD --> FVIEW : facturas + recibos
+
+note right of FVIEW
+  agrupar_por_factura=True:
+  cliente → cada factura con sus
+  recibos aplicados debajo.
+  agrupar_por_factura=False:
+  cliente → lista cronologica de
+  facturas y recibos mezclados.
+end note
+
+FVIEW -> WEASY : render_to_string(\n  'informes/extracto_cuenta.html',\n  { cliente, movimientos [o agrupados],\n    filtros, fecha_gen })
+WEASY --> FVIEW : bytes PDF
+FVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF Extracto de Cuenta\nJuan Perez — facturas con\ncada recibo aplicado debajo
+
+== 3. Modal Cobranzas / Recibos — PDF + Excel ==
+
+USUARIO -> GUI : click card "Cobranzas / Recibos"\nFecha desde=2026-05-01, Hasta=2026-05-28\nCliente: "Maria Garcia" (id=12)\nclick "Ver PDF"
+
+GUI -> GUI : buildCobQS():\n  p.set('fecha_desde', '2026-05-01')\n  p.set('fecha_hasta', '2026-05-28')\n  p.set('search', 'Maria Garcia')\n  [cobClienteId en frontend, pero\n  el backend filtra por search]
+
+GUI -> CLIENT : GET /api/cobranzas/reporte-pdf/\n?fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28\n&search=Maria+Garcia\n{ responseType: 'blob' }
+
+CLIENT -> COBVIEW : reporte_pdf(request)
+COBVIEW -> BD : SELECT cobranza JOIN persona\nWHERE is_deleted=False\nAND fecha BETWEEN rango\nAND persona__razon_social ILIKE '%Maria Garcia%'\nORDER BY fecha, nro_recibo
+
+BD --> COBVIEW : recibos filtrados
+
+COBVIEW -> WEASY : render_to_string(\n  'informes/cobranza_print.html',\n  { cobranzas, filtros, totales,\n    fecha_gen })
+WEASY --> COBVIEW : bytes PDF
+COBVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF Listado de Recibos\nColumnas: N° / Fecha / N°Recibo /\nCliente / Formas Pago / Monto
+
+USUARIO -> GUI : click "Descargar Excel"
+GUI -> CLIENT : GET /api/cobranzas/reporte-excel/\n?fecha_desde=...&fecha_hasta=...\n&search=Maria+Garcia\n{ responseType: 'blob' }
+CLIENT -> COBVIEW : reporte_excel(request)
+COBVIEW -> OPENPYXL : Workbook()\nColumnas: N° / Fecha / N°Recibo /\nCliente / Monto\nseccion totales al final
+OPENPYXL --> COBVIEW : workbook
+COBVIEW --> CLIENT : HttpResponse(.xlsx, attachment)
+CLIENT --> GUI : blob → link.download='cobranzas_YYYYMMDD.xlsx'
+GUI --> USUARIO : descarga iniciada
+
+== 4. Modal Movimientos Caja / Banco — PDF ==
+
+USUARIO -> GUI : click card "Movimientos Caja/Banco"\nCuenta: "Caja Principal" (id=1)\nTipo: "Solo ingresos"\nFecha desde=2026-05-01, Hasta=2026-05-28\nclick "Ver PDF"
+
+GUI -> GUI : buildMovQS():\n  p.set('cta', '1')\n  p.set('tipo', 'ingreso')\n  p.set('fecha_desde', '2026-05-01')\n  p.set('fecha_hasta', '2026-05-28')
+
+GUI -> CLIENT : GET /api/movimientos-caja/reporte-pdf/\n?cta=1&tipo=ingreso\n&fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28\n{ responseType: 'blob' }
+
+CLIENT -> MOVVIEW : reporte_pdf(request)
+MOVVIEW -> BD : SELECT movimientocajabanc\nJOIN cuenta_mcb\nWHERE is_deleted=False\nAND cta_id=1\nAND tipo='ingreso'\nAND fecha BETWEEN rango\nORDER BY fecha
+
+BD --> MOVVIEW : movimientos filtrados
+
+MOVVIEW -> WEASY : render_to_string(\n  'informes/movimiento_lista.html',\n  { cuenta, movimientos, filtros,\n    total_ingresos, total_egresos,\n    saldo, fecha_gen })
+WEASY --> MOVVIEW : bytes PDF
+MOVVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF Movimientos\nColumnas: Fecha / Descripcion /\nTipo / Monto / Saldo acumulado
+
+== 5. Modal Pagos a Prestadores — PDF ==
+
+USUARIO -> GUI : click card "Pagos a Prestadores"\nFecha desde=2026-05-01, Hasta=2026-05-28\nEstado: "Pagado"\nPrestador: "Dr. Ramirez" (id=5)\nclick "Ver PDF"
+
+GUI -> GUI : buildPagoQS():\n  p.set('fecha_desde', '2026-05-01')\n  p.set('fecha_hasta', '2026-05-28')\n  p.set('estado', 'pagado')\n  p.set('persona_rrhh', '5')
+
+GUI -> CLIENT : GET /api/pago-prestador/reporte-pdf/\n?fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28\n&estado=pagado&persona_rrhh=5\n{ responseType: 'blob' }
+
+CLIENT -> PPVIEW : reporte_pdf(request)
+PPVIEW -> BD : SELECT pagoprestador JOIN personarrhh\nJOIN persona JOIN agenda\nWHERE is_deleted=False\nAND estado='pagado'\nAND persona_rrhh_id=5\nAND fecha BETWEEN rango\nORDER BY fecha
+
+BD --> PPVIEW : pagos filtrados
+
+PPVIEW -> WEASY : render_to_string(\n  'informes/pago_prestador_lista.html',\n  { prestador, pagos, filtros,\n    total_monto, fecha_gen })
+WEASY --> PPVIEW : bytes PDF
+PPVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF Pagos a Prestadores\nColumnas: Fecha / N°Pago /\nPrestador / Turnos / Monto / Estado
+
+@enduml

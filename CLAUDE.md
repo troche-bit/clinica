@@ -1,5 +1,5 @@
 # CLAUDE.md — Clínica Lichi
-_Versión 4.0 · Abril 2026_
+_Versión 4.1 · Mayo 2026_
 
 ---
 
@@ -81,6 +81,7 @@ clinica/
 │       └── finanzas/
 │           ├── caja_banco/
 │           ├── cobranzas/
+│           ├── estadocuenta/  ← modelo CtaCobrar (sin views/urls propios aún)
 │           └── pago_prestador/
 └── frontend/
     ├── CLAUDE.md              ← convenciones frontend
@@ -214,27 +215,35 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 | Pago a Prestadores | ✅ migrado a `apps/finanzas/pago_prestador/` | ✅ migrado a `pages/finanzas/` |
 | Facturación / Ventas | ✅ migrado a `apps/facturacion/ventas/` · `CtaCobrar` → `apps/finanzas/estadocuenta/` | ✅ migrado a `pages/facturacion/` |
 | Usuarios y Roles | ✅ | ✅ |
-| Auditoría | ✅ | ❌ pendiente |
-| Dashboard | ⚠️ sin ruta | ⚠️ sin ruta |
-| Informes pacientes | ⚠️ parcial | ✅ ruta `/informes` |
-| Dashboard pacientes | ⚠️ parcial | ✅ ruta `/informes/dashboard/pacientes` |
+| Auditoría | ✅ | ✅ ruta `/administracion/auditoria` (solo admin) |
+| Estado de Cuenta (`CtaCobrar`) | ⚠️ modelo en `finanzas/estadocuenta/` — sin views/urls propios | ✅ `EstadoCuentaPage` — sin ruta en App.jsx aún |
+| Informes pacientes | ✅ | ✅ ruta `/informes` |
+| Informes stock | — | ✅ ruta `/informes/stock` |
+| Dashboard pacientes | ✅ | ✅ ruta `/informes/dashboard/pacientes` |
+| Dashboard consultas | ✅ | ✅ ruta `/informes/dashboard/consultas` |
+| Dashboard agenda | ✅ | ✅ ruta `/informes/dashboard/agenda` |
+| Dashboard prestadores | ✅ | ✅ ruta `/informes/dashboard/prestadores` (ruta inicial admin) |
+| Dashboard ocupación | ✅ | ✅ ruta `/informes/dashboard/ocupacion` |
+| Dashboard facturación | ✅ | ✅ ruta `/informes/dashboard/facturacion` |
+| Dashboard cobranzas | ✅ | ✅ ruta `/informes/dashboard/cobranzas` |
+| Dashboard finanzas | ✅ | ✅ ruta `/informes/dashboard/finanzas` |
 
 ---
 
 ## Orden de Trabajo — Fase Actual
 
 1. **Reorganizar estructura** de carpetas backend y frontend — ✅ completado
-2. **Implementar módulo Auditoría** — backend ✅ · frontend ❌ pendiente (`AuditoriaPage`)
-3. **Auditar módulo por módulo** — en este orden:
+2. **Implementar módulo Auditoría** — backend ✅ · frontend ✅ (`AuditoriaPage` con ruta `/administracion/auditoria`)
+3. **Auditar módulo por módulo** — ✅ completado:
    - consultorio ✅ → especialidad ✅ → eventoclinico ✅
    - ubicacion ✅ → tipo_doc_dig ✅
    - persona ✅ → paciente ✅ → paciente_responsable ✅
    - persona_rrhh ✅ → horario_prestador ✅ → agenda ✅ → consultas ✅
    - documentos ✅ → recordatorios ✅
    - facturacion ✅ → caja_banco ✅ → cobranzas ✅ → pago_prestador ✅
-4. **Agregar tests** al finalizar cada módulo auditado
-5. **Conectar Dashboard** al router
-6. **Módulo Informes** — `InformesPacientePage` ✅ (listado PDF/Excel + dashboard mensual). Pendiente: replicar patrón en otros módulos (agenda, facturación, etc.)
+4. **Agregar tests backend** — ⚠️ archivos `tests.py` creados (placeholder vacío) en consultorio, especialidad, eventoclinico, ubicacion, core. Pendiente: escribir los tests reales módulo por módulo.
+5. **Dashboard conectado al router** — ✅ `HomeRedirect` activo: admin → `/informes/dashboard/prestadores`, médico/secretaria → `/consultas`
+6. **Módulo Informes** — ✅ `InformesPacientePage` + 8 dashboards implementados. Pendiente: informes de agenda y horario por prestador.
 
 ---
 
@@ -242,17 +251,18 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 
 | Pendiente | Alcance | Prioridad |
 |---|---|---|
+| **Tests backend** — escribir tests reales en todos los módulos (archivos placeholder ya existen) | Backend | 🔴 Alta |
+| **Interceptor Axios para 401 / 403 / 500** | `src/api/client.js` | 🔴 Alta |
+| **Crear `.env.example`** | Raíz del proyecto | 🔴 Alta (requerido para deploy) |
+| **Config producción** — Nginx + Gunicorn + SSL (Let's Encrypt) | Infraestructura | 🔴 Alta (requerido para deploy) |
+| **EstadoCuentaPage — agregar ruta en App.jsx** | Frontend | 🟡 Media |
+| **`estadocuenta` — agregar views/urls propios** | Backend | 🟡 Media |
 | Modal detalle al hacer click en grupo (GruposPage) | Frontend | 🟡 Media |
-| AuditoriaPage frontend | Frontend | 🔴 Alta |
-| Aplicar AuditoriaMixin al resto de viewsets | Backend | 🔴 Alta |
-| Borrado lógico con validación de dependencias | Todos los viewsets | 🔴 Alta |
-| Interceptor Axios para 401 / 403 / 500 | `src/api/client.js` | 🔴 Alta |
-| Crear `.env.example` | Raíz del proyecto | 🟡 Media |
+| `TipoDocDigital` — verificar que `perform_destroy` cubra ambas relaciones (`documentos` + `documentos_prestador`) | Backend | 🟡 Media |
 | select_related / prefetch_related en listados | Viewsets con datos anidados | 🟡 Media |
-| Conectar Dashboard al router | Frontend | 🟡 Media |
-| Tests por módulo | Al finalizar auditoría de cada uno | 🟢 Progresivo |
-| Módulo Informes — otros módulos (agenda, facturación) | Backend + Frontend | 🟢 Post-auditoría |
-| Informe de horario por prestador — PDF/Excel con todos los horarios de un prestador (activos e inactivos), día, franja horaria, intervalo y especialidades | Backend + Frontend | 🟡 Media |
+| Informe de horario por prestador — PDF/Excel con todos los horarios (activos e inactivos), día, franja, intervalo y especialidades | Backend + Frontend | 🟡 Media |
+| Informes de agenda | Backend + Frontend | 🟢 Post-tests |
+| Tests frontend (hooks + E2E críticos) | Frontend | 🟢 Post-tests backend |
 
 ---
 

@@ -1,0 +1,109 @@
+@startuml 02_secuencia_listados_facturacion
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+
+actor USUARIO
+boundary "InformesStockPage.jsx" as GUI
+control "apiClient\n(axios)" as CLIENT
+control "ProductoServicioViewSet" as PVIEW
+control "VentaFactCabViewSet" as FVIEW
+database "PostgreSQL" as BD
+control "WeasyPrint" as WEASY
+control "openpyxl" as OPENPYXL
+
+== 1. Modal Productos por grupo — PDF ==
+
+USUARIO -> GUI : click card "Productos por grupo"\nselecciona grupo "Consultas" (id=3)\nclick "Ver PDF"
+
+GUI -> GUI : setLoadingProdPdf(true)\nbuildQS({ grupo: 3 }) → '?grupo=3'
+
+GUI -> CLIENT : GET /api/productos/reporte-productos/\n?grupo=3\n{ responseType: 'blob' }
+CLIENT -> PVIEW : reporte_productos(request)
+
+PVIEW -> BD : SELECT producto JOIN grupo\nWHERE producto.is_deleted=False\nAND grupo.is_deleted=False\n[AND grupo_id=3 si filtro presente]\nORDER BY grupo__descripcion,\n  producto__descripcion
+BD --> PVIEW : queryset agrupado por grupo
+
+PVIEW -> WEASY : render_to_string(\n  'informes/producto_lista.html',\n  { grupos_productos, filtros_aplicados,\n    fecha_generacion })
+WEASY --> PVIEW : bytes PDF
+
+PVIEW --> CLIENT : HttpResponse(pdf,\n  content_type='application/pdf',\n  Content-Disposition: inline;\n  filename='productos.pdf')
+CLIENT --> GUI : blob
+
+GUI -> GUI : url = URL.createObjectURL(\n  new Blob([res.data], {type:'application/pdf'}))\nwindow.open(url, '_blank')
+GUI --> USUARIO : PDF en nueva pestana\nColumnas: N° / Descripcion /\nPrecio Unitario / Estado\nSeparadores de grupo con subtotal
+
+== 2. Modal Productos por grupo — Excel ==
+
+USUARIO -> GUI : click "Descargar Excel"
+
+GUI -> CLIENT : GET /api/productos/reporte-productos-excel/\n?grupo=3\n{ responseType: 'blob' }
+CLIENT -> PVIEW : reporte_productos_excel(request)
+PVIEW -> BD : [mismos filtros]
+BD --> PVIEW : queryset
+
+PVIEW -> OPENPYXL : Workbook()\nheader fill: #1A3A5C, font blanco\nseparadores de grupo: fill #EEF2F7\nColumnas: N° / Descripcion /\nPrecio Unitario / Estado
+OPENPYXL --> PVIEW : workbook
+
+PVIEW --> CLIENT : HttpResponse(.xlsx,\n  Content-Disposition: attachment;\n  filename='productos_YYYYMMDD.xlsx')
+CLIENT --> GUI : blob .xlsx
+GUI -> GUI : link.download = 'productos_YYYYMMDD.xlsx'\nlink.click()
+GUI --> USUARIO : descarga iniciada
+
+== 3. Modal Listado de Facturas — PDF ==
+
+USUARIO -> GUI : click card "Listado de facturas"\nselecciona cliente "Farmacia ABC"\ncondicion_vta = 'true' (Contado)\nfecha_desde = 2026-05-01\nfecha_hasta = 2026-05-28\nagrupar_cliente = false\nclick "Ver PDF"
+
+GUI -> GUI : buildFactQS():\n  params = { fecha_desde, fecha_hasta,\n    condicion_vta: 'true' }\n  si clienteId → params.persona = '12'\n  si agrupar_cliente=true → params.agrupar_cliente='true'\n  buildQS(params) → '?persona=12\n  &condicion_vta=true&fecha_desde=...\n  &fecha_hasta=...'
+
+GUI -> CLIENT : GET /api/facturacion/reporte-pdf/\n?persona=12&condicion_vta=true\n&fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28\n{ responseType: 'blob' }
+CLIENT -> FVIEW : reporte_pdf(request)
+
+FVIEW -> BD : SELECT ventafactcab\nJOIN persona JOIN timbrado\nJOIN ventafactdet\nWHERE is_deleted=False\nAND is_anulado=False\nAND persona_id=12\nAND condicion_vta='C'\nAND fecha BETWEEN 2026-05-01 AND 2026-05-28\nORDER BY fecha, nro_comprobante
+
+note right of FVIEW
+  si agrupar_cliente=true:
+  agrupa el queryset por
+  persona antes de renderizar.
+  Muestra subtotal de facturas
+  y monto por cliente.
+end note
+
+BD --> FVIEW : facturas filtradas
+FVIEW -> WEASY : render_to_string(\n  'informes/factura_lista.html',\n  { facturas [o grupos], filtros,\n    totales, fecha_gen })
+WEASY --> FVIEW : bytes PDF
+FVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF facturas\nColumnas: N° / Fecha / N°Comprobante /\nCliente / Condicion / Monto
+
+== 4. Modal Control de Comprobantes — PDF + Excel ==
+
+USUARIO -> GUI : click card "Control de comprobantes"\nfecha_desde = 2026-05-01\nfecha_hasta = 2026-05-28\nclick "Ver PDF"
+
+GUI -> CLIENT : GET /api/facturacion/reporte-control-pdf/\n?fecha_desde=2026-05-01\n&fecha_hasta=2026-05-28\n{ responseType: 'blob' }
+CLIENT -> FVIEW : reporte_control_pdf(request)
+
+FVIEW -> BD : [Seccion 1] SELECT ventafactcab\nWHERE is_anulado=True\nAND fecha BETWEEN rango\nAND is_deleted=False\nORDER BY fecha
+
+FVIEW -> BD : [Seccion 2] para cada timbrado activo:\nSELECT nro_inicio, nro_fin,\nSET(numeros emitidos)\n→ calcula numeros salteados\n(sin comprobante emitido)
+
+BD --> FVIEW : anuladas + numeros_faltantes
+
+FVIEW -> WEASY : render_to_string(\n  'informes/factura_control.html',\n  { anuladas, numeros_faltantes,\n    filtros, fecha_gen })
+WEASY --> FVIEW : bytes PDF
+FVIEW --> CLIENT : HttpResponse(pdf, inline)
+CLIENT --> GUI : blob
+GUI --> USUARIO : PDF con dos secciones:\n1. Facturas Anuladas (rango)\n2. Numeros no emitidos (todos timbrados)
+
+USUARIO -> GUI : click "Descargar Excel"
+GUI -> CLIENT : GET /api/facturacion/reporte-control-excel/\n?fecha_desde=...&fecha_hasta=...\n{ responseType: 'blob' }
+CLIENT -> FVIEW : reporte_control_excel(request)
+FVIEW -> OPENPYXL : dos hojas:\nHoja1 "Anuladas": columnas Fecha/N°/Cliente\nHoja2 "Faltantes": columnas Timbrado/N°Faltante
+OPENPYXL --> FVIEW : workbook
+FVIEW --> CLIENT : HttpResponse(.xlsx, attachment)
+CLIENT --> GUI : blob → link.download = 'control_comprobantes_YYYYMMDD.xlsx'\nlink.click()
+GUI --> USUARIO : descarga iniciada
+
+@enduml
