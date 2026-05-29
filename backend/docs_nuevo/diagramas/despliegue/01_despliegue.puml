@@ -1,0 +1,69 @@
+@startuml 01_despliegue
+
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam backgroundColor white
+skinparam node {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor #000000
+}
+skinparam ArrowColor #000000
+
+title Diagrama de Despliegue — Sistema Clínica Lichi
+
+node "Servidor / PC Administrador" as SRV {
+  component "CPU: Intel Core i5 3.5 GHz"       as CPU_SRV
+  component "Memoria: 16 GB DDR4"               as RAM_SRV
+  component "Almacenamiento: SSD 512 GB"        as DISK_SRV
+  component "Sistema Operativo: Ubuntu 22.04"   as SO_SRV
+
+  node "Docker Engine" as DOCKER {
+    component "clinica_frontend\n(React + Vite)\npuerto 5173"   as FE
+    component "clinica_backend\n(Django REST)\npuerto 8000"      as BE
+    component "clinica_db\n(PostgreSQL 16)\npuerto 5432"         as DB
+  }
+}
+
+node "Router / Firewall" as RTR {
+  component "LAN / Wi-Fi\n192.168.x.x"  as LAN
+}
+
+node "PC Recepción" as PC_REC {
+  component "CPU: Intel Core i5\nMemoria: 8 GB DDR4\nSO: Windows 10 Pro"   as SPEC_REC
+  component "Navegador Web\n(Chrome / Edge)"                                 as NAV_REC
+  note right of NAV_REC : Rol: Recepcionista
+}
+
+node "PC Consultorio 1" as PC_C1 {
+  component "CPU: Intel Core i3\nMemoria: 8 GB DDR4\nSO: Windows 10 Pro"   as SPEC_C1
+  component "Navegador Web\n(Chrome / Edge)"                                 as NAV_C1
+  note right of NAV_C1 : Rol: Médico
+}
+
+node "PC Consultorio 2" as PC_C2 {
+  component "CPU: Intel Core i3\nMemoria: 8 GB DDR4\nSO: Windows 10 Pro"   as SPEC_C2
+  component "Navegador Web\n(Chrome / Edge)"                                 as NAV_C2
+  note right of NAV_C2 : Rol: Médico / Secretaria
+}
+
+node "PC Consultorio 3" as PC_C3 {
+  component "CPU: Intel Core i3\nMemoria: 8 GB DDR4\nSO: Windows 10 Pro"   as SPEC_C3
+  component "Navegador Web\n(Chrome / Edge)"                                 as NAV_C3
+  note right of NAV_C3 : Rol: Médico / Secretaria
+}
+
+FE  ..> BE  : HTTP\n/api → puerto 8000\n(proxy Vite)
+BE  ..> DB  : TCP\npuerto 5432
+
+SRV   -- RTR  : UTP Cat. 6
+RTR   -- PC_REC : UTP Cat. 6 / Wi-Fi
+RTR   -- PC_C1  : UTP Cat. 6 / Wi-Fi
+RTR   -- PC_C2  : UTP Cat. 6 / Wi-Fi
+RTR   -- PC_C3  : UTP Cat. 6 / Wi-Fi
+
+@enduml
