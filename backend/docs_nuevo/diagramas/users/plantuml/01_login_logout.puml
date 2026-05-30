@@ -1,4 +1,5 @@
-@startuml 01_login_logout
+@startuml
+!theme plain
 
 <style>
 sequenceDiagram {
@@ -10,50 +11,46 @@ sequenceDiagram {
 }
 </style>
 
-skinparam monochrome true
-skinparam shadowing false
-skinparam backgroundColor white
-skinparam sequenceArrowThickness 1
-skinparam defaultFontName Arial
-skinparam defaultFontSize 11
+actor Usuario
+boundary GUI_Login as Login
+control AuthController as Auth
 
-autoactivate on
+== Login exitoso ==
 
-actor USUARIO
+Usuario --> Login : Ingresa usuario
+activate Login
+Usuario --> Login : Ingresa contraseña
+Usuario --> Login : Boton ingresar
+Login --> Auth : POST login
+activate Auth
+Auth --> Auth : Validar credenciales
 
-boundary "GUI_login" as LOGIN
-control "VIEWS" as AUTH
+Auth --> Login : Login correcto
+deactivate Auth
+Login --> Usuario : Mostrar inicio
+deactivate Login
+== Credenciales incorrectas ==
 
-== 1. Login exitoso ==
+Usuario -> Login : Ingresa datos inválidos
+Login -> Auth : POST login
 
-USUARIO --> LOGIN : ingresa usuario y contrasena
-USUARIO --> LOGIN : ingresa password
-USUARIO --> LOGIN : Boton iniciar sesion
-LOGIN --> AUTH : Envia datos (POST)
-AUTH --> AUTH : Autenticar(username, password)
-return
-return Usuario autenticado y activo / ingreso al sistema
-return Redirige a 'inicio'
+Auth --> Login : Error autenticación
+Login --> Usuario : Usuario o contraseña incorrectos
 
-== 2. Credenciales incorrectas ==
+== Cuenta inactiva ==
 
-USUARIO --> LOGIN : ingresa credenciales invalidas
-LOGIN --> AUTH : Envia datos (POST)
-return acceso denegado
-return 'Nombre de usuario o contrasena incorrectos'
+Usuario -> Login : Ingresa credenciales
+Login -> Auth : POST login
 
-== 3. Cuenta inactiva ==
+Auth --> Login : Cuenta inactiva
+Login --> Usuario : Tu cuenta está inactiva
 
-USUARIO --> LOGIN : credenciales validas / cuenta inactiva
-LOGIN --> AUTH : Envia datos (POST)
-return acceso denegado
-return Muestra error 'Tu cuenta esta inactiva'
+== Logout ==
 
-== 4. Cerrar sesion ==
+Usuario -> Login : Cerrar sesión
+Login -> Auth : logout()
 
-USUARIO --> LOGIN : Boton cerrar sesion
-LOGIN --> AUTH : logout()
-return sesion cerrada
-return Redirige a 'iniciarSesion'
+Auth --> Login : Sesión cerrada
+Login --> Usuario : Mostrar login
 
 @enduml
