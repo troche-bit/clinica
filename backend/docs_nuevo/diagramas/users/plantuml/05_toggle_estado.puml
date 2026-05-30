@@ -1,0 +1,31 @@
+@startuml 05_toggle_estado
+
+skinparam style strictuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 1
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+actor Administrador
+
+boundary "GUI_usuarios" as GUI
+control "VIEWS" as VIEW
+entity "USUARIOS" as USUARIOS
+
+== Activar o desactivar un usuario ==
+
+Administrador -> GUI : hace clic en toggle de estado
+GUI --> Administrador : pide confirmacion
+Administrador -> GUI : confirma el cambio
+GUI -> VIEW : solicita cambiar estado del usuario
+VIEW -> VIEW : verifica que no sea el usuario maestro\nverifica que no sea el propio administrador
+VIEW -> USUARIOS : cambia estado activo/inactivo
+USUARIOS --> VIEW : cambio confirmado
+VIEW -> USUARIOS : registra accion en auditoria
+USUARIOS --> VIEW : registro guardado
+VIEW --> GUI : estado actualizado
+GUI --> Administrador : tabla actualizada con nuevo estado
+
+@enduml

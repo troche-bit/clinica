@@ -1,0 +1,33 @@
+@startuml 04_editar_usuario
+
+skinparam style strictuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 1
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+actor Administrador
+
+boundary "GUI_usuarios" as GUI
+control "VIEWS" as VIEW
+entity "USUARIOS" as USUARIOS
+
+== Editar datos de un usuario ==
+
+Administrador -> GUI : hace clic en Editar sobre un usuario
+GUI --> Administrador : abre formulario con datos actuales
+Administrador -> GUI : modifica nombre, apellido, email o rol
+Administrador -> GUI : guarda los cambios
+GUI -> VIEW : envia los cambios (PATCH)
+VIEW -> VIEW : verifica que no se cambie\nel rol del usuario maestro
+VIEW -> USUARIOS : actualiza datos de la cuenta
+VIEW -> USUARIOS : actualiza perfil con nuevo rol o prestador
+USUARIOS --> VIEW : actualizacion confirmada
+VIEW -> USUARIOS : registra accion en auditoria
+USUARIOS --> VIEW : registro guardado
+VIEW --> GUI : usuario actualizado con exito
+GUI --> Administrador : tabla actualizada
+
+@enduml

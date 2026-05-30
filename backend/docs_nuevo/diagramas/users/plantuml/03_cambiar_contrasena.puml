@@ -1,0 +1,32 @@
+@startuml 03_cambiar_contrasena
+
+skinparam style strictuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 1
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+actor Administrador
+
+boundary "GUI_usuarios" as GUI
+control "VIEWS" as VIEW
+entity "USUARIOS" as USUARIOS
+
+== Admin resetea contrasena de un usuario ==
+
+Administrador -> GUI : hace clic en Resetear contrasena
+GUI --> Administrador : abre formulario para nueva contrasena
+Administrador -> GUI : ingresa la nueva contrasena
+Administrador -> GUI : confirma el cambio
+GUI -> VIEW : envia la nueva contrasena
+VIEW -> VIEW : verifica minimo 8 caracteres\nverifica que sea distinta a la actual
+VIEW -> USUARIOS : actualiza contrasena del usuario
+USUARIOS --> VIEW : actualizacion confirmada
+VIEW -> USUARIOS : registra accion en auditoria\n(contrasena oculta como ***)
+USUARIOS --> VIEW : registro guardado
+VIEW --> GUI : contrasena actualizada con exito
+GUI --> Administrador : muestra mensaje de confirmacion
+
+@enduml

@@ -1,0 +1,34 @@
+@startuml 02_crear_usuario
+
+skinparam style strictuml
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 1
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+actor Administrador
+
+boundary "GUI_usuarios" as GUI
+control "VIEWS" as VIEW
+entity "USUARIOS" as USUARIOS
+
+== Crear nuevo usuario ==
+
+Administrador -> GUI : hace clic en Nuevo usuario
+GUI --> Administrador : abre formulario de creacion
+Administrador -> GUI : completa nombre, apellido, usuario,\ncontrasena, rol y prestador vinculado
+Administrador -> GUI : confirma la creacion
+GUI -> VIEW : envia datos del nuevo usuario
+VIEW -> VIEW : verifica que el usuario no exista
+VIEW -> USUARIOS : crea cuenta de acceso al sistema
+USUARIOS --> VIEW : cuenta creada
+VIEW -> USUARIOS : crea perfil con rol y prestador asignado
+USUARIOS --> VIEW : perfil creado
+VIEW -> USUARIOS : registra accion en auditoria
+USUARIOS --> VIEW : registro guardado
+VIEW --> GUI : usuario creado con exito
+GUI --> Administrador : cierra formulario y actualiza la tabla
+
+@enduml
