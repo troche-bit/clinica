@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 
+from apps.administracion.auditoria.mixins import AuditoriaMixin
 from apps.clinica.consultas.models import Consulta
 from apps.clinica.agenda.models import Agenda
 from apps.core.permissions import IsAdminRole, IsAdminOrRecepcionista
@@ -306,7 +307,7 @@ class NotificacionViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(NotificacionListSerializer(notif).data)
 
 
-class PlantillaViewSet(viewsets.ModelViewSet):
+class PlantillaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter]
     ordering        = ['tipo']
 
@@ -323,18 +324,11 @@ class PlantillaViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
-    def perform_create(self, serializer):
-        serializer.save(id_usu_creator=self.request.user)
-
-    def perform_update(self, serializer):
-        serializer.save(id_usu_modificator=self.request.user)
-
-    def perform_destroy(self, instance):
-        from django.utils import timezone
-        instance.is_deleted        = True
-        instance.fecha_eliminacion = timezone.now()
-        instance.id_usu_modificator = self.request.user
-        instance.save()
+    @action(detail=False, methods=['get'], url_path='eliminados',
+            permission_classes=[IsAuthenticated, IsAdminRole])
+    def eliminados(self, request):
+        qs = PlantillaNotificacion.objects.filter(is_deleted=True)
+        return Response(PlantillaNotificacionListSerializer(qs, many=True).data)
 
     @action(detail=False, methods=['post'], url_path='subir-imagen',
             permission_classes=[IsAuthenticated, IsAdminRole])

@@ -23,6 +23,14 @@ class PacienteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["fecha_creacion", "fecha_modificacion"]
 
+    def validate_persona(self, value):
+        qs = Paciente.objects.filter(persona=value, is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Esta persona ya tiene un paciente activo registrado.')
+        return value
+
     def validate_observacion(self, value):
         return value.strip() if value else value
 

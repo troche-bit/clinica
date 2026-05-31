@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Agenda / Citas y Turnos · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-medico { background:#f0fdf4; color:#166534; border:1px solid #86efac; }
+    .badge-secre  { background:#fdf4ff; color:#7e22ce; border:1px solid #d8b4fe; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .action-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:14px; }
+    .action-icon { background:#f8fafc; border:1px solid #e8edf2; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    .estado-pill { display:inline-block; font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px; margin:2px 3px; }
+    .estado-disp { background:#dcfce7; color:#16a34a; }
+    .estado-ocup { background:#dbeafe; color:#2563eb; }
+    .estado-real { background:#ede9fe; color:#7c3aed; }
+    .estado-canc { background:#fee2e2; color:#dc2626; }
+    .estado-inac { background:#f3f4f6; color:#6b7280; }
+
+    ul.lista { margin-left:20px; margin-bottom:14px; color:#374151; font-size:14px; line-height:2.2; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Agenda<br>Citas y Turnos</h1>
+    <p class="cover-subtitle">Gestión del calendario de turnos, asignación de pacientes y control de estados</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Agenda / Citas y Turnos</span>
+      <span><strong>Acceso</strong> Todos los roles</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TOC ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — calendario</a></li>
+      <li><a href="#s4"><span class="num">04</span> Seleccionar médico y filtrar la vista</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver turnos del día</a></li>
+      <li><a href="#s6"><span class="num">06</span> Asignar paciente a un turno</a></li>
+      <li><a href="#s7"><span class="num">07</span> Cambiar el estado de un turno</a></li>
+      <li><a href="#s8"><span class="num">08</span> Reagendar un turno</a></li>
+      <li><a href="#s9"><span class="num">09</span> Generar turnos y gestionar rangos</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 ─ Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Agenda / Citas y Turnos</strong> es el centro operativo de la clínica:
+        muestra en un <strong>calendario mensual</strong> todos los turnos generados para cada
+        prestador, permite asignar pacientes a turnos disponibles, controlar el estado de cada
+        turno a lo largo del día y gestionar cancelaciones masivas en un rango de fechas.
+      </p>
+      <p>
+        Cada celda del calendario refleja el estado real de la agenda en tiempo real. La vista
+        puede mostrarse de forma <strong>global</strong> (todos los prestadores) o
+        <strong>filtrada por médico</strong> para ver únicamente sus turnos. Al hacer clic en
+        un día se despliega el panel de turnos de ese día a la derecha, donde se realizan
+        todas las acciones sobre los turnos individuales.
+      </p>
+
+      <table>
+        <thead><tr>
+          <th>Acción</th>
+          <th><span class="badge badge-admin">Admin</span></th>
+          <th><span class="badge badge-recep">Recepcionista</span></th>
+          <th><span class="badge badge-medico">Médico</span></th>
+          <th><span class="badge badge-secre">Secretaria</span></th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>Ver agenda</td>
+            <td>✅ (todos)</td>
+            <td>✅ (todos)</td>
+            <td>✅ (solo suyo)</td>
+            <td>✅ (médico asignado)</td>
+          </tr>
+          <tr>
+            <td>Asignar paciente a turno</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Cambiar estado de turno</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Reagendar turno</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Crear / editar turno manualmente</td>
+            <td>✅</td><td>✅</td><td>🚫</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Generar turnos desde horario</td>
+            <td>✅</td><td>✅</td><td>🚫</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Cancelar rango de turnos</td>
+            <td>✅</td><td>✅</td><td>🚫</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Eliminar turno (borrado lógico)</td>
+            <td>✅</td><td>🚫</td><td>🚫</td><td>🚫</td>
+          </tr>
+          <tr>
+            <td>Ver turnos eliminados</td>
+            <td>✅</td><td>🚫</td><td>🚫</td><td>🚫</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Médico y Secretaria:</strong> ven únicamente los turnos de su propio prestador
+          (o del médico asignado). El médico no puede generar ni cancelar rangos de turnos;
+          esas acciones corresponden a recepción o administración.
+        </div>
+      </div>
+
+      <h3>Estados de un turno</h3>
+      <table>
+        <thead><tr><th>Estado</th><th>Color en UI</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="estado-pill estado-disp">disponible</span></td>
+            <td>Verde</td>
+            <td>El turno está libre y puede asignarse a un paciente.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-ocup">ocupado</span></td>
+            <td>Azul</td>
+            <td>El turno tiene un paciente asignado y está confirmado.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-real">realizado</span></td>
+            <td>Violeta</td>
+            <td>El paciente se atendió. El turno fue marcado como completado.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-canc">cancelado</span></td>
+            <td>Rojo</td>
+            <td>El turno fue cancelado. Libera al paciente asignado si lo tenía.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-inac">inactivo</span></td>
+            <td>Gris</td>
+            <td>El turno está bloqueado. No puede asignarse ni cancelarse directamente.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2 ─ Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, dentro del grupo <strong>Agenda</strong>, hacé clic en
+        <strong>Citas / Turnos</strong>. Esta opción es visible para todos los roles.
+        Médicos y secretarias ven directamente la agenda de su prestador asignado;
+        administradores y recepcionistas ven la agenda global con la lista completa de médicos.
+      </p>
+
+      <div class="callout info">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          El sistema redirige automáticamente al inicio de sesión según el rol:
+          médicos y secretarias van directamente a Citas / Turnos al ingresar al sistema.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 ─ Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — calendario</h2>
+      </div>
+      <p>
+        La pantalla se divide en tres columnas:
+      </p>
+      <ul class="lista">
+        <li><strong>Columna izquierda</strong> — Lista de médicos (admin/recep) o perfil del médico (médico/secretaria)</li>
+        <li><strong>Columna central</strong> — Calendario mensual</li>
+        <li><strong>Columna derecha</strong> — Panel de turnos del día seleccionado</li>
+      </ul>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/01_calendario.png" alt="Pantalla principal del módulo Agenda" />
+        <div class="screenshot-caption">Vista principal — barra de estadísticas del mes, lista de médicos, calendario mensual y panel de turnos del día</div>
+      </div>
+
+      <h3>Barra de estadísticas</h3>
+      <p>
+        En la parte superior se muestra un resumen del mes en curso con cinco contadores:
+        <strong>Confirmadas</strong> (ocupadas), <strong>Disponibles</strong>,
+        <strong>Realizadas</strong>, <strong>Cancelados</strong> y <strong>Total</strong>.
+        Los valores se actualizan en tiempo real al realizar cambios en los turnos.
+      </p>
+
+      <h3>Calendario mensual</h3>
+      <p>
+        El calendario muestra el mes en curso. Para cada día con turnos aparece información
+        dependiendo de si hay o no un médico seleccionado:
+      </p>
+
+      <table>
+        <thead><tr><th>Sin médico seleccionado</th><th>Con médico seleccionado</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>Puntos de color</strong> — uno por cada médico con turnos ese día (hasta 5, luego "+N más").<br>
+              <strong>Conteo naranja/verde</strong> — turnos ocupados / turnos disponibles del día.
+            </td>
+            <td>
+              <strong>Pills con etiqueta</strong> — muestran el paciente asignado o el estado del turno (disponible, cancelado, inactivo). Se muestran hasta 2 pills; si hay más, aparece "+N más".
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          El <strong>día de hoy</strong> tiene el número de día con fondo azul oscuro.
+          El <strong>día seleccionado</strong> tiene la celda con fondo azul claro y borde azul.
+        </div>
+      </div>
+
+      <h3>Navegación de meses</h3>
+      <p>
+        Usá los botones <strong>‹</strong> y <strong>›</strong> en la cabecera del calendario
+        para ir al mes anterior o siguiente. El mes y año actual se muestran centrados entre
+        los botones.
+      </p>
+
+      <h3>Botones de acción</h3>
+      <table>
+        <thead><tr><th>Botón</th><th>Descripción</th><th>Roles</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Generar para todos / Generar turnos</strong></td>
+            <td>Abre el modal para generar turnos en un rango de fechas. El texto cambia según si hay un médico seleccionado.</td>
+            <td>Admin, Recepcionista, Secretaria</td>
+          </tr>
+          <tr>
+            <td><strong>Gestionar</strong></td>
+            <td>Abre el modal para cancelar turnos disponibles en un rango de fechas y hora.</td>
+            <td>Admin, Recepcionista, Secretaria</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">⌨️</div>
+        <div class="callout-body">
+          <kbd>F2</kbd> abre el modal de generación de turnos cuando no hay ningún modal abierto
+          y el rol tiene permiso para generar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 ─ Seleccionar médico -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Seleccionar médico y filtrar la vista</h2>
+      </div>
+      <p>
+        La columna izquierda muestra la lista de todos los médicos activos (para admin y recepcionista).
+        Hacé clic en un médico para <strong>filtrar</strong> el calendario y ver únicamente sus turnos.
+        El médico seleccionado queda resaltado con borde izquierdo coloreado.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/02_medico_seleccionado.png" alt="Médico seleccionado con su agenda visible en el calendario" />
+        <div class="screenshot-caption">Médico seleccionado — el calendario muestra sus turnos como pills con estado y paciente; la cabecera del calendario muestra su nombre</div>
+      </div>
+
+      <h3>Búsqueda de médico</h3>
+      <p>
+        Usá el campo de búsqueda en la parte superior de la lista para filtrar médicos
+        por nombre. La lista se actualiza mientras escribís (debounce 300 ms).
+      </p>
+
+      <h3>Filtros de vista</h3>
+      <p>
+        Debajo del buscador hay tres chips de filtro:
+      </p>
+      <table>
+        <thead><tr><th>Chip</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Todos</strong></td>
+            <td>Muestra todos los médicos sin filtro adicional.</td>
+          </tr>
+          <tr>
+            <td><strong>Fecha</strong></td>
+            <td>Permite ingresar una fecha; el calendario navega automáticamente a ese mes y selecciona ese día.</td>
+          </tr>
+          <tr>
+            <td><strong>Especialidad</strong></td>
+            <td>Despliega un buscador de especialidades; filtra la lista para mostrar solo los médicos con esa especialidad y auto-selecciona el primero.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Deseleccionar médico</h3>
+      <p>
+        Hacé clic nuevamente sobre el médico seleccionado para deseleccionarlo y volver a
+        la vista global del calendario.
+      </p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Médico y Secretaria</strong> no ven la lista de médicos: en su lugar
+          aparece una tarjeta con su propio perfil (o el del médico asignado) y la agenda
+          se carga automáticamente al ingresar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 ─ Ver turnos del día -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver turnos del día</h2>
+      </div>
+      <p>
+        Hacé clic en cualquier celda del calendario para seleccionar ese día. El panel
+        derecho se actualiza con los turnos de esa fecha.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/03_panel_dia.png" alt="Panel lateral mostrando los turnos del día seleccionado" />
+        <div class="screenshot-caption">Panel de turnos del día — cada turno muestra la hora, el paciente (o el estado si está libre) y un badge de color con el estado</div>
+      </div>
+
+      <h3>Encabezado del panel</h3>
+      <p>
+        Muestra el día de la semana y la fecha del día seleccionado, y un subtítulo con
+        la cantidad de turnos. Si hay un médico seleccionado, también aparece su nombre.
+      </p>
+
+      <h3>Turnos en el panel</h3>
+      <p>
+        Cada turno aparece como una card con:
+      </p>
+      <ul class="lista">
+        <li><strong>Hora de inicio</strong> — a la izquierda, en negrita</li>
+        <li><strong>Nombre del paciente</strong> (si está asignado) o el estado del turno si está libre</li>
+        <li><strong>Badge de estado</strong> — coloreado según el estado del turno</li>
+      </ul>
+
+      <h3>Vista sin médico seleccionado</h3>
+      <p>
+        Cuando no hay médico seleccionado, el panel muestra todos los turnos del día de
+        todos los prestadores, con una barra lateral de color por médico, la hora de inicio,
+        el nombre del paciente o estado, el nombre del médico y el badge de estado.
+      </p>
+
+      <h3>Sin turnos en el día</h3>
+      <p>
+        Si el día no tiene turnos, el panel muestra el mensaje <em>"Sin turnos para este día"</em>.
+        Esto es normal cuando no se han generado turnos para esa fecha o el horario del
+        prestador no incluye ese día de la semana.
+      </p>
+
+      <h3>Estado vacío inicial</h3>
+      <p>
+        Antes de hacer clic en un día, el panel muestra un ícono de calendario con el texto
+        <em>"Ningún día seleccionado"</em>.
+      </p>
+    </div>
+
+    <!-- 6 ─ Asignar paciente -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Asignar paciente a un turno</h2>
+      </div>
+      <p>
+        Para asignar un paciente a un turno <strong>disponible</strong>, hacé clic sobre
+        ese turno en el panel lateral para expandirlo. Aparecerá la sección
+        <strong>Asignar paciente</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/04_turno_asignar.png" alt="Turno expandido mostrando la sección de asignación de paciente" />
+        <div class="screenshot-caption">Turno disponible expandido — sección "Asignar paciente" con resumen del horario, buscador de paciente y campo de observación</div>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <div class="step-text">
+            <strong>Expandir el turno</strong> — hacé clic en la cabecera del turno disponible
+            en el panel. El turno se resalta con borde azul.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            <strong>Buscar el paciente</strong> — escribí al menos <strong>3 caracteres</strong>
+            del nombre o número de documento del paciente en el campo de búsqueda. Los resultados
+            aparecen en un dropdown.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            <strong>Seleccionar el paciente</strong> — hacé clic en el nombre del paciente en
+            el dropdown (o usá las flechas ↑/↓ y Enter para navegar con teclado). El nombre
+            seleccionado queda resaltado en azul.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            <strong>Agregar observación</strong> (opcional) — escribí una observación o motivo
+            de consulta en el campo de texto.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            <strong>Confirmar cita</strong> — hacé clic en el botón <strong>Confirmar cita</strong>.
+            El turno cambia a estado <span class="estado-pill estado-ocup">ocupado</span> y
+            aparece un mensaje de confirmación.
+          </div>
+        </li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/05_asignar_completo.png" alt="Paciente seleccionado y botón Confirmar habilitado" />
+        <div class="screenshot-caption">Paciente seleccionado — la card azul muestra el nombre del paciente; el botón "Confirmar cita" queda habilitado</div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          El botón <strong>Confirmar cita</strong> permanece deshabilitado hasta que se
+          selecciona un paciente del dropdown. Solo aparece la sección de asignación en turnos
+          con estado <span class="estado-pill estado-disp">disponible</span>.
+        </div>
+      </div>
+
+      <h3>Deseleccionar paciente</h3>
+      <p>
+        Si seleccionaste un paciente por error, hacé clic en la <strong>×</strong> de la
+        card azul con el nombre del paciente para volver al buscador.
+      </p>
+
+      <h3>Notificación por correo</h3>
+      <p>
+        Si el paciente tiene correo electrónico registrado, el sistema envía automáticamente
+        una notificación de confirmación de reserva al momento de asignar el turno.
+        Esta acción es transparente para el usuario.
+      </p>
+    </div>
+
+    <!-- 7 ─ Cambiar estado -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Cambiar el estado de un turno</h2>
+      </div>
+      <p>
+        Al expandir un turno en el panel, debajo de la información del paciente (si aplica),
+        aparecen los <strong>chips de transición de estado</strong>. Cada chip representa
+        una acción posible según el estado actual del turno.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/06_cambiar_estado.png" alt="Chips de cambio de estado visible en un turno expandido" />
+        <div class="screenshot-caption">Turno expandido con sección de acciones — chips de transición disponibles según el estado actual</div>
+      </div>
+
+      <h3>Transiciones disponibles por estado</h3>
+      <table>
+        <thead><tr>
+          <th>Estado actual</th>
+          <th>Acciones disponibles</th>
+          <th>Confirmación requerida</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="estado-pill estado-disp">disponible</span></td>
+            <td>Bloquear (→ inactivo) · Cancelar (→ cancelado)</td>
+            <td>Sí, en ambas</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-ocup">ocupado</span></td>
+            <td>Realizado (→ realizado) · Cancelar y liberar (→ cancelado, quita paciente)</td>
+            <td>Solo en "Cancelar y liberar"</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-inac">inactivo</span></td>
+            <td>Activar (→ disponible) · Cancelar (→ cancelado)</td>
+            <td>Solo en "Cancelar"</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-canc">cancelado</span></td>
+            <td>Reactivar (→ disponible)</td>
+            <td>No</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-real">realizado</span></td>
+            <td>Revertir a ocupado (→ ocupado)</td>
+            <td>Sí</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Al <strong>cancelar un turno con paciente asignado</strong>, el sistema libera
+          automáticamente al paciente (quita la asignación). Si el paciente tiene correo
+          electrónico registrado, recibe una notificación de cancelación.
+        </div>
+      </div>
+
+      <h3>Turnos con consulta asociada</h3>
+      <p>
+        Si el turno tiene una consulta médica registrada, los chips de estado no aparecen.
+        En su lugar se muestra un mensaje explicando la situación según el estado de la consulta:
+      </p>
+      <ul class="lista">
+        <li><strong>Consulta en curso</strong> — "Finalizá o anulá la consulta desde el módulo de consultas antes de modificar el turno."</li>
+        <li><strong>Consulta finalizada</strong> — "El turno ya fue completado. No se puede modificar desde la agenda."</li>
+        <li><strong>Consulta anulada</strong> — "El turno tiene una consulta anulada y no se puede modificar desde la agenda."</li>
+      </ul>
+
+      <h3>Confirmación de cambio</h3>
+      <p>
+        Las acciones que requieren confirmación (marcadas en la tabla) abren un
+        <strong>diálogo de confirmación</strong>. Hacé clic en el botón de confirmación
+        para aplicar el cambio, o en <strong>Cancelar</strong> para no modificar nada.
+        Cuando la acción afecta a un paciente asignado, el diálogo lo advierte explícitamente.
+      </p>
+    </div>
+
+    <!-- 8 ─ Reagendar -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Reagendar un turno</h2>
+      </div>
+      <p>
+        Reagendar traslada al paciente de un turno <span class="estado-pill estado-ocup">ocupado</span>
+        a otro turno <span class="estado-pill estado-disp">disponible</span> del
+        <strong>mismo prestador</strong>. El turno original queda en estado
+        <span class="estado-pill estado-canc">cancelado</span>.
+      </p>
+
+      <ol class="steps">
+        <li>
+          <div class="step-text">
+            Expandí el turno <span class="estado-pill estado-ocup">ocupado</span> que querés reagendar.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Hacé clic en el chip <strong>Reagendar</strong> que aparece en la sección de acciones del turno.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Se abre la sección de reagendado. Seleccioná una <strong>nueva fecha</strong>
+            usando el selector de fecha.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Los turnos disponibles del prestador para esa fecha aparecen como chips de horario.
+            Hacé clic en el turno al que querés mover al paciente.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Hacé clic en <strong>Confirmar reagendado</strong>. La operación es atómica:
+            el turno original se cancela y el nuevo queda ocupado con el mismo paciente.
+          </div>
+        </li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Si la fecha seleccionada no tiene turnos disponibles del prestador, aparece el mensaje
+          <em>"Sin turnos disponibles para esa fecha"</em>. La observación original del turno
+          se conserva en el nuevo turno.
+        </div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          Solo se pueden reagendar turnos <strong>ocupados</strong>. Los turnos con consulta
+          en curso, finalizada o anulada no pueden reagendarse desde la agenda.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Generar y Gestionar -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Generar turnos y gestionar rangos</h2>
+      </div>
+
+      <h3>Generar turnos desde horario</h3>
+      <p>
+        El botón <strong>Generar turnos</strong> (o <strong>Generar para todos</strong>
+        cuando no hay médico seleccionado) abre un modal para crear en la base de datos los
+        turnos correspondientes a los horarios activos configurados para cada prestador.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/07_generar_modal.png" alt="Modal de generación de turnos" />
+        <div class="screenshot-caption">Modal Generar turnos — selección de prestadores, rango de fechas, previsualización de slots y resultado</div>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <div class="step-text">
+            Hacé clic en <strong>Generar turnos</strong> (o presioná <kbd>F2</kbd>). Se abre el modal.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            <strong>Seleccioná los prestadores</strong> a incluir. Por defecto todos los que
+            tienen horarios activos están marcados. Podés usar <em>Seleccionar todos</em> o
+            marcar/desmarcar individualmente. El campo de búsqueda filtra la lista.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            <strong>Ingresá el rango de fechas</strong>: fecha desde y hasta.
+            La generación respeta el día de la semana de cada horario (o la fecha exacta
+            de las excepciones), por lo que no se crean turnos en días que no corresponden.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            La sección de <strong>Previsualización</strong> muestra cuántos turnos se crearían
+            por fecha antes de confirmar.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Hacé clic en <strong>Generar</strong>. El resultado indica cuántos turnos se crearon
+            y cuántos se omitieron (ya existían).
+          </div>
+        </li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          La generación es <strong>idempotente</strong>: volver a ejecutar con el mismo rango
+          y prestadores solo produce 0 creados y N omitidos. No se duplican turnos.
+        </div>
+      </div>
+
+      <h3>Gestionar turnos — cancelación masiva</h3>
+      <p>
+        El botón <strong>Gestionar</strong> permite cancelar en bloque todos los turnos
+        <span class="estado-pill estado-disp">disponibles</span> de un prestador en un
+        rango de fechas y hora opcional.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/agenda/08_gestionar_modal.png" alt="Modal de gestión masiva de turnos" />
+        <div class="screenshot-caption">Modal Gestionar — advertencia de acción irreversible, selección de médico, rango de fechas y franja horaria opcional</div>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <div class="step-text">
+            Hacé clic en <strong>Gestionar</strong>. Aparece el modal con una advertencia
+            de que la acción no se puede deshacer.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Seleccioná el <strong>médico</strong> escribiendo en el campo de búsqueda
+            y haciendo clic en el resultado. Si ya había un médico seleccionado en el
+            calendario, aparece precargado.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Ingresá el <strong>rango de fechas</strong> (obligatorio). Opcionalmente podés
+            ingresar <strong>hora desde</strong> y <strong>hora hasta</strong> para
+            cancelar solo los turnos dentro de esa franja horaria.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            El panel de <strong>Resumen del rango</strong> muestra cuántos turnos disponibles,
+            ocupados y cancelados hay en el rango indicado (solo los disponibles se cancelarán).
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Hacé clic en <strong>Cancelar N turnos disponibles</strong>. Aparece un diálogo
+            de confirmación adicional. Confirmá para ejecutar la acción.
+          </div>
+        </li>
+      </ol>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Solo se cancelan los turnos en estado <span class="estado-pill estado-disp">disponible</span>.
+          Los turnos <span class="estado-pill estado-ocup">ocupados</span> y
+          <span class="estado-pill estado-real">realizados</span> <strong>no se cancelan</strong>;
+          el resultado muestra la lista de esos turnos para que el equipo los gestione manualmente.
+        </div>
+      </div>
+
+      <h3>NavigationGuard en los modales</h3>
+      <p>
+        Si intentás cerrar el modal de <strong>Generar</strong> después de haber ingresado
+        una fecha hasta, o el modal de <strong>Gestionar</strong> después de haber ingresado
+        cualquier dato, aparecerá un diálogo de confirmación preguntando si querés descartar
+        los datos ingresados. Si el modal está en blanco, se cierra directamente sin advertencia.
+      </p>
+    </div>
+
+    <!-- 10 ─ Mensajes de error -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes y comportamientos esperados</h2>
+      </div>
+
+      <h3>Errores al asignar paciente</h3>
+      <table>
+        <thead><tr><th>Mensaje</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><em>"Solo se puede asignar un turno disponible. Estado actual: X."</em></td>
+            <td>Se intentó asignar a un turno que ya no está disponible (alguien más lo tomó antes). Actualizá la página y buscá otro turno libre.</td>
+          </tr>
+          <tr>
+            <td><em>"Paciente no encontrado."</em></td>
+            <td>El paciente ingresado no existe o fue dado de baja. Verificá los datos en el módulo de Pacientes.</td>
+          </tr>
+          <tr>
+            <td>El dropdown de pacientes no muestra resultados</td>
+            <td>Normal cuando el texto es menor a 3 caracteres. Ingresá al menos 3 caracteres del nombre o documento.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Errores al cambiar estado</h3>
+      <table>
+        <thead><tr><th>Mensaje</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><em>"Solo se puede marcar como realizado un turno con paciente asignado (ocupado)."</em></td>
+            <td>No se puede marcar como realizado un turno que no está ocupado. Asigná primero un paciente.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede inactivar un turno ocupado o realizado."</em></td>
+            <td>Para bloquear un turno ocupado, primero cancelá y liberá al paciente.</td>
+          </tr>
+          <tr>
+            <td><em>"Consulta en curso / finalizada / anulada…"</em></td>
+            <td>El turno tiene una consulta médica asociada. Los cambios de estado se bloquean desde la agenda; gestionarlos desde el módulo de Consultas.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Errores al reagendar</h3>
+      <table>
+        <thead><tr><th>Mensaje</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><em>"Solo se puede reagendar un turno ocupado."</em></td>
+            <td>El turno ya no está ocupado. Actualizá la vista.</td>
+          </tr>
+          <tr>
+            <td><em>"El nuevo turno debe estar disponible."</em></td>
+            <td>El turno destino fue tomado entre que lo seleccionaste y confirmaste. Elegí otro.</td>
+          </tr>
+          <tr>
+            <td><em>"El nuevo turno debe pertenecer al mismo prestador."</em></td>
+            <td>Solo se puede reagendar dentro de los turnos del mismo médico. Para cambiar de médico, cancelá y asigná manualmente en el nuevo turno.</td>
+          </tr>
+          <tr>
+            <td><em>"Sin turnos disponibles para esa fecha"</em></td>
+            <td>No hay turnos libres del prestador en la fecha elegida. Probá con otra fecha o generá nuevos turnos primero.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Errores al generar turnos</h3>
+      <table>
+        <thead><tr><th>Mensaje / Comportamiento</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>El botón Generar está deshabilitado</td>
+            <td>Falta completar la fecha desde, la fecha hasta, o no hay ningún prestador seleccionado.</td>
+          </tr>
+          <tr>
+            <td>Resultado "0 creados, N omitidos"</td>
+            <td>Los turnos ya existían (generación idempotente). No es un error: el sistema no duplica turnos.</td>
+          </tr>
+          <tr>
+            <td><em>"Ningún horario activo coincide con los días del rango seleccionado."</em></td>
+            <td>El horario del prestador es para, por ejemplo, los Lunes, pero el rango ingresado solo cubre días distintos al Lunes. Ampliá el rango de fechas.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que no son errores</h3>
+      <table>
+        <thead><tr><th>Comportamiento</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>El calendario no muestra turnos en ninguna celda</td>
+            <td>
+              Ocurre cuando el médico seleccionado no tiene turnos generados para ese mes.
+              Es necesario usar el modal <strong>Generar turnos</strong> primero.
+            </td>
+          </tr>
+          <tr>
+            <td>La generación de turnos deja fuera fechas del rango</td>
+            <td>
+              El horario del prestador solo aplica a días específicos de la semana. Los días sin horario se omiten automáticamente.
+            </td>
+          </tr>
+          <tr>
+            <td>El panel de turnos muestra vacío tras seleccionar un día</td>
+            <td>
+              Ese día no tiene turnos generados para el médico seleccionado. Generá turnos
+              para ese rango o verificá que el horario cubre ese día de la semana.
+            </td>
+          </tr>
+          <tr>
+            <td>Los chips de cambio de estado no aparecen en el turno expandido</td>
+            <td>
+              El turno tiene una consulta médica asociada (en curso, finalizada o anulada).
+              El bloqueo es intencional para mantener la integridad clínica. El mensaje
+              indica qué hacer.
+            </td>
+          </tr>
+          <tr>
+            <td>La barra de estadísticas muestra cero en todos los contadores</td>
+            <td>
+              Aún no hay turnos generados para el mes en curso. Las estadísticas son globales
+              (no dependen del médico seleccionado).
+            </td>
+          </tr>
+          <tr>
+            <td>Al cancelar un turno ocupado, el paciente desaparece del turno</td>
+            <td>
+              Es el comportamiento correcto: la acción "Cancelar y liberar" quita la asignación
+              del paciente además de cancelar el turno, para que ese paciente pueda ser
+              asignado a otro turno libremente.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual de Usuario v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Consulta Médica · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-medico { background:#f0fdf4; color:#166534; border:1px solid #86efac; }
+    .badge-secre  { background:#fdf4ff; color:#7e22ce; border:1px solid #d8b4fe; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .estado-pill { display:inline-block; font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px; margin:2px 3px; }
+    .estado-espera   { background:#fef9c3; color:#ca8a04; }
+    .estado-consulta { background:#dbeafe; color:#1d4ed8; }
+    .estado-final    { background:#dcfce7; color:#16a34a; }
+    .estado-anulada  { background:#fee2e2; color:#dc2626; }
+    .estado-pend     { background:#f3f4f6; color:#6b7280; }
+
+    ul.lista { margin-left:20px; margin-bottom:14px; color:#374151; font-size:14px; line-height:2.2; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Consulta<br>Médica</h1>
+    <p class="cover-subtitle">Gestión de consultas desde el ingreso hasta la finalización con registro clínico completo</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Consultas</span>
+      <span><strong>Acceso</strong> Todos los roles</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TOC ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Vista recepcionista — panel del día</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar y filtrar turnos (vista recep)</a></li>
+      <li><a href="#s5"><span class="num">05</span> Vista médico — lista de turnos</a></li>
+      <li><a href="#s6"><span class="num">06</span> Iniciar una consulta</a></li>
+      <li><a href="#s7"><span class="num">07</span> Completar el formulario clínico</a></li>
+      <li><a href="#s8"><span class="num">08</span> Finalizar o anular una consulta</a></li>
+      <li><a href="#s9"><span class="num">09</span> Editar consulta finalizada (ventana de 24 h)</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 ─ Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Consulta Médica</strong> gestiona todo el ciclo de una consulta:
+        desde el ingreso del paciente a sala de espera, pasando por el registro clínico
+        (motivo, diagnóstico, tratamiento, indicaciones y próxima cita), hasta la
+        finalización del acto médico. Está dividido en dos vistas complementarias:
+      </p>
+      <ul class="lista">
+        <li><strong>Vista recepcionista</strong> — panel de seguimiento en tiempo real de todos los turnos del día con su estado actual y contadores estadísticos.</li>
+        <li><strong>Vista médico</strong> — formulario de consulta activa con el historial clínico del paciente, carga de documentos y acciones clínicas.</li>
+      </ul>
+
+      <table>
+        <thead><tr>
+          <th>Acción</th>
+          <th><span class="badge badge-admin">Admin</span></th>
+          <th><span class="badge badge-recep">Recepcionista</span></th>
+          <th><span class="badge badge-medico">Médico</span></th>
+          <th><span class="badge badge-secre">Secretaria</span></th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>Ver vista recepcionista</td>
+            <td>✅</td><td>✅</td><td>🚫</td><td>🚫</td>
+          </tr>
+          <tr>
+            <td>Ver vista médico</td>
+            <td>✅</td><td>🚫</td><td>✅ (propio)</td><td>✅ (asignado)</td>
+          </tr>
+          <tr>
+            <td>Crear e iniciar consulta</td>
+            <td>✅</td><td>🚫</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Completar datos clínicos</td>
+            <td>✅</td><td>🚫</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Finalizar / Anular consulta</td>
+            <td>✅</td><td>🚫</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Editar consulta finalizada (24 h)</td>
+            <td>✅</td><td>🚫</td><td>✅</td><td>🚫</td>
+          </tr>
+          <tr>
+            <td>Cambiar fecha de vista (admin)</td>
+            <td>✅</td><td>🚫</td><td>🚫</td><td>🚫</td>
+          </tr>
+          <tr>
+            <td>Eliminar consulta (borrado lógico)</td>
+            <td>✅</td><td>🚫</td><td>🚫</td><td>🚫</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Estados de una consulta</h3>
+      <table>
+        <thead><tr><th>Estado</th><th>Color</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="estado-pill estado-pend">Pendiente</span></td>
+            <td>Gris</td>
+            <td>El turno está ocupado pero aún no se registró ninguna consulta.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-espera">En espera</span></td>
+            <td>Amarillo</td>
+            <td>La consulta fue creada (el paciente está en sala de espera).</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-consulta">En consulta</span></td>
+            <td>Azul</td>
+            <td>La consulta fue iniciada. El médico está atendiendo al paciente.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-final">Finalizada</span></td>
+            <td>Verde</td>
+            <td>La consulta fue completada con el registro clínico correspondiente.</td>
+          </tr>
+          <tr>
+            <td><span class="estado-pill estado-anulada">Anulada</span></td>
+            <td>Rojo</td>
+            <td>La consulta fue iniciada pero cancelada antes de finalizarse.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2 ─ Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, dentro del grupo <strong>Consultas</strong>, hacé clic
+        en <strong>Consulta médica</strong>. La vista que se muestra al ingresar depende del rol:
+      </p>
+      <table>
+        <thead><tr><th>Rol</th><th>Vista al ingresar</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-admin">Admin</span></td>
+            <td>Dos tabs: <em>Vista médico</em> (activa por defecto) y <em>Vista recepcionista</em>. Incluye selector de fecha en ambas vistas.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-recep">Recepcionista</span></td>
+            <td>Directamente la Vista recepcionista, sin tabs ni selector de fecha.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-medico">Médico</span></td>
+            <td>Directamente la Vista médico con su propia agenda cargada.</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-secre">Secretaria</span></td>
+            <td>Vista médico del médico asignado.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          El sistema redirige automáticamente a <strong>/consultas</strong> al iniciar sesión
+          para médicos y secretarias. Es la pantalla de trabajo principal del turno.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 ─ Vista recepcionista -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Vista recepcionista — panel del día</h2>
+      </div>
+      <p>
+        La vista recepcionista muestra en tiempo real el estado de todos los turnos
+        <strong>ocupados</strong> y <strong>realizados</strong> del día, con información
+        del paciente, médico, horario, especialidad y estado actual de la consulta.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/01_vista_recepcionista.png" alt="Vista recepcionista con tabla de turnos" />
+        <div class="screenshot-caption">Vista recepcionista — stats del día, filtros y tabla de turnos con estado de cada consulta</div>
+      </div>
+
+      <h3>Contadores estadísticos</h3>
+      <p>
+        En la parte superior hay cuatro contadores que se actualizan automáticamente:
+      </p>
+      <table>
+        <thead><tr><th>Contador</th><th>Qué cuenta</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Total del día</strong></td><td>Total de turnos ocupados y realizados para la fecha seleccionada.</td></tr>
+          <tr><td><strong>Pendientes</strong></td><td>Turnos sin consulta registrada aún (el paciente llegó pero no fue registrado).</td></tr>
+          <tr><td><strong>En consulta</strong></td><td>Consultas actualmente en curso (con punto pulsante verde).</td></tr>
+          <tr><td><strong>Finalizadas</strong></td><td>Consultas completadas durante el día.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Tabla de turnos</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Paciente</strong></td><td>Avatar con iniciales, nombre completo y número de documento.</td></tr>
+          <tr><td><strong>Médico</strong></td><td>Avatar y nombre del prestador a cargo del turno.</td></tr>
+          <tr><td><strong>Horario</strong></td><td>Franja horaria del turno (ej: 08:00 – 08:30).</td></tr>
+          <tr><td><strong>Especialidad</strong></td><td>Primera especialidad del horario del prestador.</td></tr>
+          <tr><td><strong>Estado</strong></td><td>Badge de color con el estado actual de la consulta. Si está En consulta, muestra además el tiempo transcurrido en minutos con código de color por urgencia.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Indicador de tiempo en consulta</h3>
+      <p>
+        Para turnos con estado <span class="estado-pill estado-consulta">En consulta</span>,
+        el contador de minutos usa código de colores según el tiempo transcurrido:
+      </p>
+      <ul class="lista">
+        <li><strong style="color:#16a34a">Verde</strong> — menos de 15 minutos</li>
+        <li><strong style="color:#ca8a04">Amarillo</strong> — entre 15 y 30 minutos</li>
+        <li><strong style="color:#dc2626">Rojo</strong> — más de 30 minutos</li>
+      </ul>
+    </div>
+
+    <!-- 4 ─ Buscar y filtrar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar y filtrar turnos (vista recepcionista)</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/02_filtro_medico.png" alt="Filtro por médico activo en la tabla" />
+        <div class="screenshot-caption">Filtro por médico activo — la tabla muestra solo los turnos del prestador buscado</div>
+      </div>
+
+      <h3>Filtro por médico</h3>
+      <p>
+        El campo de texto <strong>"Filtrar por médico…"</strong> reduce la tabla en tiempo
+        real mostrando solo los turnos del prestador cuyo nombre contiene el texto ingresado.
+        Borrá el texto para volver a ver todos los turnos.
+      </p>
+
+      <h3>Filtro por estado</h3>
+      <p>
+        El selector desplegable permite filtrar la tabla por el estado de la consulta:
+      </p>
+      <table>
+        <thead><tr><th>Opción</th><th>Muestra</th></tr></thead>
+        <tbody>
+          <tr><td>Todos los estados</td><td>Todos los turnos del día (valor por defecto).</td></tr>
+          <tr><td>Pendiente</td><td>Turnos sin consulta registrada.</td></tr>
+          <tr><td>En espera</td><td>Consultas creadas pero no iniciadas.</td></tr>
+          <tr><td>En consulta</td><td>Consultas actualmente en curso.</td></tr>
+          <tr><td>Finalizada</td><td>Consultas ya completadas.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Selector de fecha (admin)</h3>
+      <p>
+        Los administradores pueden ver la vista recepcionista para cualquier fecha usando el
+        selector de fecha en la parte superior. Al seleccionar una fecha pasada o futura, la
+        tabla y los contadores se actualizan para esa fecha.
+      </p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La vista recepcionista es <strong>solo lectura</strong>: no permite iniciar ni
+          finalizar consultas. Las acciones sobre las consultas se realizan exclusivamente
+          desde la Vista médico.
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 ─ Vista médico -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Vista médico — lista de turnos del día</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/03_vista_medico_turnos.png" alt="Vista médico con columna de turnos y panel activo" />
+        <div class="screenshot-caption">Vista médico — columna de turnos a la izquierda y panel de consulta activa a la derecha</div>
+      </div>
+
+      <h3>Selección de médico (admin)</h3>
+      <p>
+        Los administradores deben seleccionar primero el médico cuya agenda desean gestionar.
+        Para ello, escriben el nombre en el campo de búsqueda y hacen clic en el resultado
+        del dropdown.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/04_buscador_medico.png" alt="Buscador de médico con dropdown de resultados" />
+        <div class="screenshot-caption">Buscador de médico — escribí el nombre y seleccioná del dropdown para cargar la agenda del día</div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Médicos y secretarias</strong> ven su propia agenda cargada automáticamente al
+          entrar, sin necesidad de seleccionar. El campo de búsqueda no aparece en esas sesiones.
+        </div>
+      </div>
+
+      <h3>Columna de turnos</h3>
+      <p>
+        Una vez seleccionado el médico, aparece la columna de turnos con todos los
+        turnos <strong>ocupados</strong> del día para ese prestador. Cada card muestra:
+      </p>
+      <ul class="lista">
+        <li><strong>Franja horaria</strong> — hora desde y hasta del turno</li>
+        <li><strong>Badge de estado</strong> — estado actual de la consulta (o "Sin consulta" si no hay)</li>
+        <li><strong>Nombre y documento del paciente</strong></li>
+        <li><strong>Ticker de tiempo</strong> — si la consulta está en curso, muestra los minutos transcurridos</li>
+      </ul>
+
+      <h3>Solo una consulta activa a la vez</h3>
+      <p>
+        Si ya hay una consulta <span class="estado-pill estado-consulta">En consulta</span>,
+        los botones "Iniciar" de los otros turnos quedan <strong>deshabilitados</strong> con el
+        mensaje <em>"Finalizá la consulta en curso antes de iniciar otra"</em>. Esto garantiza
+        que el médico solo atiende a un paciente a la vez.
+      </p>
+    </div>
+
+    <!-- 6 ─ Iniciar consulta -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Iniciar una consulta</h2>
+      </div>
+      <p>
+        Para iniciar una consulta, el médico hace clic en el botón correspondiente dentro
+        de la tarjeta del turno. Hay dos variantes:
+      </p>
+
+      <table>
+        <thead><tr><th>Botón</th><th>Cuándo aparece</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Iniciar consulta</strong></td>
+            <td>El turno no tiene consulta registrada aún.</td>
+            <td>Crea la consulta y la inicia inmediatamente (en_espera → en_consulta en un solo paso).</td>
+          </tr>
+          <tr>
+            <td><strong>Iniciar</strong></td>
+            <td>El turno tiene una consulta en estado <span class="estado-pill estado-espera">En espera</span>.</td>
+            <td>Cambia el estado a <span class="estado-pill estado-consulta">En consulta</span> y registra la hora de inicio.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Al hacer clic en cualquiera de estos botones, el panel derecho se abre con el
+        formulario de la consulta activa y aparece un mensaje de confirmación.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/05_panel_consulta_activa.png" alt="Panel de consulta activa abierto" />
+        <div class="screenshot-caption">Panel de consulta activa — información del paciente a la izquierda, formulario clínico a la derecha; mensaje de confirmación visible al fondo</div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Mientras haya una consulta <span class="estado-pill estado-consulta">En consulta</span>,
+          un <strong>banner de aviso</strong> aparece al pie de la página recordando
+          no cambiar de módulo sin finalizar, para no perder datos no guardados.
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 ─ Completar formulario -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Completar el formulario clínico</h2>
+      </div>
+      <p>
+        El panel de consulta activa tiene dos columnas: información del paciente a la
+        izquierda y el formulario clínico a la derecha.
+      </p>
+
+      <h3>Información del paciente (columna izquierda)</h3>
+      <ul class="lista">
+        <li><strong>Avatar con iniciales</strong> y nombre completo</li>
+        <li>Número de documento, turno (hora) y médico a cargo</li>
+        <li>Alergias conocidas y enfermedades crónicas (si están registradas)</li>
+        <li>Botón <strong>"Historia clínica"</strong> — abre un modal con todas las consultas anteriores del paciente, con filtro por especialidad</li>
+      </ul>
+
+      <h3>Formulario clínico (columna derecha)</h3>
+      <table>
+        <thead><tr><th>Campo</th><th>Obligatorio para finalizar</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Evento clínico</strong></td><td>No</td><td>Tipo de consulta (primer consulta, control, urgencia, etc.).</td></tr>
+          <tr><td><strong>Próxima cita</strong></td><td>No</td><td>Fecha sugerida para la próxima consulta.</td></tr>
+          <tr><td><strong>Motivo de consulta</strong></td><td>✅ Sí</td><td>Motivo referido por el paciente.</td></tr>
+          <tr><td><strong>Diagnóstico</strong></td><td>✅ Sí</td><td>Diagnóstico del médico.</td></tr>
+          <tr><td><strong>Tratamiento</strong></td><td>✅ Sí</td><td>Tratamiento indicado.</td></tr>
+          <tr><td><strong>Indicaciones</strong></td><td>✅ Sí</td><td>Indicaciones y recomendaciones para el paciente.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/06_datos_clinicos_completos.png" alt="Panel con datos clínicos completados" />
+        <div class="screenshot-caption">Formulario clínico con los cuatro campos obligatorios completados y botón "Completar consulta" habilitado</div>
+      </div>
+
+      <h3>Autoguardado</h3>
+      <p>
+        Los datos del formulario se <strong>guardan automáticamente cada 30 segundos</strong>
+        mientras la consulta está en curso. Esto protege el trabajo del médico ante
+        interrupciones inesperadas. No es necesario hacer clic en "Guardar" de forma manual.
+      </p>
+
+      <h3>Subir documentos</h3>
+      <p>
+        La sección de <strong>Documentos</strong> en el panel activo permite adjuntar
+        archivos a la consulta (PDF, JPG, PNG). Para subir un archivo:
+      </p>
+      <ol class="steps">
+        <li><div class="step-text">Seleccioná el <strong>tipo de documento</strong> en el selector desplegable.</div></li>
+        <li><div class="step-text">Arrastrá el archivo al área de carga o hacé clic para seleccionarlo desde el explorador.</div></li>
+        <li><div class="step-text">El archivo queda adjunto a la consulta y aparece en la lista de documentos.</div></li>
+      </ol>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Seleccioná el tipo de documento <strong>antes</strong> de arrastrar o seleccionar el
+          archivo. Si no hay tipo seleccionado, el sistema muestra una advertencia.
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 ─ Finalizar o anular -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Finalizar o anular una consulta</h2>
+      </div>
+      <p>
+        Al pie del formulario clínico hay dos botones de acción:
+        <strong>Completar consulta</strong> y <strong>Anular</strong>.
+      </p>
+
+      <h3>Completar consulta (Finalizar)</h3>
+      <ol class="steps">
+        <li>
+          <div class="step-text">
+            Completá los <strong>cuatro campos obligatorios</strong>: Motivo de consulta,
+            Diagnóstico, Tratamiento e Indicaciones.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Hacé clic en <strong>Completar consulta</strong>. Si algún campo obligatorio
+            está vacío, se muestra un toast de advertencia y el campo queda resaltado en rojo.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            Aparece un <strong>diálogo de confirmación</strong>. Confirmá para finalizar.
+          </div>
+        </li>
+        <li>
+          <div class="step-text">
+            La consulta queda en estado <span class="estado-pill estado-final">Finalizada</span>
+            y el turno de agenda pasa automáticamente a estado <strong>Realizado</strong>.
+          </div>
+        </li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/07_confirm_finalizar.png" alt="Diálogo de confirmación para finalizar consulta" />
+        <div class="screenshot-caption">Diálogo de confirmación al hacer clic en "Completar consulta" — confirmar cierra la consulta definitivamente</div>
+      </div>
+
+      <h3>Anular consulta</h3>
+      <p>
+        El botón <strong>Anular</strong> cancela una consulta que ya fue iniciada
+        (<span class="estado-pill estado-consulta">En consulta</span>).
+        También abre un diálogo de confirmación antes de ejecutarse. La consulta queda
+        en estado <span class="estado-pill estado-anulada">Anulada</span>; el turno
+        de agenda <strong>no cambia</strong> su estado automáticamente.
+      </p>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          Una consulta <strong>finalizada</strong> no puede anularse desde la agenda.
+          Solo se puede editar dentro de las <strong>24 horas</strong> siguientes al cierre
+          (ver sección 09). Pasado ese tiempo, queda bloqueada permanentemente.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Editar finalizada -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Editar consulta finalizada (ventana de 24 h)</h2>
+      </div>
+      <p>
+        Médicos y administradores pueden corregir los datos clínicos de una consulta
+        <span class="estado-pill estado-final">Finalizada</span> dentro de las
+        <strong>24 horas</strong> siguientes a su cierre. Pasada esa ventana, la consulta
+        queda bloqueada para modificaciones.
+      </p>
+
+      <h3>Acceder a la edición</h3>
+      <p>
+        En la vista médico, las consultas finalizadas dentro de la ventana de 24 h muestran
+        un botón <strong>Editar</strong> (ícono de lápiz) en la tarjeta del turno. Al hacer
+        clic, el panel de formulario se abre con los datos actuales precargados.
+      </p>
+
+      <h3>Indicador de tiempo restante</h3>
+      <p>
+        Al tener abierta una consulta finalizada editable, el panel muestra un banner verde
+        con el tiempo restante para poder guardar cambios: por ejemplo,
+        <em>"Consulta finalizada · Tiempo restante para editar: 22h 15m"</em>.
+      </p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La ventana de 24 h está basada en <strong>fecha_modificacion</strong> de la consulta,
+          no en la hora del turno. Si la consulta se finalizó a las 16:00 de hoy, podrá
+          editarse hasta las 16:00 de mañana.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Las <strong>recepcionistas</strong> no pueden editar consultas finalizadas, incluso
+          dentro de la ventana de 24 h. Solo administradores y médicos tienen ese permiso.
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 ─ Errores -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes y comportamientos esperados</h2>
+      </div>
+
+      <h3>Al iniciar una consulta</h3>
+      <table>
+        <thead><tr><th>Mensaje / Comportamiento</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><em>"Iniciar consulta"</em> aparece deshabilitado</td>
+            <td>Ya existe una consulta en curso para otro turno del mismo médico. Finalizá o anulá esa consulta antes de iniciar otra.</td>
+          </tr>
+          <tr>
+            <td><em>"Solo se puede iniciar una consulta en espera"</em></td>
+            <td>La consulta ya fue iniciada o tiene otro estado. Actualizá la vista con el botón de refresh.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Al finalizar una consulta</h3>
+      <table>
+        <thead><tr><th>Mensaje / Comportamiento</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Toast de advertencia con campos faltantes al hacer clic en "Completar consulta"</td>
+            <td>Uno o más campos obligatorios (Motivo, Diagnóstico, Tratamiento, Indicaciones) están vacíos. Los campos se resaltan en rojo. Completarlos antes de reintentar.</td>
+          </tr>
+          <tr>
+            <td><em>"Solo se puede finalizar una consulta en curso"</em></td>
+            <td>La consulta no está en estado En consulta. No es necesaria ninguna acción; la consulta ya fue procesada por otro usuario.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Al editar consulta finalizada</h3>
+      <table>
+        <thead><tr><th>Mensaje / Comportamiento</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><em>"Solo médicos y administradores pueden modificar consultas finalizadas o anuladas."</em></td>
+            <td>El rol del usuario no tiene permiso para editar consultas cerradas. El cambio debe realizarlo el médico o un administrador.</td>
+          </tr>
+          <tr>
+            <td><em>"Esta consulta no puede modificarse: han pasado más de 24 horas desde su cierre."</em></td>
+            <td>La ventana de edición expiró. Los datos quedan bloqueados permanentemente.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Al subir documentos</h3>
+      <table>
+        <thead><tr><th>Mensaje / Comportamiento</th><th>Causa y solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><em>"Seleccioná un tipo de documento antes de subir."</em></td>
+            <td>Se intentó subir un archivo sin elegir el tipo en el selector. Seleccioná el tipo primero.</td>
+          </tr>
+          <tr>
+            <td>El botón "Iniciar consulta" no aparece en ningún turno</td>
+            <td>Normal: todos los turnos del día ya tienen consultas registradas o están en estado realizado.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que no son errores</h3>
+      <table>
+        <thead><tr><th>Comportamiento</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>El autoguardado muestra toast <em>"Error en autoguardado"</em> esporádicamente</td>
+            <td>
+              Puede ocurrir por pérdida momentánea de conexión. Los datos del formulario
+              no se pierden — el médico puede guardar manualmente al finalizar.
+            </td>
+          </tr>
+          <tr>
+            <td>La lista de turnos no muestra turnos disponibles (solo ocupados)</td>
+            <td>
+              Correcto: la Vista médico solo muestra turnos con paciente asignado
+              (ocupados y realizados). Los turnos disponibles se gestionan desde la Agenda.
+            </td>
+          </tr>
+          <tr>
+            <td>La vista recepcionista muestra "No hay turnos para mostrar"</td>
+            <td>
+              No hay turnos ocupados o realizados para la fecha seleccionada (o con el
+              filtro activo). Verificá que la fecha sea correcta y limpié los filtros.
+            </td>
+          </tr>
+          <tr>
+            <td>El banner de alerta de consulta en curso aparece al navegar por el módulo</td>
+            <td>
+              Es intencional: recuerda que hay una consulta activa que debe cerrarse
+              antes de cambiar de módulo para no perder los datos del formulario.
+            </td>
+          </tr>
+          <tr>
+            <td>La vista recepcionista muestra "En consulta 0" pero un turno tiene badge azul</td>
+            <td>
+              El contador puede tardar un momento en refrescarse. La tabla sí refleja el
+              estado actualizado en tiempo real.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="screenshot">
+        <img src="imagenes/consultas/08_recep_consulta_en_curso.png" alt="Vista recepcionista con consulta en curso" />
+        <div class="screenshot-caption">Vista recepcionista con una consulta en curso — badge azul y contador de tiempo visible en la tabla</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual de Usuario v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

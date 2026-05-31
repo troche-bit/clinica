@@ -36,6 +36,14 @@ class PacienteResponsableSerializer(serializers.ModelSerializer):
             "observacion",
         ]
 
+    def validate_persona(self, value):
+        qs = PacienteResponsable.objects.filter(persona=value, is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Esta persona ya tiene un responsable activo registrado.')
+        return value
+
     def validate_grupo_sanguineo(self, value):
         return value.strip() if value else value
 

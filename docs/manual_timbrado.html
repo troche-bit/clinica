@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Timbrado · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-vigente  { background:#dcfce7; color:#166534; }
+    .badge-vencido  { background:#fee2e2; color:#991b1b; }
+    .badge-proximo  { background:#fef9c3; color:#854d0e; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    .prog-demo { margin:12px 0 20px; }
+    .prog-track { height:8px; background:#f3f4f6; border-radius:10px; overflow:hidden; margin-bottom:6px; }
+    .prog-fill-green  { height:100%; border-radius:10px; background:#22c55e; }
+    .prog-fill-amber  { height:100%; border-radius:10px; background:#f59e0b; }
+    .prog-fill-red    { height:100%; border-radius:10px; background:#dc2626; }
+    .prog-label { font-size:12px; color:#6b7280; }
+
+    .field-demo { background:#f8fafc; border:1px solid #e8edf2; border-radius:10px; padding:16px 20px; margin:16px 0; display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:14px; }
+    .field-lbl { font-size:11px; color:#9ca3af; font-weight:500; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+    .field-val { font-family:'Courier New',monospace; font-size:14px; font-weight:600; color:#111827; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Timbrado</h1>
+    <p class="cover-subtitle">Gestión de timbrados y puntos de emisión para la facturación</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Timbrado</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista (lectura)</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar y filtrar timbrados</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de un timbrado</a></li>
+      <li><a href="#s6"><span class="num">06</span> Registrar un nuevo timbrado</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un timbrado</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar un timbrado</a></li>
+      <li><a href="#s9"><span class="num">09</span> Vigencia y progreso de uso</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ SECCIÓN 1 ══ -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+
+      <p>El módulo <strong>Timbrado</strong> administra las autorizaciones de la SET (Subsecretaría de Estado de Tributación) que habilitan a la clínica a emitir comprobantes fiscales. Cada timbrado define el número de autorización, el período de vigencia, el rango de números de comprobante habilitados y el punto de emisión (sucursal y expedición).</p>
+
+      <p>Sin un timbrado vigente, el sistema no puede generar facturas. Por eso es importante mantener este módulo actualizado antes de que venzan los timbrados activos.</p>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Administrador</th>
+            <th>Recepcionista</th>
+            <th>Médico</th>
+            <th>Secretaria médico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver listado de timbrados</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Ver detalle de un timbrado</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Registrar nuevo timbrado</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Editar timbrado</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Eliminar timbrado</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">El módulo de Timbrado no está disponible para los roles <strong>Médico</strong> y <strong>Secretaria médico</strong>. Los roles <strong>Recepcionista</strong> pueden consultarlo pero no modificarlo.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 2 ══ -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+
+      <p>El módulo de Timbrado se encuentra en el menú lateral bajo el grupo <strong>Facturación</strong>.</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Iniciá sesión en el sistema con tu usuario y contraseña.</span></li>
+        <li><span class="step-text">En el menú lateral izquierdo, hacé clic en <strong>Facturación</strong> para expandir el grupo.</span></li>
+        <li><span class="step-text">Seleccioná <strong>Timbrado</strong> dentro del grupo.</span></li>
+        <li><span class="step-text">La pantalla principal carga automáticamente con todos los timbrados registrados.</span></li>
+      </ol>
+    </div>
+
+    <!-- ══ SECCIÓN 3 ══ -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/01_listado.png" alt="Pantalla principal de Timbrado" />
+        <div class="screenshot-caption">Listado de timbrados con barra de búsqueda, filtro de vigencia y botón Nuevo.</div>
+      </div>
+
+      <p>La pantalla principal muestra la tabla de timbrados junto con una barra de búsqueda, un filtro de vigencia y el botón <strong>+ Nuevo timbrado</strong> (solo visible para administradores).</p>
+
+      <p>Cada fila de la tabla contiene:</p>
+
+      <table>
+        <thead><tr><th>Columna</th><th>Contenido</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Nro. Timbrado</strong></td>
+            <td>Número de autorización de la SET, en tipografía monoespaciada.</td>
+          </tr>
+          <tr>
+            <td><strong>Tipo</strong></td>
+            <td>
+              <span class="badge" style="background:#dbeafe;color:#1e40af">Talonario</span> para comprobantes físicos,
+              <span class="badge" style="background:#fef3c7;color:#92400e">Autoimpresor</span> para sistemas de impresión propia con resolución SET.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Vigencia</strong></td>
+            <td>Barra de progreso que muestra visualmente cuánto del período de vigencia ha transcurrido, junto con las fechas de inicio y fin.</td>
+          </tr>
+          <tr>
+            <td><strong>Comprobantes</strong></td>
+            <td>Rango habilitado (nro. desde → nro. hasta) y porcentaje de números ya utilizados.</td>
+          </tr>
+          <tr>
+            <td><strong>Punto emisión</strong></td>
+            <td>Código de sucursal y expedición en formato <code>001-001</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>
+              <span class="badge badge-vigente">Vigente</span> si la fecha actual está dentro del período,
+              <span class="badge badge-vencido">Vencido</span> si la fecha de fin ya pasó.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Clic en una fila</strong> abre el panel de detalle lateral con información completa del timbrado y los botones de acción (solo para administradores).</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 4 ══ -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar y filtrar timbrados</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/02_busqueda.png" alt="Búsqueda activa en timbrado" />
+        <div class="screenshot-caption">Tabla filtrada por número de timbrado.</div>
+      </div>
+
+      <h3>Búsqueda por número</h3>
+      <p>El campo de texto busca por <strong>número de timbrado</strong> o por <strong>número de habilitación SET</strong> (para autoimpresor). La búsqueda aplica con un breve retardo automático mientras se escribe; no es necesario presionar Enter.</p>
+
+      <h3>Filtro por estado</h3>
+      <p>El selector desplegable junto al buscador filtra por estado de vigencia:</p>
+
+      <table>
+        <thead><tr><th>Opción</th><th>Muestra</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Todos</strong></td><td>Todos los timbrados activos (vigentes y vencidos). <em>Valor por defecto.</em></td></tr>
+          <tr><td><strong>Vigentes</strong></td><td>Solo timbrados cuya fecha de fin es posterior a hoy.</td></tr>
+          <tr><td><strong>Expirados</strong></td><td>Solo timbrados cuya fecha de fin ya pasó.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Si la búsqueda no encuentra resultados, la tabla muestra <strong>"No hay timbrados registrados."</strong> — no es un error. Borrá el texto o cambiá el filtro para ver todos.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 5 ══ -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de un timbrado</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/03_panel_detalle.png" alt="Panel de detalle del timbrado" />
+        <div class="screenshot-caption">Panel de detalle con vigencia, punto de emisión y comprobantes.</div>
+      </div>
+
+      <p>Al hacer clic en cualquier fila se abre el <strong>panel lateral de detalle</strong>. Para cerrarlo, hacé clic en la <strong>X</strong> del encabezado o clic nuevamente en la misma fila.</p>
+
+      <h3>Información mostrada</h3>
+      <table>
+        <thead><tr><th>Sección</th><th>Datos</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Encabezado</strong></td>
+            <td>Número de timbrado en grande, tipo (Talonario / Autoimpresor) y estado (Vigente / Vencido).</td>
+          </tr>
+          <tr>
+            <td><strong>Vigencia</strong></td>
+            <td>Fechas de inicio y fin, días restantes (o hace cuántos días venció), barra de progreso y porcentaje transcurrido.</td>
+          </tr>
+          <tr>
+            <td><strong>Punto de emisión</strong></td>
+            <td>Sucursal, expedición y el formato completo del comprobante (<code>001-001-XXXXXXX</code>).</td>
+          </tr>
+          <tr>
+            <td><strong>Comprobantes</strong></td>
+            <td>Rango habilitado (desde / hasta), total habilitados, próximo número a emitir, disponibles restantes y barra de uso.</td>
+          </tr>
+          <tr>
+            <td><strong>Habilitación SET</strong></td>
+            <td>Número de resolución (solo aparece en timbrados tipo Autoimpresor).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Botones de acción</h3>
+      <p>Solo visibles para el rol <span class="badge badge-admin">Admin</span>:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li><strong>Editar</strong> — abre el formulario de edición con los datos precargados.</li>
+        <li><strong>Eliminar</strong> — abre un diálogo de confirmación antes de borrar.</li>
+      </ul>
+    </div>
+
+    <!-- ══ SECCIÓN 6 ══ -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Registrar un nuevo timbrado</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo el rol <span class="badge badge-admin">Admin</span> puede registrar nuevos timbrados.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/04_panel_crear.png" alt="Formulario de nuevo timbrado vacío" />
+        <div class="screenshot-caption">Panel de creación con el formulario vacío y el selector de tipo.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en el botón <strong>+ Nuevo timbrado</strong> en la parte superior derecha.</span></li>
+        <li><span class="step-text">Se abre el panel lateral con el formulario de creación.</span></li>
+        <li><span class="step-text">Completá todos los campos requeridos (marcados con <strong>*</strong>).</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Crear timbrado</strong> para guardar.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/05_panel_crear_completo.png" alt="Formulario de nuevo timbrado completo" />
+        <div class="screenshot-caption">Formulario con todos los campos completados, listo para guardar.</div>
+      </div>
+
+      <h3>Campos del formulario</h3>
+
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th><th>Formato</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Tipo *</strong></td>
+            <td>Seleccioná <em>Talonario</em> (estándar) o <em>Autoimpresor</em> (requiere resolución SET).</td>
+            <td>Botón de selección</td>
+          </tr>
+          <tr>
+            <td><strong>Nro. de timbrado *</strong></td>
+            <td>Número de autorización tal como aparece en el documento de la SET. Solo dígitos numéricos, máximo 8 caracteres.</td>
+            <td><code>12345678</code></td>
+          </tr>
+          <tr>
+            <td><strong>Inicio de vigencia *</strong></td>
+            <td>Fecha desde la cual el timbrado es válido.</td>
+            <td>DD/MM/AAAA</td>
+          </tr>
+          <tr>
+            <td><strong>Fin de vigencia *</strong></td>
+            <td>Fecha hasta la cual el timbrado es válido. Debe ser posterior al inicio.</td>
+            <td>DD/MM/AAAA</td>
+          </tr>
+          <tr>
+            <td><strong>Punto sucursal *</strong></td>
+            <td>Código de sucursal del punto de emisión. Exactamente 3 dígitos. Se completa automáticamente con ceros al perder el foco.</td>
+            <td><code>001</code></td>
+          </tr>
+          <tr>
+            <td><strong>Punto expedición *</strong></td>
+            <td>Código de expedición del punto de emisión. Exactamente 3 dígitos.</td>
+            <td><code>001</code></td>
+          </tr>
+          <tr>
+            <td><strong>Nro. desde *</strong></td>
+            <td>Primer número de comprobante habilitado. Se completa con ceros a la izquierda (7 dígitos).</td>
+            <td><code>0000001</code></td>
+          </tr>
+          <tr>
+            <td><strong>Nro. hasta *</strong></td>
+            <td>Último número habilitado. Debe ser mayor al número desde.</td>
+            <td><code>0999999</code></td>
+          </tr>
+          <tr>
+            <td><strong>Nro. habilitación SET</strong></td>
+            <td>Número de resolución de la SET. <strong>Requerido únicamente para timbrados tipo Autoimpresor.</strong></td>
+            <td>Texto libre</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">El sistema valida que no exista otro timbrado activo con el mismo número, fechas de vigencia y punto de emisión. Si ya existe, muestra un mensaje de error y mantiene el formulario abierto para corrección.</div>
+      </div>
+
+      <h3>Completado automático de campos numéricos</h3>
+      <p>Los campos <strong>Punto sucursal</strong>, <strong>Punto expedición</strong>, <strong>Nro. desde</strong> y <strong>Nro. hasta</strong> se completan automáticamente con ceros a la izquierda al hacer clic fuera del campo. Por ejemplo: ingresar <code>1</code> en Punto sucursal y hacer clic fuera produce <code>001</code>.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 7 ══ -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un timbrado</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo el rol <span class="badge badge-admin">Admin</span> puede editar timbrados.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/06_panel_editar.png" alt="Panel de edición de timbrado" />
+        <div class="screenshot-caption">Formulario de edición con los datos del timbrado precargados.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en la fila del timbrado que querés editar para abrir el panel de detalle.</span></li>
+        <li><span class="step-text">Hacé clic en el botón <strong>Editar</strong> en la parte inferior del panel.</span></li>
+        <li><span class="step-text">El panel cambia al formulario de edición con todos los datos precargados.</span></li>
+        <li><span class="step-text">Modificá los campos necesarios y hacé clic en <strong>Guardar cambios</strong>.</span></li>
+      </ol>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">Al editar, la validación de duplicado excluye el propio timbrado. Guardar sin cambios no genera ningún error.</div>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">No se recomienda editar el número de timbrado (<code>nro_timbrado</code>) de un timbrado que ya tiene facturas emitidas, ya que quedarían facturas con un número de timbrado que no coincide con el registro actual.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 8 ══ -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar un timbrado</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo el rol <span class="badge badge-admin">Admin</span> puede eliminar timbrados.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/07_confirm_eliminar.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">Diálogo de confirmación antes de eliminar un timbrado.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en la fila del timbrado para abrir el panel de detalle.</span></li>
+        <li><span class="step-text">Hacé clic en el botón <strong>Eliminar</strong> en la parte inferior del panel.</span></li>
+        <li><span class="step-text">Aparece un diálogo de confirmación que indica que no se puede eliminar si tiene facturas emitidas.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar, o en <strong>Cancelar</strong> para volver sin cambios.</span></li>
+      </ol>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body"><strong>No se puede eliminar</strong> un timbrado que tenga facturas emitidas. El sistema rechazará la operación con un mensaje de error. Para dar de baja un timbrado activo con facturas, simplemente dejá que venza su fecha de fin o no lo asignes a nuevas facturas.</div>
+      </div>
+
+      <p>El borrado es <strong>lógico</strong> — el registro no se borra físicamente de la base de datos, solo queda marcado como eliminado y deja de aparecer en el listado.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 9 ══ -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Vigencia y progreso de uso</h2>
+      </div>
+
+      <p>Tanto en la tabla como en el panel de detalle, el sistema muestra indicadores visuales que permiten saber de un vistazo el estado de cada timbrado.</p>
+
+      <h3>Barra de vigencia</h3>
+      <p>La barra de progreso en la columna <strong>Vigencia</strong> representa cuánto del período autorizado ha transcurrido. El color indica la urgencia:</p>
+
+      <div class="prog-demo">
+        <div style="margin-bottom:14px;">
+          <div style="font-size:13px;color:#374151;margin-bottom:4px;"><strong>Más de 180 días restantes</strong> — sin urgencia</div>
+          <div class="prog-track"><div class="prog-fill-green" style="width:20%"></div></div>
+          <div class="prog-label">20% transcurrido · 182 días restantes</div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:13px;color:#374151;margin-bottom:4px;"><strong>Entre 60 y 180 días restantes</strong> — atención próxima</div>
+          <div class="prog-track"><div class="prog-fill-amber" style="width:60%"></div></div>
+          <div class="prog-label">60% transcurrido · 90 días restantes</div>
+        </div>
+        <div>
+          <div style="font-size:13px;color:#374151;margin-bottom:4px;"><strong>Menos de 60 días restantes o vencido</strong> — renovar urgente</div>
+          <div class="prog-track"><div class="prog-fill-red" style="width:95%"></div></div>
+          <div class="prog-label">95% transcurrido · 15 días restantes</div>
+        </div>
+      </div>
+
+      <h3>Barra de uso de comprobantes</h3>
+      <p>En el panel de detalle, una segunda barra muestra el porcentaje de números de comprobante ya utilizados dentro del rango habilitado.</p>
+
+      <div class="field-demo">
+        <div>
+          <div class="field-lbl">Total habilitados</div>
+          <div class="field-val">999.000</div>
+        </div>
+        <div>
+          <div class="field-lbl">Próximo número</div>
+          <div class="field-val" style="background:#dbeafe;color:#1d4ed8;display:inline-block;padding:2px 8px;border-radius:6px;font-size:13px;">0001547</div>
+        </div>
+        <div>
+          <div class="field-lbl">Disponibles</div>
+          <div class="field-val">997.454</div>
+        </div>
+        <div>
+          <div class="field-lbl">Utilizado</div>
+          <div class="field-val">0%</div>
+        </div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/timbrado/08_navigation_guard.png" alt="Filtro de timbrados expirados" />
+        <div class="screenshot-caption">Filtro aplicado: solo timbrados con estado Vencido.</div>
+      </div>
+
+      <h3>Cuándo renovar el timbrado</h3>
+      <p>Se recomienda gestionar la renovación ante la SET cuando:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li>La barra de vigencia esté en color <strong style="color:#f59e0b">naranja</strong> (menos de 180 días).</li>
+        <li>El porcentaje de comprobantes utilizados supere el 80%.</li>
+        <li>El badge de estado muestre <span class="badge badge-vencido">Vencido</span>.</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">Si el timbrado vence y no se registra uno nuevo, el módulo de Facturación no podrá generar nuevas facturas. El sistema validará automáticamente que el número de comprobante esté dentro de un timbrado vigente.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 10 ══ -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:42%">Mensaje o situación</th>
+            <th>Causa y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><em>"Ya existe un timbrado activo con el mismo número, fechas de vigencia y punto de emisión."</em></td>
+            <td>Se está intentando registrar un timbrado idéntico a uno ya existente. Verificá si ya fue cargado o corregí alguno de los campos que lo diferencie (rango de comprobantes, punto de emisión, etc.).</td>
+          </tr>
+          <tr>
+            <td><em>"Debe ser exactamente 3 dígitos numéricos (ej: 001)."</em></td>
+            <td>Los campos Punto sucursal y Punto expedición requieren exactamente 3 dígitos. Ingresá el valor sin letras ni espacios; el sistema agrega los ceros automáticamente al salir del campo.</td>
+          </tr>
+          <tr>
+            <td><em>"La fecha de fin debe ser posterior a la de inicio."</em></td>
+            <td>La fecha de fin de vigencia es anterior o igual a la de inicio. Corregí las fechas.</td>
+          </tr>
+          <tr>
+            <td><em>"El número hasta debe ser mayor al número desde."</em></td>
+            <td>El rango de comprobantes está invertido. El campo Nro. hasta debe ser mayor al Nro. desde.</td>
+          </tr>
+          <tr>
+            <td><em>"Requerido para timbrado autoimpresor."</em></td>
+            <td>Al seleccionar el tipo Autoimpresor, el campo Nro. habilitación SET pasa a ser obligatorio. Ingresá el número de resolución otorgado por la SET.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede eliminar: tiene facturas activas vinculadas."</em></td>
+            <td>El timbrado tiene facturas emitidas asociadas. No es posible eliminarlo. Para retirarlo del uso activo, dejá que venza naturalmente o no lo selecciones al emitir nuevas facturas.</td>
+          </tr>
+          <tr>
+            <td>El botón <strong>Nuevo timbrado</strong> no aparece</td>
+            <td>El usuario no tiene rol Administrador. Solo los administradores pueden crear timbrados.</td>
+          </tr>
+          <tr>
+            <td>Los botones <strong>Editar</strong> y <strong>Eliminar</strong> no aparecen en el panel</td>
+            <td>El usuario no tiene rol Administrador. Los recepcionistas pueden ver el detalle pero no modificar los timbrados.</td>
+          </tr>
+          <tr>
+            <td>El timbrado aparece como <span class="badge badge-vencido">Vencido</span> pero las fechas parecen correctas</td>
+            <td>El sistema compara con la fecha del servidor. Verificá que la fecha de fin de vigencia sea posterior a la fecha actual del servidor (no la del equipo local).</td>
+          </tr>
+          <tr>
+            <td>El campo Nro. habilitación SET está deshabilitado</td>
+            <td>Este campo solo se activa cuando el tipo seleccionado es <strong>Autoimpresor</strong>. Si el timbrado es de tipo Talonario, este campo no aplica y permanece bloqueado.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr>
+
+      <div class="highlight-box">
+        <strong>Flujo de trabajo recomendado al recibir un nuevo timbrado de la SET:</strong>
+        <ol style="margin:10px 0 0 20px; font-size:14px; color:#374151;">
+          <li style="margin-bottom:6px;">Ingresá al módulo <strong>Facturación → Timbrado</strong>.</li>
+          <li style="margin-bottom:6px;">Hacé clic en <strong>+ Nuevo timbrado</strong>.</li>
+          <li style="margin-bottom:6px;">Seleccioná el tipo (Talonario o Autoimpresor) según el documento de la SET.</li>
+          <li style="margin-bottom:6px;">Ingresá el número de timbrado, el período de vigencia y el rango de comprobantes exactamente como figuran en la autorización.</li>
+          <li style="margin-bottom:6px;">Configurá el punto de emisión (<code>001-001</code> para una única sucursal).</li>
+          <li>Hacé clic en <strong>Crear timbrado</strong> y verificá que el estado quede como <span class="badge badge-vigente">Vigente</span>.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Manual de Usuario · Módulo Timbrado · Versión 1.0 · Mayo 2026
+  </div>
+
+</div>
+</body>
+</html>

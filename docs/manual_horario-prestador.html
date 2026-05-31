@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Horario Prestador · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .action-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:14px; }
+    .action-icon { background:#f8fafc; border:1px solid #e8edf2; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Horario Prestador</h1>
+    <p class="cover-subtitle">Configuración de horarios de atención y generación de turnos</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Horario Prestador</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TOC ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar un prestador</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver horarios de un prestador</a></li>
+      <li><a href="#s6"><span class="num">06</span> Configurar horarios</a></li>
+      <li><a href="#s7"><span class="num">07</span> Generar turnos</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar horarios</a></li>
+      <li><a href="#s9"><span class="num">09</span> Protección de cambios sin guardar</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 ─ Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Horario Prestador</strong> permite configurar los horarios de atención
+        de cada prestador de la clínica y generar los turnos disponibles en la Agenda.
+        Cada prestador puede tener múltiples horarios: uno por cada día de la semana en que
+        atiende, con su franja horaria, duración de turno, consultorio y especialidades.
+      </p>
+      <p>
+        También admite <strong>excepciones</strong>: horarios puntuales para una fecha específica
+        (útil para guardias o atenciones extraordinarias), con el mismo nivel de configuración
+        que los horarios semanales.
+      </p>
+
+      <table>
+        <thead><tr>
+          <th>Acción</th>
+          <th><span class="badge badge-admin">Administrador</span></th>
+          <th><span class="badge badge-recep">Recepcionista</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Ver listado y horarios</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Configurar / editar horarios</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Generar turnos</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Eliminar horarios</td><td>✅</td><td>🚫 (el backend lo bloquea)</td></tr>
+          <tr><td>Generar PDF / Excel de horarios</td><td>✅</td><td>✅</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los roles <strong>Médico</strong> y <strong>Secretaria de médico</strong>
+          acceden a este módulo en modo restringido: solo ven su propio prestador (o el
+          médico asignado) sin la lista general. Pueden configurar sus horarios con las mismas
+          herramientas, pero sin visibilidad de los demás prestadores.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ─ Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, dentro del grupo <strong>Agenda</strong>, hacé clic en
+        <strong>Horarios</strong>. Esta opción es visible para Administrador y Recepcionista.
+        Médicos y secretarias también pueden acceder desde su sesión respectiva.
+      </p>
+    </div>
+
+    <!-- 3 ─ Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado de prestadores</h2>
+      </div>
+      <p>
+        Al ingresar se muestra la lista de todos los prestadores activos.
+        Para cada uno se muestran las <strong>pills</strong> de horarios configurados:
+        cada pill indica el día abreviado, la hora de inicio y fin.
+        Si el horario está inactivo, la pill aparece con menor opacidad.
+        Si es una excepción, lleva un ícono de advertencia.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/01_listado.png" alt="Listado de prestadores con horarios" />
+        <div class="screenshot-caption">Vista principal — tabla con Prestador, Horarios configurados (pills por día) y Acciones</div>
+      </div>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Prestador</strong></td>
+            <td>Avatar con iniciales, nombre completo y cargo o especialidades.</td>
+          </tr>
+          <tr>
+            <td><strong>Horarios configurados</strong></td>
+            <td>Pills con el día abreviado y la franja horaria de cada horario activo del prestador. Los horarios inactivos aparecen tachados. Si no tiene horarios, muestra <em>"Sin horarios"</em>.</td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>
+              <div class="action-row"><div class="action-icon">›</div><span><strong>Ver</strong> — abre el panel en modo detalle de horarios</span></div>
+              <div class="action-row"><div class="action-icon">✏️</div><span><strong>Editar</strong> — abre el panel en modo edición de horarios</span></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Reportes — PDF y Excel</h3>
+      <p>
+        Los botones <strong>PDF</strong> y <strong>Excel</strong> en la barra superior generan
+        un informe con todos los horarios activos de todos los prestadores, agrupados por
+        prestador e incluyendo día, franja, intervalo, especialidades y estado.
+      </p>
+    </div>
+
+    <!-- 4 ─ Buscar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar un prestador</h2>
+      </div>
+      <p>
+        El campo de búsqueda filtra la lista en tiempo real por <strong>nombre completo</strong>,
+        <strong>número de documento</strong> o <strong>número de matrícula</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/02_busqueda.png" alt="Búsqueda activa por nombre" />
+        <div class="screenshot-caption">Búsqueda activa — la lista filtra por nombre, documento o matrícula del prestador</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Comportamiento</th><th>Detalle</th></tr></thead>
+        <tbody>
+          <tr><td>Por nombre</td><td>Filtra por el nombre completo del prestador (sin distinción de mayúsculas).</td></tr>
+          <tr><td>Por documento</td><td>Filtra por el número de documento de identidad.</td></tr>
+          <tr><td>Por matrícula</td><td>Filtra por el número de matrícula profesional.</td></tr>
+          <tr><td>Sin resultados</td><td>La tabla muestra el estado vacío: <em>"No se encontraron prestadores"</em>.</td></tr>
+          <tr><td>Limpiar</td><td>Borrá el texto para volver al listado completo.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5 ─ Ver horarios -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver horarios de un prestador</h2>
+      </div>
+      <p>
+        Hacé clic en cualquier parte de una fila o en el botón <strong>›</strong>
+        para abrir el panel lateral derecho con todos los horarios del prestador en modo lectura.
+        La fila seleccionada queda resaltada en azul.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/03_panel_ver.png" alt="Panel en modo ver" />
+        <div class="screenshot-caption">Panel de vista — horarios organizados por día con franja, intervalo, consultorio y especialidades; sección de generación de turnos al pie</div>
+      </div>
+
+      <p>El panel de vista muestra:</p>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2.2;">
+        <li>Horarios agrupados por día de la semana</li>
+        <li>Franja horaria (desde–hasta), duración de turno (badge azul) y badge <em>INACTIVO</em> si aplica</li>
+        <li>Consultorio y especialidades de cada franja</li>
+        <li>Excepciones con su fecha puntual indicada</li>
+        <li>Sección <strong>Generar turnos</strong> al pie del panel (ver sección 07)</li>
+      </ul>
+
+      <div class="action-row" style="margin-bottom:8px;">
+        <div class="action-icon" style="width:auto;padding:4px 12px;font-size:13px;">✏️ Editar horarios</div>
+        <span style="font-size:14px;color:#374151;">Abre el modo edición sin cerrar el panel.</span>
+      </div>
+      <p style="margin-top:12px;">Para cerrar el panel hacé clic en la <strong>×</strong> del encabezado.</p>
+    </div>
+
+    <!-- 6 ─ Configurar horarios -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Configurar horarios</h2>
+      </div>
+      <p>
+        Hacé clic en el ícono de lápiz de una fila o en el botón <strong>Editar horarios</strong>
+        del panel de vista. El panel cambia al modo edición mostrando los horarios actuales del
+        prestador como bloques editables.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/04_panel_editar.png" alt="Panel editar con bloque vacío" />
+        <div class="screenshot-caption">Panel edición con bloque vacío — aparece al hacer clic en "Agregar horario" para un prestador sin horarios configurados</div>
+      </div>
+
+      <h3>Agregar un horario</h3>
+      <ol class="steps">
+        <li><div class="step-text">Abrí el panel en modo edición haciendo clic en ✏️ de la fila.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>+ Agregar horario</strong> en el pie del panel.</div></li>
+        <li><div class="step-text">Completá los campos del bloque que apareció.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd>.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/05_panel_editar_completo.png" alt="Panel editar con bloque completado" />
+        <div class="screenshot-caption">Panel edición con bloque completado — muestra estado, excepción, día, horas, consultorio, intervalo y especialidades</div>
+      </div>
+
+      <h3>Campos de cada bloque de horario</h3>
+      <table>
+        <thead><tr><th>Campo</th><th>Obligatorio</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Día de la semana</strong></td><td>✅ Sí</td><td>Lunes a Domingo. No requerido si el horario es una excepción.</td></tr>
+          <tr><td><strong>Desde</strong></td><td>✅ Sí</td><td>Hora de inicio de atención (formato HH:MM).</td></tr>
+          <tr><td><strong>Hasta</strong></td><td>✅ Sí</td><td>Hora de fin de atención. Debe ser posterior a "Desde".</td></tr>
+          <tr><td>Estado</td><td>No</td><td>Toggle Activo/Inactivo. Los horarios inactivos no generan turnos.</td></tr>
+          <tr><td>Excepción</td><td>No</td><td>Checkbox. Al activarlo reemplaza el selector de día por un campo de fecha puntual.</td></tr>
+          <tr><td>Fecha puntual</td><td>Si excepción ✅</td><td>Fecha exacta del horario de excepción. El día de la semana se asigna automáticamente.</td></tr>
+          <tr><td>Consultorio</td><td>No</td><td>Consultorio donde se realiza la atención.</td></tr>
+          <tr><td>Intervalo</td><td>No</td><td>Duración de cada turno: 15, 20, 30, 45 o 60 minutos. Por defecto 30 min.</td></tr>
+          <tr><td>Especialidades</td><td>No</td><td>Especialidades médicas que se atienden en esta franja horaria.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Navegar entre múltiples horarios</h3>
+      <p>
+        Cuando el prestador tiene más de un horario configurado, el panel muestra una barra
+        de navegación con puntos que representan cada horario. Usá los botones
+        <strong>Anterior</strong> y <strong>Siguiente</strong> para moverse entre ellos,
+        o hacé clic directamente en cada punto.
+      </p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Solapamiento detectado:</strong> si dos horarios del mismo prestador para
+          el mismo día tienen franjas que se superponen, aparece una advertencia ámbar bajo el
+          bloque activo. No bloquea el guardado, pero es una señal de configuración incorrecta.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          No se puede tener dos horarios para el mismo prestador con el mismo día de la semana
+          y la misma hora de inicio. Si intentás guardar esa combinación, el servidor retorna
+          un error de duplicado.
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 ─ Generar turnos -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Generar turnos</h2>
+      </div>
+      <p>
+        Desde el panel en modo <strong>ver</strong>, al pie de los horarios, encontrás la sección
+        <strong>Generar turnos</strong>. Esta función crea automáticamente los turnos disponibles
+        en la Agenda para el rango de fechas indicado.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/06_generar_resultado.png" alt="Resultado de generación de turnos" />
+        <div class="screenshot-caption">Panel ver después de generar turnos — muestra cuántos turnos se crearon por fecha y el total; el botón de generación se desactiva mientras procesa</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">Abrí el panel del prestador en modo ver (clic en la fila o en el botón ›).</div></li>
+        <li><div class="step-text">Bajá hasta la sección <strong>Generar turnos</strong>.</div></li>
+        <li><div class="step-text">Ajustá el rango de fechas <strong>Desde</strong> y <strong>Hasta</strong>. Por defecto abarca desde hoy hasta 30 días.</div></li>
+        <li><div class="step-text">Antes de confirmar, el panel muestra un preview con el total estimado de turnos a generar.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Confirmar generación</strong>.</div></li>
+        <li><div class="step-text">El sistema genera los turnos y muestra el detalle por fecha.</div></li>
+      </ol>
+
+      <div class="highlight-box">
+        <strong>Comportamiento por día:</strong> el sistema solo genera turnos para los días de la semana que coincidan con el horario. Por ejemplo, un horario configurado para los Lunes solo genera turnos en las fechas que sean lunes dentro del rango seleccionado.
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          La generación es <strong>idempotente</strong>: si ya existe un turno para una franja
+          específica, no se crea uno duplicado. Los turnos omitidos se indican en el resultado.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Para el día de hoy:</strong> solo se generan los turnos cuya hora aún no
+          haya pasado. Los slots anteriores a la hora actual se omiten automáticamente.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          El botón <strong>Confirmar generación</strong> está deshabilitado cuando el prestador
+          no tiene horarios activos. Primero configurá al menos un horario activo.
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 ─ Eliminar horarios -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar horarios</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar horarios. Si la Recepcionista
+          intenta guardar habiendo quitado bloques existentes, el servidor rechaza la operación.
+        </div>
+      </div>
+
+      <p>
+        Para eliminar un horario, abrí el panel en modo edición, hacé clic en el botón
+        🗑️ del bloque que querés quitar y luego hacé clic en <strong>Guardar</strong>.
+        Si estás eliminando horarios que ya estaban guardados, aparece un diálogo de confirmación.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/07_confirm_eliminar.png" alt="Diálogo de confirmación al eliminar horarios" />
+        <div class="screenshot-caption">Diálogo de confirmación — avisa que si el horario tiene turnos activos la operación fallará en el servidor</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">Abrí el panel del prestador en modo edición (botón ✏️).</div></li>
+        <li><div class="step-text">Ubicá el bloque del horario a eliminar y hacé clic en el ícono 🗑️ del bloque.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong>.</div></li>
+        <li><div class="step-text">Aparece un diálogo de confirmación — hacé clic en <strong>Continuar</strong>.</div></li>
+        <li><div class="step-text">El horario se elimina. Se muestra una notificación verde.</div></li>
+      </ol>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar un horario con turnos activos</strong>
+          (en estado disponible, ocupado o realizado). Primero debés cancelar o finalizar
+          todos los turnos de ese horario desde el módulo <em>Agenda</em>.
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Si un horario tiene solo turnos cancelados, puede eliminarse sin restricción.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Guard -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Protección de cambios sin guardar</h2>
+      </div>
+      <p>
+        El sistema activa la protección cuando el panel está en modo <strong>Editar</strong>.
+        Al intentar cerrar con la <strong>×</strong>, cancelar o navegar a otro módulo,
+        aparece un diálogo de advertencia.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/horario-prestador/08_navigation_guard.png" alt="Diálogo de protección de cambios" />
+        <div class="screenshot-caption">Diálogo de protección — aparece al cerrar el panel con la × cuando hay cambios en modo edición</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Opción</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Seguir editando</strong></td>
+            <td>Cierra el diálogo y vuelve al formulario con los datos intactos.</td>
+          </tr>
+          <tr>
+            <td><strong>Continuar sin guardar</strong></td>
+            <td>Descarta los cambios y cierra el panel (o navega al destino solicitado).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Cuándo aparece el diálogo:</strong>
+          <ul style="margin-top:8px;margin-left:18px;line-height:2;">
+            <li>Al cerrar el panel con la <strong>×</strong> en modo edición</li>
+            <li>Al hacer clic en <strong>Cancelar</strong> en modo edición</li>
+            <li>Al hacer clic en otra fila de la tabla con el panel en modo edición</li>
+            <li>Al navegar a otro módulo desde el menú lateral</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 ─ Errores -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead><tr><th>Mensaje / Situación</th><th>Causa</th><th>Qué hacer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>"Completá los campos requeridos marcados en rojo."</td>
+            <td>Intentaste guardar con algún bloque incompleto: falta el día, la hora desde o la hora hasta.</td>
+            <td>Completá los campos resaltados en rojo antes de guardar. El sistema te lleva automáticamente al bloque con errores.</td>
+          </tr>
+          <tr>
+            <td>"Ya existe un horario para este prestador con el mismo día y hora de inicio."</td>
+            <td>Dos bloques del mismo prestador tienen el mismo día de semana y la misma hora de inicio.</td>
+            <td>Cambiá la hora de inicio o el día de uno de los horarios duplicados.</td>
+          </tr>
+          <tr>
+            <td>"La fecha 'Hasta' no puede ser menor a la fecha actual."</td>
+            <td>El rango de generación termina en una fecha pasada.</td>
+            <td>Ajustá la fecha "Hasta" a una fecha futura o igual a hoy.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar un horario con turnos activos."</td>
+            <td>El horario tiene turnos en estado disponible, ocupado o realizado.</td>
+            <td>Cancelá los turnos activos desde el módulo <em>Agenda</em> y volvé a intentarlo.</td>
+          </tr>
+          <tr>
+            <td>El modal no cierra tras hacer clic en Guardar</td>
+            <td>Error de validación o error de la API (ej: duplicado de horario).</td>
+            <td>Revisá el mensaje de error en la parte superior del panel y corregí el campo indicado.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que pueden confundirse con errores</h3>
+      <table>
+        <thead><tr><th>Situación</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>El botón "Confirmar generación" está deshabilitado</td>
+            <td>El prestador no tiene horarios activos. Configurá al menos un horario con estado Activo.</td>
+          </tr>
+          <tr>
+            <td>La generación dice "0 turnos creados"</td>
+            <td>Ya existen turnos para esas fechas y horarios. La generación no crea duplicados. Esto es correcto.</td>
+          </tr>
+          <tr>
+            <td>Un bloque en naranja/ámbar muestra "Este horario se superpone con..."</td>
+            <td>Dos horarios del mismo prestador se solapan en la misma franja del mismo día. No bloquea el guardado, pero conviene corregirlo para evitar confusiones en la agenda.</td>
+          </tr>
+          <tr>
+            <td>El día de la semana se asigna automáticamente al marcar "Excepción"</td>
+            <td>Al ingresar la fecha puntual, el sistema detecta el día de semana correspondiente y lo asigna internamente. No es necesario seleccionarlo manualmente.</td>
+          </tr>
+          <tr>
+            <td>El panel no muestra el listado general de prestadores</td>
+            <td>Estás conectado con rol Médico o Secretaria de médico. Estos roles ven directamente su propio prestador o el médico asignado, sin la lista general.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="callout ok" style="margin-top:32px;">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Trazabilidad:</strong> todas las operaciones (crear, editar y eliminar horarios)
+        quedan registradas en <strong>Administración → Auditoría</strong> con fecha, hora,
+        usuario y los valores antes y después del cambio.
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top:16px;">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>Impacto en otros módulos:</strong> los horarios configurados aquí son la base
+        de los turnos en <em>Agenda</em>. Al generar turnos, estos quedan disponibles para
+        ser asignados a pacientes. Los turnos ya generados no se modifican si cambiás el horario
+        template — solo afectan los turnos que se generen a partir de ese momento.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Módulo Horario Prestador v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

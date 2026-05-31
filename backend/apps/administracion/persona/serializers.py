@@ -13,6 +13,15 @@ class TipoDocumentoSerializer(serializers.ModelSerializer):
         model = TipoDocumento
         fields = ['id', 'descripcion']
 
+    def validate_descripcion(self, value):
+        valor = value.strip()
+        qs = TipoDocumento.objects.filter(is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.annotate(desc_lower=Lower('descripcion')).filter(desc_lower=valor.lower()).exists():
+            raise serializers.ValidationError('Ya existe un tipo de documento con esa descripción.')
+        return valor
+
 
 class PersonaListSerializer(serializers.ModelSerializer):
     tipo_documento_detalle = TipoDocumentoSerializer(source='tipo_documento', read_only=True)

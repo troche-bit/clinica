@@ -29,7 +29,8 @@ class TipoDocDigitalViewSet(AuditoriaMixin, viewsets.ModelViewSet):
         return TipoDocDigitalSerializer
 
     def perform_destroy(self, instance):
-        if instance.documentos.filter(is_deleted=False).exists():
+        if (instance.documentos.filter(is_deleted=False).exists() or
+                instance.documentos_prestador.filter(is_deleted=False).exists()):
             raise ValidationError('No se puede eliminar: tiene documentos activos vinculados.')
         super().perform_destroy(instance)
 

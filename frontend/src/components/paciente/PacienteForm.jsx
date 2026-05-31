@@ -311,7 +311,11 @@ export default function PacienteForm({ onSuccess, pacienteInicial = null }) {
 
       const prepararPersona = (data) => ({
         ...data,
-        ruc_dv: data.ruc_dv ? parseInt(data.ruc_dv) : null,
+        ruc_dv:           data.ruc_dv           ? parseInt(data.ruc_dv) : null,
+        pais:             data.pais              || null,
+        departamento:     data.departamento      || null,
+        ciudad:           data.ciudad            || null,
+        fecha_nacimiento: data.fecha_nacimiento  || null,
       })
 
       if (resultado.modo === 'crear_todo') {

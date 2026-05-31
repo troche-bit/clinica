@@ -27,11 +27,13 @@ class HorarioPrestadorSerializer(serializers.ModelSerializer):
         validators = []
 
     def validate(self, data):
-        hora_desde      = data.get('hora_desde')
-        hora_hasta      = data.get('hora_hasta')
-        excepcion       = data.get('excepcion', False)
-        fecha_excepcion = data.get('fecha_excepcion')
-        dia_semana      = data.get('dia_semana')
+        inst            = self.instance
+        hora_desde      = data.get('hora_desde',      inst.hora_desde      if inst else None)
+        hora_hasta      = data.get('hora_hasta',      inst.hora_hasta      if inst else None)
+        excepcion       = data.get('excepcion',       inst.excepcion       if inst else False)
+        fecha_excepcion = data.get('fecha_excepcion', inst.fecha_excepcion if inst else None)
+        dia_semana      = data.get('dia_semana',      inst.dia_semana      if inst else None)
+        persona_rrhh    = data.get('persona_rrhh',    inst.persona_rrhh    if inst else None)
 
         # hora_hasta debe ser posterior a hora_desde
         if hora_desde and hora_hasta and hora_hasta <= hora_desde:
@@ -65,8 +67,8 @@ class HorarioPrestadorSerializer(serializers.ModelSerializer):
         # Unicidad: mismo prestador, día y hora de inicio (solo horarios no excepción)
         if not excepcion:
             qs = HorarioPrestador.objects.filter(
-                persona_rrhh=data.get('persona_rrhh'),
-                dia_semana=data.get('dia_semana'),
+                persona_rrhh=persona_rrhh,
+                dia_semana=dia_semana,
                 hora_desde=hora_desde,
                 is_deleted=False,
                 excepcion=False,

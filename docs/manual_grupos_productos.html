@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Grupos y Productos · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin  { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-activo { background:#dcfce7; color:#166534; }
+    .badge-inactivo { background:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb; }
+    .badge-iva10  { background:#dbeafe; color:#1d4ed8; }
+    .badge-iva5   { background:#dcfce7; color:#16a34a; }
+    .badge-exenta { background:#f3f4f6; color:#6b7280; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    .flow-diagram { display:flex; align-items:center; gap:0; margin:20px 0; flex-wrap:wrap; }
+    .flow-step { background:#e8f0fe; border:1px solid #bfdbfe; border-radius:10px; padding:12px 18px; font-size:13px; font-weight:500; color:#1a3a5c; text-align:center; min-width:140px; }
+    .flow-arrow { font-size:20px; color:#9ca3af; padding:0 8px; flex-shrink:0; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Grupos y Productos</h1>
+    <p class="cover-subtitle">Organización de productos y servicios por categoría para facturación</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Grupos y Productos</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista · Médico (lectura)</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — grupos</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar grupos</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver productos de un grupo</a></li>
+      <li><a href="#s6"><span class="num">06</span> Crear un grupo</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un grupo</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar un grupo</a></li>
+      <li><a href="#s9"><span class="num">09</span> Gestionar productos dentro de un grupo</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ SECCIÓN 1 ══ -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+
+      <p>El módulo <strong>Grupos y Productos</strong> permite organizar los servicios y productos que la clínica ofrece en categorías llamadas <em>grupos</em>. Cada grupo contiene uno o varios productos o servicios con su tipo de impuesto asociado.</p>
+
+      <p>Esta estructura es la base del módulo de <strong>Facturación</strong>: al emitir una factura, los ítems se seleccionan desde este catálogo. Mantenerlo actualizado y organizado facilita la facturación y los reportes.</p>
+
+      <div class="flow-diagram">
+        <div class="flow-step">Grupo<br><small style="font-weight:400;color:#6b7280">ej: Consultas</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Productos<br><small style="font-weight:400;color:#6b7280">ej: Consulta General</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Factura<br><small style="font-weight:400;color:#6b7280">ítem de factura</small></div>
+      </div>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Administrador</th>
+            <th>Recepcionista</th>
+            <th>Médico</th>
+            <th>Secretaria médico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver listado de grupos</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Ver productos de un grupo</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Crear grupo</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Editar grupo</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Eliminar grupo</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Crear producto</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Editar producto</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Eliminar producto</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">Los roles <strong>Médico</strong> y <strong>Secretaria médico</strong> pueden ver el catálogo de grupos y productos, pero no pueden crear, editar ni eliminar registros.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 2 ══ -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+
+      <p>El módulo se encuentra en el menú lateral bajo el grupo <strong>Facturación</strong>.</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Iniciá sesión con tu usuario y contraseña.</span></li>
+        <li><span class="step-text">En el menú lateral izquierdo, hacé clic en <strong>Facturación</strong> para expandir el grupo.</span></li>
+        <li><span class="step-text">Seleccioná <strong>Grupos y Productos</strong>.</span></li>
+        <li><span class="step-text">La pantalla principal carga con las tarjetas de todos los grupos registrados.</span></li>
+      </ol>
+    </div>
+
+    <!-- ══ SECCIÓN 3 ══ -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — grupos</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/01_listado.png" alt="Pantalla principal de Grupos y Productos" />
+        <div class="screenshot-caption">Vista de grupos en tarjetas. Cada tarjeta muestra el nombre, cantidad de productos activos y estado del grupo.</div>
+      </div>
+
+      <p>La pantalla principal muestra los grupos como una <strong>grilla de tarjetas</strong>. Cada tarjeta contiene:</p>
+
+      <table>
+        <thead><tr><th>Elemento</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Nombre del grupo</strong></td>
+            <td>Descripción del grupo en texto destacado.</td>
+          </tr>
+          <tr>
+            <td><strong>Cantidad de productos</strong></td>
+            <td>Badge con el número de productos activos vinculados. Si no tiene productos, muestra <em>"Sin productos"</em>.</td>
+          </tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>
+              <span class="badge badge-activo">Activo</span> o
+              <span class="badge badge-inactivo">Inactivo</span> según el estado del grupo.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Flecha →</strong></td>
+            <td>Indica que al hacer clic en la tarjeta se navega a los productos del grupo.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Clic en una tarjeta</strong> navega a la vista de productos de ese grupo. Los botones <strong>+ Nuevo grupo</strong> (para crear) y el buscador están disponibles en la parte superior derecha (solo visibles para los roles habilitados).</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 4 ══ -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar grupos</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/02_busqueda.png" alt="Búsqueda de grupos activa" />
+        <div class="screenshot-caption">La grilla filtra las tarjetas según el texto ingresado en el buscador.</div>
+      </div>
+
+      <p>El campo de búsqueda en la esquina superior derecha filtra las tarjetas por el <strong>nombre del grupo</strong>. La búsqueda aplica con un breve retardo automático; no es necesario presionar Enter.</p>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Si la búsqueda no encuentra coincidencias, la grilla muestra el estado vacío <em>"No hay grupos registrados."</em> — no es un error. Borrá el texto del buscador para ver todos los grupos nuevamente.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 5 ══ -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver productos de un grupo</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/03_panel_detalle.png" alt="Vista de productos dentro de un grupo" />
+        <div class="screenshot-caption">Al hacer clic en una tarjeta se navega a la vista de productos del grupo, con tabla, buscador y botón Nuevo producto.</div>
+      </div>
+
+      <p>Al hacer clic en cualquier tarjeta de grupo, la pantalla cambia a la <strong>vista de productos</strong> de ese grupo. En el encabezado aparece el nombre del grupo, la cantidad de productos activos y su estado.</p>
+
+      <h3>Tabla de productos</h3>
+      <p>Cada fila de la tabla contiene:</p>
+
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Descripción</strong></td>
+            <td>Nombre del producto o servicio.</td>
+          </tr>
+          <tr>
+            <td><strong>Impuesto</strong></td>
+            <td>
+              <span class="badge badge-iva10">IVA 10%</span>&nbsp;
+              <span class="badge badge-iva5">IVA 5%</span>&nbsp;
+              <span class="badge badge-exenta">Exenta</span>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>
+              <span class="badge badge-activo">Activo</span> o
+              <span class="badge badge-inactivo">Inactivo</span>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>Botón lápiz (editar) y botón basura (eliminar — solo admin). Las filas inactivas aparecen con menor opacidad.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Volver a la lista de grupos</h3>
+      <p>Hacé clic en el botón <strong>← Grupos</strong> en la esquina superior izquierda para regresar a la vista de tarjetas sin perder ningún cambio.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 6 ══ -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Crear un grupo</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo los roles <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span> pueden crear grupos.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/04_panel_crear.png" alt="Panel para crear un grupo — vacío" />
+        <div class="screenshot-caption">Panel deslizante que aparece al hacer clic en + Nuevo grupo.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en el botón <strong>+ Nuevo grupo</strong> en la parte superior derecha.</span></li>
+        <li><span class="step-text">Se abre un panel deslizante desde la derecha con el formulario de creación.</span></li>
+        <li><span class="step-text">Ingresá el <strong>nombre del grupo</strong> (único en el sistema) y seleccioná el estado.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Crear grupo</strong> para guardar.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/05_panel_crear_completo.png" alt="Panel para crear un grupo — con datos" />
+        <div class="screenshot-caption">Formulario completo con el nombre ingresado, listo para guardar.</div>
+      </div>
+
+      <h3>Campos del formulario</h3>
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Descripción *</strong></td>
+            <td>Nombre del grupo. Es el único campo obligatorio. Debe ser único en todo el sistema (sin distinción de mayúsculas). Los espacios al inicio y al final se eliminan automáticamente al guardar.</td>
+          </tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>Toggle que indica si el grupo está activo. Por defecto viene activado. Un grupo inactivo puede existir en el catálogo pero se muestra con menor opacidad.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">Si ya existe un grupo con el mismo nombre (aunque sea con distinto uso de mayúsculas), el sistema rechaza la creación y muestra un mensaje de error. El panel permanece abierto para que puedas corregir el nombre.</div>
+      </div>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Si eliminaste un grupo con ese nombre anteriormente, <strong>podés reutilizarlo</strong>: el sistema permite crear un nuevo grupo con el mismo nombre de uno borrado.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 7 ══ -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un grupo</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo los roles <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span> pueden editar grupos.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/06_panel_editar.png" alt="Panel de edición de grupo" />
+        <div class="screenshot-caption">Panel de edición con el nombre y estado del grupo precargados.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en la tarjeta del grupo para navegar a su vista de productos.</span></li>
+        <li><span class="step-text">En el encabezado, hacé clic en el ícono de <strong>lápiz ✏️</strong>.</span></li>
+        <li><span class="step-text">Se abre el panel de edición con los datos actuales precargados.</span></li>
+        <li><span class="step-text">Modificá los campos necesarios y hacé clic en <strong>Guardar cambios</strong>.</span></li>
+      </ol>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">Al editar, guardar con el mismo nombre no genera ningún error. La validación de nombre único excluye el propio grupo para que un PATCH sin cambios siempre sea válido.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 8 ══ -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar un grupo</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo el rol <span class="badge badge-admin">Admin</span> puede eliminar grupos.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/07_confirm_eliminar.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">Diálogo de confirmación antes de eliminar. En este caso muestra la confirmación para un producto.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en la tarjeta del grupo para navegar a su vista de productos.</span></li>
+        <li><span class="step-text">En el encabezado, hacé clic en el ícono de <strong>basura 🗑️</strong>.</span></li>
+        <li><span class="step-text">Aparece un diálogo de confirmación que indica la restricción de dependencias activas.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar, o en <strong>Cancelar</strong> para volver sin cambios.</span></li>
+        <li><span class="step-text">Al confirmar, el sistema regresa automáticamente a la vista de grupos.</span></li>
+      </ol>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body"><strong>No se puede eliminar</strong> un grupo que tenga productos activos vinculados. El sistema rechaza la operación con un mensaje de error. Para poder eliminarlo, primero eliminá o desactivá todos sus productos.</div>
+      </div>
+
+      <p>El borrado es <strong>lógico</strong> — el registro queda marcado internamente como eliminado y deja de aparecer en el listado, pero no se borra físicamente de la base de datos. Esto permite reutilizar el nombre del grupo en el futuro si es necesario.</p>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">Un grupo con productos <strong>inactivos o eliminados</strong> (pero sin productos activos) sí puede eliminarse sin restricciones.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 9 ══ -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Gestionar productos dentro de un grupo</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/grupos-productos/08_navigation_guard.png" alt="Panel de creación de producto" />
+        <div class="screenshot-caption">Panel lateral para crear un nuevo producto dentro del grupo seleccionado.</div>
+      </div>
+
+      <p>Una vez dentro de la vista de productos de un grupo, podés crear, editar y eliminar productos. El grupo al que pertenece el producto queda fijo en el panel — no es editable desde ahí.</p>
+
+      <h3>Crear un producto</h3>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo los roles <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span> pueden crear productos.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Navegá al grupo donde querés agregar el producto.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>+ Nuevo producto</strong> en la barra de herramientas.</span></li>
+        <li><span class="step-text">Se abre el panel lateral derecho con el formulario de creación.</span></li>
+        <li><span class="step-text">Completá la descripción, seleccioná el tipo de impuesto y el estado.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Agregar producto</strong> para guardar.</span></li>
+      </ol>
+
+      <h3>Campos del formulario de producto</h3>
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Grupo asignado</strong></td>
+            <td>Muestra el nombre del grupo actual. No es editable — el producto siempre pertenece al grupo desde el que se crea.</td>
+          </tr>
+          <tr>
+            <td><strong>Descripción *</strong></td>
+            <td>Nombre del producto o servicio. Debe ser único dentro del mismo grupo (sin distinción de mayúsculas). El mismo nombre puede existir en grupos distintos.</td>
+          </tr>
+          <tr>
+            <td><strong>Tipo de impuesto *</strong></td>
+            <td>
+              <span class="badge badge-iva10">IVA 10%</span> — gravado al 10% (por defecto).<br>
+              <span class="badge badge-iva5">IVA 5%</span> — gravado al 5% (ej: medicamentos, alimentos).<br>
+              <span class="badge badge-exenta">Exenta</span> — sin impuesto (ej: servicios médicos exentos).
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>Toggle activo/inactivo. Un producto inactivo no bloquea el borrado del grupo pero aparece en la tabla con menor opacidad.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Buscar productos dentro del grupo</h3>
+      <p>La barra de búsqueda en la parte superior de la tabla filtra los productos por descripción con un retardo automático. Los resultados vacíos muestran el estado <em>"Sin productos en este grupo."</em></p>
+
+      <h3>Editar un producto</h3>
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en el ícono de <strong>lápiz ✏️</strong> en la fila del producto que querés modificar.</span></li>
+        <li><span class="step-text">Se abre el panel lateral con los datos del producto precargados.</span></li>
+        <li><span class="step-text">Modificá los campos y hacé clic en <strong>Guardar cambios</strong>.</span></li>
+      </ol>
+
+      <h3>Eliminar un producto</h3>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo el rol <span class="badge badge-admin">Admin</span> puede eliminar productos.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en el ícono de <strong>basura 🗑️</strong> en la fila del producto.</span></li>
+        <li><span class="step-text">Aparece un diálogo de confirmación.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar, o <strong>Cancelar</strong> para volver.</span></li>
+      </ol>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body"><strong>No se puede eliminar</strong> un producto que tenga facturas emitidas vinculadas. El sistema rechaza la operación. Si el producto ya no se usa, marcalo como <strong>Inactivo</strong> para que no aparezca en los selectores de facturación.</div>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">El tipo de impuesto del producto se <strong>copia al ítem de factura</strong> en el momento de emitir. Si cambiás el impuesto de un producto, las facturas ya emitidas mantienen el valor original — solo afecta las nuevas facturas.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 10 ══ -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:42%">Mensaje o situación</th>
+            <th>Causa y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><em>"Ya existe un grupo con esa descripción."</em></td>
+            <td>Hay un grupo activo con el mismo nombre (la comparación ignora mayúsculas y minúsculas). Elegí un nombre distinto o verificá si ese grupo ya fue registrado.</td>
+          </tr>
+          <tr>
+            <td><em>"Ya existe un producto con esa descripción en este grupo."</em></td>
+            <td>Dentro del mismo grupo ya existe un producto con ese nombre. El mismo nombre sí puede usarse en otros grupos. Cambiá la descripción o verificá si ya está registrado.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede eliminar un grupo con productos activos vinculados."</em></td>
+            <td>El grupo tiene al menos un producto con estado Activo. Eliminá o desactivá todos los productos del grupo antes de intentar eliminarlo.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede eliminar: el producto tiene facturas emitidas vinculadas."</em></td>
+            <td>El producto está usado en una o más facturas. No es posible eliminarlo. Para sacarlo del catálogo activo, marcalo como <strong>Inactivo</strong> desde el formulario de edición.</td>
+          </tr>
+          <tr>
+            <td>El campo <strong>Descripción</strong> muestra error sin haber escrito</td>
+            <td>Intentaste guardar sin completar la descripción. Es el único campo obligatorio. Escribí un nombre y volvé a guardar.</td>
+          </tr>
+          <tr>
+            <td>El botón <strong>+ Nuevo grupo</strong> no aparece</td>
+            <td>El usuario tiene rol Médico o Secretaria médico. Estos roles solo pueden consultar el catálogo, no modificarlo.</td>
+          </tr>
+          <tr>
+            <td>El ícono de <strong>basura</strong> no aparece en las filas de productos ni en el encabezado del grupo</td>
+            <td>El usuario tiene rol Recepcionista. Puede crear y editar, pero no eliminar. Solo el Administrador ve el botón de eliminación.</td>
+          </tr>
+          <tr>
+            <td>El panel de edición no muestra los datos del producto</td>
+            <td>Hacé clic en el ícono de lápiz ✏️ directamente en la fila del producto — no en otro lugar de la fila. Si el problema persiste, recargá la página.</td>
+          </tr>
+          <tr>
+            <td>El grupo eliminado sigue apareciendo en la lista</td>
+            <td>No debería ocurrir. Si el sistema confirmó la eliminación con un toast de éxito, la lista se actualiza automáticamente. Si la tarjeta persiste, recargá la página.</td>
+          </tr>
+          <tr>
+            <td>Un grupo sin tarjeta de producto en el contador muestra "0 productos"</td>
+            <td>Es el comportamiento normal para grupos sin productos activos. El contador solo cuenta productos con estado Activo y sin borrado lógico.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr>
+
+      <div class="highlight-box">
+        <strong>Flujo de trabajo recomendado para estructurar el catálogo:</strong>
+        <ol style="margin:10px 0 0 20px; font-size:14px; color:#374151;">
+          <li style="margin-bottom:6px;">Ingresá a <strong>Facturación → Grupos y Productos</strong>.</li>
+          <li style="margin-bottom:6px;">Creá los grupos que correspondan a las categorías de tu clínica (ej: Consultas, Laboratorio, Procedimientos, Medicamentos).</li>
+          <li style="margin-bottom:6px;">Hacé clic en cada grupo y agregá los productos con su tipo de impuesto correcto según la legislación vigente.</li>
+          <li style="margin-bottom:6px;">Verificá que los productos usados en facturación estén marcados como <strong>Activo</strong>.</li>
+          <li>Al emitir una factura, los ítems se buscan desde este catálogo — un catálogo ordenado agiliza la facturación diaria.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Manual de Usuario · Módulo Grupos y Productos · Versión 1.0 · Mayo 2026
+  </div>
+
+</div>
+</body>
+</html>

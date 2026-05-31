@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Recordatorios · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin   { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep   { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-medico  { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
+    .badge-secre   { background:#fdf4ff; color:#9333ea; border:1px solid #e9d5ff; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .action-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:14px; }
+    .action-icon { background:#f8fafc; border:1px solid #e8edf2; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    .wysiwyg-demo { background:#f8fafc; border:1px solid #e8edf2; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; }
+    .wysiwyg-toolbar-demo { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+    .wysiwyg-btn { background:#fff; border:1px solid #e5e7eb; border-radius:5px; padding:4px 10px; font-size:12px; color:#374151; }
+    .wysiwyg-btn.sep { width:1px; background:#d1d5db; margin:0 2px; padding:0; border:none; }
+
+    .var-chip { display:inline-block; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; font-family:'Courier New',monospace; font-size:12px; color:#1a3a5c; margin:2px; }
+
+    .canal-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; }
+    .canal-email { background:#f0fdf4; color:#16a34a; }
+    .canal-manual { background:#fffbeb; color:#d97706; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Recordatorios</h1>
+    <p class="cover-subtitle">Seguimiento de próximas citas y notificaciones a pacientes por email</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Recordatorios</span>
+      <span><strong>Acceso</strong> Todos los roles</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal</a></li>
+      <li><a href="#s4"><span class="num">04</span> Filtrar recordatorios</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle del recordatorio</a></li>
+      <li><a href="#s6"><span class="num">06</span> Enviar notificación al paciente</a></li>
+      <li><a href="#s7"><span class="num">07</span> Configuración de notificaciones</a></li>
+      <li><a href="#s8"><span class="num">08</span> Plantillas de email con editor visual</a></li>
+      <li><a href="#s9"><span class="num">09</span> Historial y reenvío</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes frecuentes</a></li>
+    </ol>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ SECCIÓN 1 ══ -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+
+      <p>El módulo <strong>Recordatorios</strong> centraliza el seguimiento de pacientes que tienen una próxima cita registrada en el sistema. Desde aquí se puede enviar notificaciones por email directamente al paciente, ver el historial de comunicaciones anteriores y gestionar las plantillas de mensajes.</p>
+
+      <p>El módulo tiene dos secciones: la <strong>pantalla principal</strong> (listado de próximas citas y panel de notificación) y la <strong>pantalla de configuración</strong> (acceso exclusivo para administradores), donde se definen el remitente, los envíos automáticos y las plantillas de email.</p>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Administrador</th>
+            <th>Recepcionista</th>
+            <th>Médico</th>
+            <th>Secretaria médico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver listado de próximas citas</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Ver panel de detalle del paciente</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Enviar notificación (email / manual)</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Reenviar notificación fallida</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Ver historial de notificaciones</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Acceder a Configuración</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Editar configuración de envío</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Crear / editar / eliminar plantillas</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ SECCIÓN 2 ══ -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+
+      <p>El módulo de Recordatorios está disponible en el menú lateral bajo el grupo <strong>Agenda</strong>.</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Iniciá sesión en el sistema con tu usuario y contraseña.</span></li>
+        <li><span class="step-text">En el menú lateral izquierdo, hacé clic en <strong>Agenda</strong> para expandir el grupo.</span></li>
+        <li><span class="step-text">Seleccioná <strong>Recordatorios</strong> dentro del grupo.</span></li>
+        <li><span class="step-text">La pantalla principal carga automáticamente con las próximas citas de los próximos 30 días.</span></li>
+      </ol>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">El botón <strong>Configuración</strong> en la parte superior derecha de la pantalla solo es visible para el rol <span class="badge badge-admin">Admin</span>. Los demás roles acceden directamente al listado.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 3 ══ -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/01_listado.png" alt="Pantalla principal de Recordatorios" />
+        <div class="screenshot-caption">Pantalla principal: estadísticas, filtros y tabla de próximas citas.</div>
+      </div>
+
+      <p>La pantalla principal tiene tres áreas: las <strong>estadísticas</strong> en la parte superior, los <strong>filtros</strong> debajo, y la <strong>tabla de próximas citas</strong> que ocupa el resto de la pantalla.</p>
+
+      <h3>Estadísticas</h3>
+      <p>Cuatro indicadores resumen el estado actual de los recordatorios:</p>
+
+      <table>
+        <thead><tr><th>Indicador</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong style="color:#dc2626">Vencidas</strong></td><td>Pacientes cuya próxima cita registrada ya pasó y aún no fue agendada.</td></tr>
+          <tr><td><strong style="color:#d97706">Próximos 7 días</strong></td><td>Citas programadas dentro de la semana siguiente.</td></tr>
+          <tr><td><strong style="color:#2563eb">Próximos 30 días</strong></td><td>Citas programadas en el mes siguiente.</td></tr>
+          <tr><td><strong style="color:#16a34a">Agendadas</strong></td><td>Citas que ya tienen turno reservado en la agenda.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Tabla de próximas citas</h3>
+      <p>Cada fila representa una consulta finalizada cuyo médico dejó registrada una próxima cita para el paciente. Las columnas son:</p>
+
+      <table>
+        <thead><tr><th>Columna</th><th>Contenido</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Paciente</strong></td><td>Nombre completo. Si el paciente tiene email registrado, aparece un ícono verde ✅ en la columna siguiente; si no, un ícono gris.</td></tr>
+          <tr><td><strong>Próxima cita</strong></td><td>Fecha de la próxima cita en formato DD/MM/AAAA.</td></tr>
+          <tr><td><strong>Días</strong></td><td>Cuenta regresiva con color: <span style="color:#16a34a">verde</span> (más de 7 días), <span style="color:#d97706">naranja</span> (7 días o menos), <span style="color:#dc2626">rojo</span> (vencida).</td></tr>
+          <tr><td><strong>Médico sugerido</strong></td><td>Médico que atendió la última consulta y recomendó la cita.</td></tr>
+          <tr><td><strong>Estado</strong></td><td><span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:12px;">Agendado</span> si ya tiene turno en agenda, <span style="background:#fffbeb;color:#d97706;padding:2px 8px;border-radius:10px;font-size:12px;">Pendiente</span> si aún no.</td></tr>
+          <tr><td><strong>Botón derecho</strong></td><td><strong>Agendar</strong> (si pendiente) o <strong>Ver</strong> (si agendado) — ambos navegan a la agenda del médico en la fecha correspondiente.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Clic en una fila</strong> abre el panel de detalle lateral con toda la información del paciente y los botones para enviar notificaciones. Hacer clic nuevamente en la misma fila lo cierra.</div>
+      </div>
+
+      <h3>Flecha de historial inline</h3>
+      <p>El ícono <strong>›</strong> a la izquierda de cada fila expande una vista rápida con el historial de notificaciones enviadas a ese paciente, sin necesidad de abrir el panel completo. Hacé clic en <strong>›</strong> nuevamente para contraer.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 4 ══ -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Filtrar recordatorios</h2>
+      </div>
+
+      <p>La barra de filtros tiene cuatro controles que se pueden combinar entre sí:</p>
+
+      <h3>Tabs de período</h3>
+      <table>
+        <thead><tr><th>Tab</th><th>Muestra</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Vencidas</strong></td><td>Solo citas cuya fecha ya pasó.</td></tr>
+          <tr><td><strong>7 días</strong></td><td>Citas dentro de la semana siguiente (desde hoy).</td></tr>
+          <tr><td><strong>30 días</strong></td><td>Citas dentro del mes siguiente. <em>Valor por defecto al entrar.</em></td></tr>
+          <tr><td><strong>Todos</strong></td><td>Todas las próximas citas sin límite de fecha.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Filtro por médico</h3>
+      <p>El selector <strong>Todos los médicos</strong> permite mostrar solo los pacientes del médico seleccionado.</p>
+
+      <h3>Filtro por estado</h3>
+      <p>El selector <strong>Todos los estados</strong> filtra entre <em>Pendiente</em> (sin turno asignado) y <em>Agendado</em> (turno reservado).</p>
+
+      <h3>Búsqueda por nombre</h3>
+      <p>El campo de texto filtra la tabla en tiempo real por nombre del paciente o del médico sugerido. Se limpia borrando el texto del campo.</p>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/02_busqueda.png" alt="Búsqueda activa en recordatorios" />
+        <div class="screenshot-caption">Tabla filtrada por búsqueda de nombre del paciente.</div>
+      </div>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Si la búsqueda no encuentra resultados, la tabla muestra el mensaje <strong>"Sin resultados para la búsqueda."</strong> — no es un error, simplemente no hay coincidencias con el texto ingresado.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 5 ══ -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle del recordatorio</h2>
+      </div>
+
+      <p>Haciendo clic en cualquier fila de la tabla se abre el <strong>panel de detalle</strong> lateral con toda la información del paciente y las acciones de notificación disponibles.</p>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/03_panel_detalle.png" alt="Panel de detalle del recordatorio" />
+        <div class="screenshot-caption">Panel de detalle con información del paciente, próxima cita y botones de notificación.</div>
+      </div>
+
+      <h3>Contenido del panel</h3>
+      <table>
+        <thead><tr><th>Sección</th><th>Información mostrada</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Paciente</strong></td><td>Nombre completo, teléfono (link tel:) y email (link mailto:). Si no tiene datos de contacto, muestra "Sin contacto registrado".</td></tr>
+          <tr><td><strong>Próxima cita</strong></td><td>Fecha, badge de urgencia (urgente / normal / vencida) y badge de estado (Agendado / Pendiente). Debajo, el médico sugerido con su especialidad.</td></tr>
+          <tr><td><strong>Última consulta</strong></td><td>Diagnóstico e indicaciones del médico. Solo aparece si la consulta tenía esos campos completados.</td></tr>
+          <tr><td><strong>Últimas consultas</strong></td><td>Las 3 consultas previas más recientes del paciente (excluyendo la actual), con fecha y diagnóstico.</td></tr>
+          <tr><td><strong>Notificar paciente</strong></td><td>Botones para enviar los distintos tipos de notificación.</td></tr>
+          <tr><td><strong>Historial de notificaciones</strong></td><td>Últimas 5 notificaciones enviadas al paciente. Solo aparece si hay alguna registrada.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Cerrar el panel</h3>
+      <p>El panel se cierra de tres maneras: haciendo clic en la <strong>X</strong> del encabezado, haciendo clic <strong>nuevamente en la misma fila</strong> de la tabla, o haciendo clic en <strong>otra fila</strong> (que abre el detalle de ese nuevo registro).</p>
+
+      <h3>Ir a agenda</h3>
+      <p>El botón azul <strong>Ir a agenda</strong> al final del panel navega directamente a la página de Agenda con el médico y la fecha de la próxima cita preseleccionados, facilitando la reserva del turno.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 6 ══ -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Enviar notificación al paciente</h2>
+      </div>
+
+      <p>Desde el panel de detalle, la sección <strong>Notificar paciente</strong> ofrece tres tipos de notificación:</p>
+
+      <table>
+        <thead><tr><th>Tipo</th><th>Cuándo usarlo</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Recordatorio de cita</strong></td><td>Avisar al paciente que tiene una cita próxima. Usa la plantilla tipo <em>recordatorio</em>.</td></tr>
+          <tr><td><strong>Confirmación de reserva</strong></td><td>Confirmar que el turno fue reservado. Usa la plantilla tipo <em>confirmacion</em>.</td></tr>
+          <tr><td><strong>Enviar indicaciones</strong></td><td>Enviar las indicaciones post-consulta. Solo habilitado si la consulta tiene indicaciones registradas. Usa la plantilla tipo <em>post_consulta</em>.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/04_panel_crear.png" alt="Confirmación inline de envío por email" />
+        <div class="screenshot-caption">Cuando el paciente tiene email, aparece una confirmación inline antes de enviar.</div>
+      </div>
+
+      <h3>Paciente con email registrado</h3>
+      <p>Si el paciente tiene email en su ficha, los botones muestran el badge <span class="canal-tag canal-email">✉ Email</span>. Al hacer clic en un botón, aparece una confirmación inline en la misma fila:</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Se muestra el mensaje <strong>"¿Enviar a [email del paciente]?"</strong> con dos botones: <strong>Enviar</strong> y <strong>Cancelar</strong>.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Enviar</strong> para confirmar. El sistema llama al servicio de email (Resend) usando la plantilla correspondiente al tipo seleccionado.</span></li>
+        <li><span class="step-text">Un toast de confirmación indica si el email se envió correctamente o si hubo un problema.</span></li>
+        <li><span class="step-text">La notificación queda registrada en el historial del paciente, con estado <em>enviado</em> o <em>fallido</em>.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/05_panel_crear_completo.png" alt="Modal de notificación manual" />
+        <div class="screenshot-caption">Cuando el paciente no tiene email, se abre un modal para ingresar el canal y destinatario manualmente.</div>
+      </div>
+
+      <h3>Paciente sin email registrado</h3>
+      <p>Si el paciente no tiene email, los botones muestran el badge <span class="canal-tag canal-manual">Manual</span>. Al hacer clic se abre un <strong>modal</strong> donde podés:</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Elegir el <strong>canal</strong>: WhatsApp o Email.</span></li>
+        <li><span class="step-text">Ingresar el <strong>destinatario</strong> (número de teléfono o email).</span></li>
+        <li><span class="step-text">Revisar o modificar el <strong>mensaje</strong> pre-completado con los datos del paciente.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Registrar envío</strong>. La notificación queda guardada como pendiente de envío real — el sistema no envía WhatsApp automáticamente, solo deja el registro.</span></li>
+      </ol>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>Canal WhatsApp:</strong> el sistema registra la notificación pero no envía el mensaje automáticamente. El operador debe contactar al paciente por su cuenta. Solo el canal <strong>Email</strong> tiene envío automático (requiere que el servicio de email esté habilitado en Configuración).</div>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">La plantilla de email utilizada es la que está configurada para ese tipo de notificación en la sección Configuración → Plantillas. Si no hay plantilla activa, el email se envía con el texto predeterminado del sistema.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 7 ══ -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Configuración de notificaciones</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Esta sección es de <strong>acceso exclusivo para el rol Administrador</strong>. Los demás roles no ven el botón <em>Configuración</em> ni pueden acceder a esta página.</div>
+      </div>
+
+      <p>Para acceder, hacé clic en el botón <strong>Configuración</strong> (ícono de engranaje) en la parte superior derecha de la pantalla de Recordatorios. Para volver, usá el botón <strong>← Volver</strong>.</p>
+
+      <h3>Correo remitente</h3>
+      <p>Define desde qué dirección salen los emails del sistema. Para editarla, hacé clic en el botón <strong>Editar configuración</strong> en la parte superior derecha.</p>
+
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Nombre del remitente</strong></td><td>El nombre que aparece en el cliente de email del destinatario, ej. <em>Clínica Lichi</em>.</td></tr>
+          <tr><td><strong>Email remitente</strong></td><td>La dirección desde la que se envían los correos. Debe estar verificada en Resend o usar <code>onboarding@resend.dev</code> para pruebas sin dominio propio.</td></tr>
+        </tbody>
+      </table>
+
+      <p>El botón <strong>Probar conexión</strong> envía un email de prueba a la dirección remitente configurada para verificar que el servicio de email funciona correctamente.</p>
+
+      <h3>Envío automático</h3>
+      <p>Los toggles de la tarjeta derecha controlan qué emails el sistema envía sin intervención manual:</p>
+
+      <table>
+        <thead><tr><th>Toggle</th><th>Efecto</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Habilitar envíos</strong></td><td>Interruptor maestro. Si está desactivado, ningún email sale del sistema, independientemente de los demás toggles.</td></tr>
+          <tr><td><strong>Recordatorios automáticos</strong></td><td>Envía recordatorios automáticamente antes de la próxima cita. Al activarlo aparece la configuración de horas de anticipación.</td></tr>
+          <tr><td><strong>Primer / Segundo recordatorio</strong></td><td>Cantidad de horas antes de la cita en que se envía cada aviso (ej. 24h antes, 2h antes). El segundo recordatorio es opcional.</td></tr>
+          <tr><td><strong>Confirmación al asignar turno</strong></td><td>Envía automáticamente un email de confirmación cuando se asigna un paciente a un turno de agenda.</td></tr>
+          <tr><td><strong>Notificación de cancelación</strong></td><td>Envía automáticamente un email cuando se cancela un turno.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">Los toggles de <em>Recordatorios automáticos</em>, <em>Confirmación</em> y <em>Cancelación</em> solo funcionan si <strong>Habilitar envíos</strong> está activado.</div>
+      </div>
+
+      <p>Luego de editar los campos de texto (nombre y email remitente), hacé clic en <strong>Guardar configuración</strong> para confirmar los cambios. Los toggles se guardan automáticamente al cambiarlos, sin necesidad de guardar manualmente.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 8 ══ -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Plantillas de email con editor visual</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/07_confirm_eliminar.png" alt="Página de configuración de notificaciones" />
+        <div class="screenshot-caption">Página de configuración con las tarjetas de correo remitente y envío automático.</div>
+      </div>
+
+      <p>La sección <strong>Plantillas de email</strong> está debajo de las tarjetas de configuración. Hay cuatro tipos de plantilla, una por cada tipo de notificación. Hacé clic en cualquiera para expandirla y editar su contenido.</p>
+
+      <h3>Editor visual (WYSIWYG)</h3>
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/06_panel_editar.png" alt="Editor WYSIWYG de plantilla de email" />
+        <div class="screenshot-caption">Editor visual de plantilla con barra de herramientas y chips de variables.</div>
+      </div>
+
+      <p>El cuerpo del mensaje se edita con un editor visual donde lo que ves es lo que recibirá el paciente. No es necesario escribir HTML.</p>
+
+      <div class="wysiwyg-demo">
+        <div class="wysiwyg-toolbar-demo">
+          <span class="wysiwyg-btn"><strong>B</strong></span>
+          <span class="wysiwyg-btn"><em>I</em></span>
+          <span class="wysiwyg-btn"><u>U</u></span>
+          <span class="wysiwyg-btn sep"></span>
+          <span class="wysiwyg-btn">≡ izq</span>
+          <span class="wysiwyg-btn">≡ centro</span>
+          <span class="wysiwyg-btn">≡ der</span>
+          <span class="wysiwyg-btn sep"></span>
+          <span class="wysiwyg-btn">• Lista</span>
+          <span class="wysiwyg-btn">1. Numerada</span>
+          <span class="wysiwyg-btn sep"></span>
+          <span class="wysiwyg-btn">🖼 Imagen</span>
+        </div>
+        <p style="font-size:13px;color:#6b7280;">Área de edición — escribí el mensaje aquí.</p>
+      </div>
+
+      <table>
+        <thead><tr><th>Botón</th><th>Función</th></tr></thead>
+        <tbody>
+          <tr><td><strong>B (Negrita)</strong></td><td>Pone en negrita el texto seleccionado o activa el modo negrita para lo que se escriba a continuación.</td></tr>
+          <tr><td><strong>I (Cursiva)</strong></td><td>Aplica cursiva al texto seleccionado.</td></tr>
+          <tr><td><strong>U (Subrayado)</strong></td><td>Subraya el texto seleccionado.</td></tr>
+          <tr><td><strong>Alinear izquierda / centro / derecha</strong></td><td>Cambia la alineación del párrafo donde está el cursor.</td></tr>
+          <tr><td><strong>Lista con viñetas / numerada</strong></td><td>Crea una lista. Presioná Enter para agregar ítems y Enter dos veces para salir de la lista.</td></tr>
+          <tr><td><strong>🖼 Imagen</strong></td><td>Abre el selector de archivos para subir una imagen al servidor. La imagen queda embebida directamente en el email (adjunta como imagen inline, no como link externo).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Variables disponibles</h3>
+      <p>Los chips de variables insertan un marcador de posición que el sistema reemplaza con datos reales al enviar el email. Hacé clic en el chip para insertarlo en la posición del cursor en el editor:</p>
+
+      <p>
+        <span class="var-chip">{nombre}</span>
+        <span class="var-chip">{fecha}</span>
+        <span class="var-chip">{hora}</span>
+        <span class="var-chip">{medico}</span>
+        <span class="var-chip">{especialidad}</span>
+        <span class="var-chip">{indicaciones}</span>
+        <span class="var-chip">{observacion}</span>
+      </p>
+
+      <table>
+        <thead><tr><th>Variable</th><th>Se reemplaza con</th></tr></thead>
+        <tbody>
+          <tr><td><code>{nombre}</code></td><td>Nombre completo del paciente.</td></tr>
+          <tr><td><code>{fecha}</code></td><td>Fecha de la próxima cita (DD/MM/AAAA).</td></tr>
+          <tr><td><code>{hora}</code></td><td>Hora del turno (HH:MM).</td></tr>
+          <tr><td><code>{medico}</code></td><td>Nombre del médico sugerido.</td></tr>
+          <tr><td><code>{especialidad}</code></td><td>Especialidad principal del médico.</td></tr>
+          <tr><td><code>{indicaciones}</code></td><td>Indicaciones post-consulta del médico.</td></tr>
+          <tr><td><code>{observacion}</code></td><td>Observación del turno de agenda.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Vista previa</h3>
+      <p>El botón <strong>Vista previa</strong> (ícono de ojo) alterna entre el editor y una vista renderizada del email con datos de ejemplo. Hacé clic en <strong>Editar</strong> para volver al editor.</p>
+
+      <div class="screenshot">
+        <img src="imagenes/recordatorios/08_navigation_guard.png" alt="Vista previa de plantilla de email" />
+        <div class="screenshot-caption">Vista previa del email con datos de ejemplo y la imagen embebida.</div>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">La vista previa usa datos ficticios para mostrar cómo se verá el email. <strong>No refleja valores reales del sistema.</strong></div>
+      </div>
+
+      <h3>Agregar imágenes</h3>
+      <ol class="steps">
+        <li><span class="step-text">Posicioná el cursor en el lugar del editor donde querés insertar la imagen.</span></li>
+        <li><span class="step-text">Hacé clic en el botón <strong>🖼 Imagen</strong> de la barra de herramientas.</span></li>
+        <li><span class="step-text">Seleccioná el archivo de imagen desde tu computadora.</span></li>
+        <li><span class="step-text">La imagen se sube automáticamente al servidor y queda insertada en el editor.</span></li>
+        <li><span class="step-text">Para eliminar una imagen del cuerpo, hacé clic sobre ella en el editor para seleccionarla y presioná la tecla <kbd>Delete</kbd> o <kbd>Backspace</kbd>.</span></li>
+      </ol>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Las imágenes se envían como <strong>adjuntos inline</strong> (no como links externos), lo que significa que se ven correctamente en Gmail, Outlook y la mayoría de los clientes de email aunque el destinatario tenga bloqueada la descarga de imágenes externas.</div>
+      </div>
+
+      <h3>Activar / desactivar plantilla</h3>
+      <p>El toggle que aparece a la derecha del nombre de la plantilla (cuando está expandida) activa o desactiva esa plantilla. Si está desactivada, el sistema usa el mensaje predeterminado al enviar ese tipo de notificación.</p>
+
+      <h3>Guardar la plantilla</h3>
+      <p>Hacé clic en el botón <strong>Guardar plantilla</strong> al final del panel expandido. Si es la primera vez que se crea esa plantilla, el botón dice <em>Crear plantilla</em>.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 9 ══ -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Historial y reenvío</h2>
+      </div>
+
+      <p>Cada notificación enviada queda registrada en el sistema con su estado, canal, fecha y tipo. Hay dos lugares donde consultarlo:</p>
+
+      <h3>Historial inline en la tabla</h3>
+      <p>Hacé clic en el ícono <strong>›</strong> a la izquierda de cualquier fila para expandir el historial de notificaciones de ese paciente directamente en la tabla, sin abrir el panel lateral.</p>
+
+      <h3>Historial en el panel de detalle</h3>
+      <p>Al abrir el panel de un paciente, la sección <strong>Historial de notificaciones</strong> muestra las últimas 5 notificaciones con tipo, canal, estado y fecha.</p>
+
+      <h3>Estados de una notificación</h3>
+      <table>
+        <thead><tr><th>Estado</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td><span style="color:#16a34a;font-weight:600;">Enviado</span></td><td>El email fue aceptado por el servicio de envío (Resend). Esto no garantiza que el destinatario lo leyó, solo que salió del sistema.</td></tr>
+          <tr><td><span style="color:#dc2626;font-weight:600;">Fallido</span></td><td>Hubo un error al intentar enviar (API key incorrecta, email inválido, servicio no disponible, etc.).</td></tr>
+          <tr><td><span style="color:#d97706;font-weight:600;">Pendiente</span></td><td>La notificación fue registrada pero aún no se procesó (canal manual o error temporal).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Reenviar una notificación fallida</h3>
+      <p>Solo aplica a notificaciones por <strong>Email</strong> con estado <strong>Fallido</strong>.</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Abrí el historial inline de la fila (ícono <strong>›</strong>) o el historial en el panel de detalle.</span></li>
+        <li><span class="step-text">Buscá la notificación con estado <span style="color:#dc2626">Fallido</span>.</span></li>
+        <li><span class="step-text">Hacé clic en el botón <strong>↺</strong> (reenviar) que aparece a la derecha de esa entrada.</span></li>
+        <li><span class="step-text">El sistema intenta enviar nuevamente. Un toast indica si tuvo éxito.</span></li>
+      </ol>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">El botón de reenvío está disponible para los roles <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span>. Los roles médico y secretaria solo pueden ver el historial.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 10 ══ -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes frecuentes y comportamientos esperados</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40%">Mensaje o situación</th>
+            <th>Explicación y qué hacer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><em>"No hay próximas citas en este período."</em></td>
+            <td>No hay consultas con próxima cita registrada en el rango seleccionado. Probá cambiar el tab a <strong>Todos</strong> para ver todos los registros sin límite de fecha.</td>
+          </tr>
+          <tr>
+            <td><em>"Sin resultados para la búsqueda."</em></td>
+            <td>Ningún paciente o médico coincide con el texto escrito. Borrá el texto del campo de búsqueda para restaurar la lista.</td>
+          </tr>
+          <tr>
+            <td><em>"No se pudo enviar el email. La notificación queda pendiente."</em></td>
+            <td>El servicio de email (Resend) rechazó el envío. Causas posibles: API key incorrecta, email del paciente inválido, o servicio deshabilitado en Configuración. Revisá la configuración y usá <strong>Probar conexión</strong>.</td>
+          </tr>
+          <tr>
+            <td><em>"RESEND_API_KEY no configurada en el servidor."</em></td>
+            <td>El backend no tiene la clave de API de Resend. Un administrador técnico debe configurarla en el archivo de entorno del servidor.</td>
+          </tr>
+          <tr>
+            <td><em>"Configure el correo remitente antes de probar la conexión."</em></td>
+            <td>El campo <strong>Email remitente</strong> en Configuración está vacío. Ingresá una dirección válida y guardá antes de probar.</td>
+          </tr>
+          <tr>
+            <td>El botón <strong>Enviar indicaciones</strong> aparece deshabilitado</td>
+            <td>La consulta asociada a esa próxima cita no tiene indicaciones registradas. El médico debe completarlas desde la pantalla de Consultas.</td>
+          </tr>
+          <tr>
+            <td>El ícono de email en la tabla aparece gris (✗)</td>
+            <td>El paciente no tiene email registrado en su ficha. Para el envío automático, un recepcionista debe agregar el email desde el módulo <strong>Pacientes</strong>.</td>
+          </tr>
+          <tr>
+            <td>El toggle de <strong>Recordatorios automáticos</strong> está activado pero no llegan emails</td>
+            <td>Verificá que <strong>Habilitar envíos</strong> también esté activado. Además, los recordatorios automáticos requieren que el proceso de envío programado (<code>enviar_recordatorios</code>) esté corriendo en el servidor.</td>
+          </tr>
+          <tr>
+            <td>La plantilla fue guardada pero el email llegó con formato diferente</td>
+            <td>El email refleja el contenido de la plantilla al momento del envío. Si editaste la plantilla después de que se envió la notificación, las notificaciones anteriores no se actualizan retroactivamente.</td>
+          </tr>
+          <tr>
+            <td>La imagen en el email no se ve en algunos clientes de correo</td>
+            <td>Las imágenes se envían embebidas (inline), lo que es compatible con Gmail y Outlook. Si no se ven, es posible que el cliente de correo del destinatario tenga bloqueadas las imágenes por defecto — el destinatario puede habilitarlas manualmente.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr>
+
+      <div class="highlight-box">
+        <strong>Flujo recomendado para el primer uso:</strong>
+        <ol style="margin:10px 0 0 20px; font-size:14px; color:#374151;">
+          <li style="margin-bottom:6px;">Entrá a <strong>Configuración</strong> y completá el email remitente con la dirección verificada en Resend.</li>
+          <li style="margin-bottom:6px;">Activá el toggle <strong>Habilitar envíos</strong>.</li>
+          <li style="margin-bottom:6px;">Usá el botón <strong>Probar conexión</strong> para confirmar que el email llega.</li>
+          <li style="margin-bottom:6px;">Creá las plantillas de <em>Recordatorio</em> y <em>Confirmación</em> usando el editor visual.</li>
+          <li>Volvé al listado y enviá la primera notificación desde el panel de detalle de un paciente.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Manual de Usuario · Módulo Recordatorios · Versión 1.0 · Mayo 2026
+  </div>
+
+</div>
+</body>
+</html>

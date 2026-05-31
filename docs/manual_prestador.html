@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Prestadores · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .action-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:14px; }
+    .action-icon { background:#f8fafc; border:1px solid #e8edf2; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Prestadores</h1>
+    <p class="cover-subtitle">Registro y gestión del personal de salud (RRHH) de la clínica</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> RRHH — Prestadores</span>
+      <span><strong>Acceso</strong> Administrador</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TOC ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar un prestador</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de un prestador</a></li>
+      <li><a href="#s6"><span class="num">06</span> Registrar un nuevo prestador</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un prestador</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar un prestador</a></li>
+      <li><a href="#s9"><span class="num">09</span> Protección de cambios sin guardar</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 ─ Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Prestadores</strong> (RRHH) centraliza la información del personal
+        de salud y administrativo de la clínica: médicos, enfermeros, técnicos y otros roles.
+        Cada prestador está vinculado a una <strong>Persona</strong> del sistema y agrega datos
+        laborales propios: cargo, tipo de contrato, número de matrícula, especialidades médicas,
+        honorario referencial y estado de actividad.
+      </p>
+      <p>
+        Desde el detalle de un prestador también se pueden consultar los
+        <strong>documentos digitalizados</strong> asociados (títulos, certificados, etc.)
+        y gestionar sus <strong>horarios</strong> desde el módulo Horario Prestador.
+      </p>
+
+      <table>
+        <thead><tr>
+          <th>Acción</th>
+          <th><span class="badge badge-admin">Administrador</span></th>
+          <th><span class="badge badge-recep">Recepcionista</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Ver listado y detalle</td><td>✅</td><td>✅ (solo lectura)</td></tr>
+          <tr><td>Registrar prestador</td><td>✅</td><td>🚫</td></tr>
+          <tr><td>Editar prestador</td><td>✅</td><td>🚫</td></tr>
+          <tr><td>Eliminar prestador</td><td>✅</td><td>🚫</td></tr>
+          <tr><td>Generar listado PDF / Excel</td><td>✅</td><td>✅</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los roles <strong>Médico</strong> y <strong>Secretaria de médico</strong>
+          pueden consultar el listado de prestadores en modo solo lectura, pero no pueden
+          crear, editar ni eliminar registros.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ─ Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, dentro del grupo <strong>RRHH</strong>, hacé clic en
+        <strong>Personal</strong>. Esta opción solo es visible para el rol
+        <strong>Administrador</strong>.
+      </p>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Recepcionistas, médicos y secretarias pueden acceder a la URL directamente
+          (<code>/rrhh/personal</code>) y ver el listado, pero no verán la opción en el menú lateral
+          ni podrán modificar datos.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 ─ Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado de prestadores</h2>
+      </div>
+      <p>
+        Al ingresar se muestra una tabla con todos los prestadores activos, ordenados
+        por número de documento. En la parte superior encontrás la barra de búsqueda,
+        los botones de reportes (PDF y Excel) y el botón para registrar un nuevo prestador.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/01_listado.png" alt="Listado de prestadores" />
+        <div class="screenshot-caption">Vista principal — tabla con Prestador, Cargo, Especialidades, Estado y Acciones</div>
+      </div>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Prestador</strong></td>
+            <td>Avatar con iniciales, nombre completo y número de documento. Debajo aparece <em>"Clic para ver detalle"</em> en filas no seleccionadas.</td>
+          </tr>
+          <tr><td><strong>Cargo</strong></td><td>Rol en la clínica: Médico, Enfermero/a, Administrativo, Técnico u Otro.</td></tr>
+          <tr><td><strong>Especialidades</strong></td><td>Chips con las especialidades médicas asignadas. Puede estar vacío.</td></tr>
+          <tr>
+            <td><strong>Estado</strong></td>
+            <td>
+              Badge de color: <strong style="color:#166534">Activo</strong> (verde) ·
+              <strong style="color:#6b7280">Inactivo</strong> (gris) ·
+              <strong style="color:#854d0e">Licencia</strong> (ámbar).
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>
+              <div class="action-row"><div class="action-icon">✏️</div><span><strong>Editar</strong> — abre el modal en modo edición (solo Administrador)</span></div>
+              <div class="action-row"><div class="action-icon">🗑️</div><span><strong>Eliminar</strong> — abre el diálogo de confirmación (solo Administrador)</span></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Reportes — PDF y Excel</h3>
+      <p>
+        Los botones <strong>PDF</strong> y <strong>Excel</strong> generan un listado con todos
+        los prestadores activos incluyendo nombre, documento, cargo, especialidades,
+        número de matrícula y estado.
+      </p>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los íconos ✏️ y 🗑️ solo son visibles para el <strong>Administrador</strong>.
+          Los demás roles ven la tabla en modo solo lectura y pueden acceder al detalle haciendo clic en la fila.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 ─ Buscar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar un prestador</h2>
+      </div>
+      <p>
+        El campo de búsqueda filtra la tabla en tiempo real por <strong>nombre completo</strong>,
+        <strong>número de documento</strong> o <strong>número de matrícula</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/02_busqueda.png" alt="Búsqueda activa" />
+        <div class="screenshot-caption">Búsqueda activa — la tabla filtra por nombre, documento o matrícula del prestador</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Comportamiento</th><th>Detalle</th></tr></thead>
+        <tbody>
+          <tr><td>Por nombre</td><td>Filtra por el nombre completo de la persona vinculada (sin distinción de mayúsculas).</td></tr>
+          <tr><td>Por documento</td><td>Filtra por el número de documento.</td></tr>
+          <tr><td>Por matrícula</td><td>Filtra por el número de matrícula profesional.</td></tr>
+          <tr><td>Sin resultados</td><td>La tabla muestra el estado vacío: <em>"No se encontraron prestadores"</em>.</td></tr>
+          <tr><td>Limpiar</td><td>Borrá el texto para ver todos los prestadores activos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5 ─ Ver detalle -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de un prestador</h2>
+      </div>
+      <p>
+        Hacé clic en cualquier parte de una fila (excepto en los botones de acciones) para abrir
+        el modal con la información completa del prestador en modo lectura.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/03_modal_detalle.png" alt="Modal de detalle del prestador" />
+        <div class="screenshot-caption">Modal "Detalle del prestador" — muestra dos pestañas: Ficha (datos personales y laborales) y Documentos</div>
+      </div>
+
+      <h3>Pestaña Ficha</h3>
+      <p>Muestra todos los datos del prestador organizados en secciones:</p>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2.2;">
+        <li>Avatar con iniciales, nombre completo, documento y badge de estado</li>
+        <li><strong>Datos personales</strong>: documento, teléfono, correo, dirección, país, departamento, ciudad</li>
+        <li><strong>Datos del prestador</strong>: cargo, tipo de contrato, número de matrícula, honorario referencial, fecha de nacimiento, fecha de ingreso</li>
+        <li><strong>Especialidades</strong>: chips con las especialidades asignadas (si tiene)</li>
+        <li><strong>Observaciones</strong>: texto libre (si tiene)</li>
+      </ul>
+
+      <h3>Pestaña Documentos</h3>
+      <p>
+        Lista los documentos digitalizados asociados al prestador (títulos, certificados, etc.).
+        Cada documento muestra su nombre, tipo y un botón para visualizarlo directamente
+        en el navegador.
+      </p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La gestión de documentos (subir o eliminar) solo está disponible en el modo
+          <strong>Editar</strong>. La pestaña Documentos del detalle es de solo lectura.
+        </div>
+      </div>
+
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 12px;font-size:13px;">Editar</div><span style="font-size:14px;color:#374151;">Abre el modal en modo edición sin cerrarlo.</span></div>
+
+      <p style="margin-top:12px;">Para cerrar el modal hacé clic en la <strong>X</strong> del encabezado.</p>
+    </div>
+
+    <!-- 6 ─ Registrar -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Registrar un nuevo prestador</h2>
+      </div>
+      <p>
+        Hacé clic en <strong>+ Nuevo prestador</strong> (o presioná <kbd>Insert</kbd> con el modal
+        cerrado). El registro siempre se vincula a una Persona existente o nueva: primero se busca
+        la persona por documento y luego se completan los datos laborales del prestador.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/04_modal_crear_buscador.png" alt="Modal con buscador de persona" />
+        <div class="screenshot-caption">Modal "Nuevo prestador" — el primer paso es buscar a la persona por su número de documento</div>
+      </div>
+
+      <h3>Flujo de registro</h3>
+      <ol class="steps">
+        <li><div class="step-text"><strong>Ingresá el número de documento</strong> en el campo de búsqueda y hacé clic en <strong>Buscar</strong> (o presioná Enter).</div></li>
+        <li><div class="step-text">El sistema busca la persona. Si ya existe sin prestador registrado, pre-carga sus datos. Si la persona no existe en el sistema, muestra el formulario completo para crearla.</div></li>
+        <li><div class="step-text">Completá los campos del prestador. Los campos <strong>Fecha de ingreso</strong>, <strong>Cargo</strong> y <strong>Tipo de contrato</strong> son obligatorios.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd>.</div></li>
+        <li><div class="step-text">El modal se cierra y el prestador aparece en la tabla. Se muestra una notificación verde.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/05_modal_crear_formulario.png" alt="Formulario del nuevo prestador" />
+        <div class="screenshot-caption">Formulario de prestador — tras encontrar la persona, aparecen los campos laborales con los obligatorios marcados con asterisco</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Campo</th><th>Obligatorio</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Fecha de ingreso</strong></td><td>✅ Sí</td><td>Fecha en que el prestador comenzó a trabajar en la clínica. No puede ser futura.</td></tr>
+          <tr><td><strong>Cargo</strong></td><td>✅ Sí</td><td>Médico, Enfermero/a, Administrativo, Técnico u Otro.</td></tr>
+          <tr><td><strong>Tipo de contrato</strong></td><td>✅ Sí</td><td>Dependencia, Honorarios o Eventual.</td></tr>
+          <tr><td>Estado</td><td>No</td><td>Activo (por defecto), Inactivo o Licencia.</td></tr>
+          <tr><td>Nro. matrícula</td><td>No</td><td>Número de matrícula profesional del prestador.</td></tr>
+          <tr><td>Especialidades</td><td>No</td><td>Especialidades médicas. Se pueden seleccionar varias o crear nuevas escribiendo el nombre.</td></tr>
+          <tr><td>Honorario ref.</td><td>No</td><td>Monto de referencia para el módulo de Pago a Prestadores.</td></tr>
+          <tr><td>Observaciones</td><td>No</td><td>Notas adicionales sobre el prestador.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Especialidades con creación inline:</strong> en el buscador de especialidades,
+          si el término que escribís no existe, aparece la opción <em>"+ Crear '[nombre]'"</em>
+          al final de la lista. Al seleccionarla se crea la especialidad y queda asignada
+          automáticamente al prestador.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Una persona solo puede tener <strong>un prestador activo</strong> registrado.
+          Si buscás el documento de alguien que ya es prestador, el sistema abre
+          directamente el modo Editar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 ─ Editar -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un prestador</h2>
+      </div>
+      <p>
+        Podés editar desde el ícono de lápiz en la fila de la tabla o desde el botón
+        <strong>Editar</strong> dentro del modal de detalle. En modo edición se muestran
+        todos los campos del prestador y de la persona vinculada, listos para modificar.
+        También está disponible la sección de <strong>documentos digitalizados</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/06_modal_editar.png" alt="Modal en modo edición" />
+        <div class="screenshot-caption">Modal "Editar prestador" — datos personales y laborales editables; sección de documentos digitalizados al final del formulario</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila y hacé clic en ✏️, <strong>o</strong> abrí el detalle y hacé clic en <strong>Editar</strong>.</div></li>
+        <li><div class="step-text">El modal se abre en modo edición con todos los datos precargados.</div></li>
+        <li><div class="step-text">Modificá los campos necesarios. Podés editar datos personales (teléfono, correo, dirección) y datos laborales (cargo, matrícula, especialidades, etc.) en un único guardado.</div></li>
+        <li><div class="step-text">Para documentos: arrastrá archivos al área de carga o hacé clic para seleccionarlos. Asigná el tipo de documento a cada archivo. Los cambios son staged — se aplican al hacer clic en Guardar.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd>.</div></li>
+        <li><div class="step-text">El modal se cierra y los cambios se reflejan en la tabla. Se muestra una notificación verde.</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Documentos staged:</strong> cuando subís o marcás un documento para
+          eliminar, el cambio no se aplica de inmediato — se aplica junto con el resto del
+          formulario al hacer clic en <strong>Guardar</strong>. Podés deshacer la marca de
+          eliminación usando el botón ↩ antes de guardar.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          La <strong>matrícula</strong> debe ser única entre todos los prestadores activos.
+          Si ingresás un número ya registrado en otro prestador, el sistema informará
+          el error al guardar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 ─ Eliminar -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar un prestador</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar prestadores.
+          Los demás roles no ven el ícono de papelera.
+        </div>
+      </div>
+
+      <p>
+        Eliminar un prestador lo quita del listado activo, pero <strong>no borra los datos
+        personales</strong> de la Persona vinculada. Es un borrado lógico. Al confirmar,
+        el sistema también cancela automáticamente todos los horarios y turnos pendientes
+        del prestador.
+      </p>
+
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila y hacé clic en el ícono 🗑️.</div></li>
+        <li><div class="step-text">El sistema muestra un diálogo de confirmación.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar o en <strong>Cancelar</strong> para volver sin cambios.</div></li>
+        <li><div class="step-text">El prestador desaparece de la tabla. Se muestra una notificación verde.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/07_confirm_eliminar.png" alt="Diálogo de confirmación" />
+        <div class="screenshot-caption">Diálogo de confirmación — advierte que si el prestador tiene turnos activos (disponible, ocupado o realizado) no se podrá eliminar</div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar un prestador con turnos activos</strong>
+          (en estado disponible, ocupado o realizado). Primero debés cancelar o finalizar
+          todos sus turnos desde el módulo <em>Agenda</em>.
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Los turnos en estado <em>cancelado</em> no bloquean la eliminación.
+          Al eliminar, los horarios template del prestador y sus turnos pendientes
+          se dan de baja automáticamente.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Guard -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Protección de cambios sin guardar</h2>
+      </div>
+      <p>
+        El sistema protege contra el cierre accidental del modal cuando hay cambios pendientes.
+        Al intentar cerrar el modal con la <strong>X</strong>, o navegar a otro módulo,
+        aparece un diálogo de advertencia.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/prestador/08_navigation_guard.png" alt="Diálogo de protección de cambios" />
+        <div class="screenshot-caption">Diálogo de protección — aparece al cerrar el modal con la X cuando se está en proceso de registro o edición</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Opción</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Seguir editando</strong></td>
+            <td>Cierra el diálogo y vuelve al formulario con los datos intactos.</td>
+          </tr>
+          <tr>
+            <td><strong>Continuar sin guardar</strong></td>
+            <td>Descarta los cambios y cierra el modal (o navega al destino solicitado).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Cuándo aparece el diálogo:</strong>
+          <ul style="margin-top:8px;margin-left:18px;line-height:2;">
+            <li>Al cerrar el modal con la <strong>X</strong> después de buscar una persona o en modo edición</li>
+            <li>Al hacer clic en otra fila de la tabla mientras el modal está abierto</li>
+            <li>Al navegar a otro módulo desde el menú lateral</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          El botón <strong>Cancelar</strong> dentro del formulario cierra el modal
+          <strong>directamente sin advertencia</strong>. Para proteger cambios, usá la
+          <strong>X</strong> del encabezado del modal.
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 ─ Errores -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead><tr><th>Mensaje / Situación</th><th>Causa</th><th>Qué hacer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>"Fecha de ingreso, cargo y tipo de contrato son obligatorios."</td>
+            <td>Intentaste guardar sin completar los tres campos requeridos del prestador.</td>
+            <td>Completá los campos marcados con asterisco antes de guardar.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar un prestador con turnos activos."</td>
+            <td>El prestador tiene turnos en estado disponible, ocupado o realizado.</td>
+            <td>Ingresá al módulo <em>Agenda</em>, filtrá los turnos del prestador y cancelá los que están pendientes.</td>
+          </tr>
+          <tr>
+            <td>"La fecha de ingreso no puede ser futura."</td>
+            <td>Se ingresó una fecha de ingreso posterior al día de hoy.</td>
+            <td>Ingresá una fecha válida menor o igual a la fecha actual.</td>
+          </tr>
+          <tr>
+            <td>"El honorario no puede ser negativo."</td>
+            <td>Se ingresó un valor negativo en el campo Honorario referencial.</td>
+            <td>Ingresá un valor mayor o igual a cero, o dejá el campo vacío.</td>
+          </tr>
+          <tr>
+            <td>El modal no cierra tras hacer clic en Guardar</td>
+            <td>Error de validación en algún campo o error de la API.</td>
+            <td>Revisá el mensaje de error en el formulario y corregí el campo indicado.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que pueden confundirse con errores</h3>
+      <table>
+        <thead><tr><th>Situación</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Busco crear un prestador pero el sistema abre en modo Editar</td>
+            <td>La persona ya tiene un prestador activo. El sistema lo detecta automáticamente para evitar duplicados.</td>
+          </tr>
+          <tr>
+            <td>No aparece el ícono ✏️ ni 🗑️ en las filas</td>
+            <td>Tu rol no es Administrador. Solo el Administrador puede editar o eliminar prestadores. El listado es de solo lectura para otros roles.</td>
+          </tr>
+          <tr>
+            <td>Al hacer clic en "Cancelar" el modal se cierra sin diálogo de confirmación</td>
+            <td>El botón Cancelar cierra directamente. Usá la X del encabezado si querés el diálogo de protección.</td>
+          </tr>
+          <tr>
+            <td>Las especialidades no aparecen en el chip del buscador</td>
+            <td>El buscador de especialidades usa una búsqueda incremental: empezá a escribir el nombre para ver las opciones disponibles.</td>
+          </tr>
+          <tr>
+            <td>La tabla está vacía aunque haya prestadores</td>
+            <td>Hay un filtro de búsqueda activo. Borrá el texto del campo de búsqueda para ver todos los prestadores activos.</td>
+          </tr>
+          <tr>
+            <td>El tab "Documentos" en el detalle está vacío</td>
+            <td>El prestador no tiene documentos cargados. Para subir documentos, abrí el modo Editar.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="callout ok" style="margin-top:32px;">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Trazabilidad:</strong> todas las operaciones (registrar, editar, eliminar prestadores)
+        quedan registradas en <strong>Administración → Auditoría</strong> con fecha, hora,
+        usuario y los valores antes y después del cambio.
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top:16px;">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>Impacto en otros módulos:</strong> los prestadores registrados aquí aparecen
+        como opciones en <em>Horario Prestador</em> (para generar turnos), en
+        <em>Agenda</em> (como médico asignado a turnos), en <em>Consultas</em> (como
+        profesional de atención) y en <em>Pago a Prestadores</em> (para liquidar honorarios).
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Módulo Prestadores v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

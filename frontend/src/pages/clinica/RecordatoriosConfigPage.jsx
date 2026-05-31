@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, Wifi, WifiOff, Save, ChevronDown, ChevronRight, Eye, EyeOff, Bold, Image, CornerDownLeft, Trash2, Pencil, X } from 'lucide-react'
+import { ArrowLeft, Settings, Wifi, WifiOff, Save, ChevronDown, ChevronRight, Eye, EyeOff, Pencil, X } from 'lucide-react'
 import {
   useConfiguracion,
   useUpdateConfiguracion,
@@ -11,6 +11,7 @@ import {
   useSubirImagenPlantilla,
 } from '../../hooks/mantenimiento/useRecordatorios'
 import Toast from '../../components/ui/Toast'
+import WysiwygEditor from '../../components/ui/WysiwygEditor'
 import { useToast } from '../../hooks/useToast'
 import { extraerMensajeError } from '../../utils/errores'
 
@@ -51,27 +52,13 @@ function Toggle({ checked, onChange, label }) {
   )
 }
 
-const IMG_REGEX = /<img\s[^>]*src="([^"]*)"[^>]*\/?>/gi
-
-function extraerImagenes(html) {
-  const imgs = []
-  let m
-  const re = new RegExp(IMG_REGEX.source, 'gi')
-  while ((m = re.exec(html)) !== null) {
-    imgs.push({ tag: m[0], src: m[1] })
-  }
-  return imgs
-}
-
 function PlantillaEditor({ plantilla, tipo, tipoLabel, onCreate, onUpdate, onToggleActiva }) {
-  const [expandida, setExpandida]     = useState(false)
-  const [asunto, setAsunto]           = useState(plantilla?.asunto || '')
-  const [cuerpo, setCuerpo]           = useState(plantilla?.cuerpo || '')
-  const [guardando, setGuardando]     = useState(false)
-  const [verPreview, setVerPreview]   = useState(false)
-  const [modoImg, setModoImg]         = useState(false)
-  const cuerpoRef = useRef(null)
-  const fileRef   = useRef(null)
+  const [expandida, setExpandida]   = useState(false)
+  const [asunto, setAsunto]         = useState(plantilla?.asunto || '')
+  const [cuerpo, setCuerpo]         = useState(plantilla?.cuerpo || '')
+  const [guardando, setGuardando]   = useState(false)
+  const [verPreview, setVerPreview] = useState(false)
+  const editorRef = useRef(null)
   const subirImg  = useSubirImagenPlantilla()
   const { toast, showToast } = useToast()
 
@@ -82,51 +69,8 @@ function PlantillaEditor({ plantilla, tipo, tipoLabel, onCreate, onUpdate, onTog
     }
   }, [plantilla?.id])
 
-  const imagenesEnCuerpo = useMemo(() => extraerImagenes(cuerpo), [cuerpo])
-
-  const insertarEnCursor = (texto, offsetPost = 0) => {
-    const el = cuerpoRef.current
-    if (!el) { setCuerpo(c => c + texto); return }
-    const start = el.selectionStart
-    const end   = el.selectionEnd
-    const nuevo = cuerpo.slice(0, start) + texto + cuerpo.slice(end)
-    setCuerpo(nuevo)
-    setTimeout(() => {
-      el.selectionStart = el.selectionEnd = start + texto.length - offsetPost
-      el.focus()
-    }, 0)
-  }
-
-  const insertarVar         = (v)  => insertarEnCursor(`{${v}}`)
-  const insertarSaltoLinea  = ()   => insertarEnCursor('<br>\n')
-  const insertarNegrita     = ()   => {
-    const el = cuerpoRef.current
-    if (!el) { insertarEnCursor('<b></b>', 4); return }
-    const sel = cuerpo.slice(el.selectionStart, el.selectionEnd)
-    if (sel) {
-      const s = el.selectionStart
-      setCuerpo(c => c.slice(0, s) + `<b>${sel}</b>` + c.slice(el.selectionEnd))
-      setTimeout(() => { el.selectionStart = s; el.selectionEnd = s + sel.length + 7; el.focus() }, 0)
-    } else {
-      insertarEnCursor('<b></b>', 4)
-    }
-  }
-
-  const handleSeleccionarImg = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-    try {
-      const { url } = await subirImg.mutateAsync(file)
-      insertarEnCursor(`<img src="${url}" alt="" style="max-width:100%;border-radius:4px;" />`)
-      setModoImg(false)
-    } catch (err) {
-      showToast(err.message || 'Error al subir imagen.', 'error')
-    }
-  }
-
-  const eliminarImagen = (tag) => {
-    setCuerpo(c => c.replace(tag, ''))
+  const insertarVar = (v) => {
+    editorRef.current?.chain().focus().insertContent(`{${v}}`).run()
   }
 
   const handleGuardar = async () => {
@@ -185,92 +129,44 @@ function PlantillaEditor({ plantilla, tipo, tipoLabel, onCreate, onUpdate, onTog
                 </button>
               ))}
             </div>
+            <div className="rec-cfg-hint">Hacé clic en una variable para insertarla en la posición del cursor.</div>
           </div>
 
           <div className="rec-cfg-form-group">
-            <label className="rec-cfg-label">Cuerpo del mensaje (HTML)</label>
-            <div className="rec-cfg-editor-wrap">
-              <div className="rec-cfg-toolbar">
-                <button className="rec-cfg-tool-btn" title="Salto de línea" onClick={insertarSaltoLinea}>
-                  <CornerDownLeft size={13} /><span>Salto de línea</span>
-                </button>
-                <button className="rec-cfg-tool-btn" title="Negrita" onClick={insertarNegrita}>
-                  <Bold size={13} /><span>Negrita</span>
-                </button>
-                <button
-                  className={`rec-cfg-tool-btn ${modoImg ? 'activo' : ''}`}
-                  title="Insertar imagen"
-                  onClick={() => setModoImg(m => !m)}
-                  disabled={subirImg.isPending}
-                >
-                  <Image size={13} />
-                  <span>{subirImg.isPending ? 'Subiendo…' : 'Imagen'}</span>
-                </button>
-                <div className="rec-cfg-tool-sep" />
-                <button
-                  className={`rec-cfg-tool-btn ${verPreview ? 'activo' : ''}`}
-                  title="Vista previa"
-                  onClick={() => setVerPreview(v => !v)}
-                >
-                  {verPreview ? <EyeOff size={13} /> : <Eye size={13} />}
-                  <span>Vista previa</span>
-                </button>
-              </div>
-
-              {modoImg && (
-                <div className="rec-cfg-img-form">
-                  <Image size={13} color="#6b7280" />
-                  <span className="rec-cfg-img-label">Seleccioná una imagen:</span>
-                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={handleSeleccionarImg} />
-                  <button className="rec-cfg-img-btn-ok" onClick={() => fileRef.current?.click()}
-                    disabled={subirImg.isPending}>
-                    {subirImg.isPending ? 'Subiendo…' : 'Elegir archivo'}
-                  </button>
-                  <button className="rec-cfg-img-btn-cancel" onClick={() => setModoImg(false)}>Cancelar</button>
-                </div>
-              )}
-
-              {!verPreview ? (
-                <textarea
-                  ref={cuerpoRef}
-                  className="rec-cfg-textarea"
-                  rows={8}
-                  value={cuerpo}
-                  onChange={e => setCuerpo(e.target.value)}
-                  placeholder="Hola {nombre}, le recordamos su cita el {fecha} a las {hora} con {medico}."
-                />
-              ) : (
-                <div
-                  className="rec-cfg-preview"
-                  dangerouslySetInnerHTML={{ __html: renderizarPreview(cuerpo) || '<span style="color:#9ca3af;font-style:italic;">Sin contenido aún.</span>' }}
-                />
-              )}
-
-              {imagenesEnCuerpo.length > 0 && (
-                <div className="rec-cfg-img-galeria">
-                  <div className="rec-cfg-img-galeria-titulo">Imágenes en la plantilla</div>
-                  <div className="rec-cfg-img-galeria-lista">
-                    {imagenesEnCuerpo.map((img, i) => (
-                      <div key={i} className="rec-cfg-img-item">
-                        <img src={img.src} alt={`imagen ${i + 1}`} className="rec-cfg-img-thumb" />
-                        <button
-                          className="rec-cfg-img-eliminar"
-                          title="Eliminar imagen"
-                          onClick={() => eliminarImagen(img.tag)}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="rec-cfg-editor-header">
+              <label className="rec-cfg-label">Cuerpo del mensaje</label>
+              <button
+                className={`rec-cfg-preview-btn ${verPreview ? 'activo' : ''}`}
+                onClick={() => setVerPreview(v => !v)}
+              >
+                {verPreview ? <EyeOff size={12} /> : <Eye size={12} />}
+                {verPreview ? 'Editar' : 'Vista previa'}
+              </button>
             </div>
+
+            {!verPreview ? (
+              <WysiwygEditor
+                key={plantilla?.id ?? tipo}
+                value={cuerpo}
+                onChange={setCuerpo}
+                onImageUpload={(file) => subirImg.mutateAsync(file)}
+                onImageError={(err) => showToast(extraerMensajeError(err), 'error')}
+                editorRef={editorRef}
+                uploadPending={subirImg.isPending}
+              />
+            ) : (
+              <div
+                className="rec-cfg-preview"
+                dangerouslySetInnerHTML={{
+                  __html: renderizarPreview(cuerpo) || '<span style="color:#9ca3af;font-style:italic;">Sin contenido aún.</span>',
+                }}
+              />
+            )}
+
             <div className="rec-cfg-hint">
               {verPreview
                 ? 'Vista previa con datos de ejemplo — no refleja valores reales.'
-                : 'Podés escribir HTML directamente. Las imágenes se hospedan en el servidor y se muestran debajo.'}
+                : 'Las imágenes se suben al servidor y quedan embebidas en la plantilla.'}
             </div>
           </div>
 
@@ -464,80 +360,18 @@ export default function RecordatoriosConfigPage() {
         }
         .rec-cfg-input-num:focus { border-color: #1a3a5c; }
 
-        /* Editor unificado — toolbar + cuerpo comparten el borde del wrapper */
-        .rec-cfg-editor-wrap {
-          border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
+        .rec-cfg-editor-header {
+          display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
         }
-        .rec-cfg-editor-wrap:focus-within { border-color: #1a3a5c; }
-
-        .rec-cfg-toolbar {
-          display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
-          background: #f3f4f6; border-bottom: 1px solid #e5e7eb;
-          padding: 5px 8px;
+        .rec-cfg-editor-header .rec-cfg-label { margin-bottom: 0; }
+        .rec-cfg-preview-btn {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 3px 10px; border-radius: 6px; border: 1px solid #e5e7eb;
+          background: #fff; color: #6b7280; font-size: 11.5px;
+          font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background .12s;
         }
-        .rec-cfg-tool-btn {
-          display: inline-flex; align-items: center; gap: 4px;
-          padding: 4px 8px; border-radius: 5px; border: none;
-          background: transparent; color: #374151;
-          font-size: 11.5px; font-family: 'DM Sans', sans-serif;
-          cursor: pointer; transition: background .12s; white-space: nowrap;
-        }
-        .rec-cfg-tool-btn:hover { background: #e5e7eb; }
-        .rec-cfg-tool-btn.activo { background: #dbeafe; color: #1a3a5c; }
-        .rec-cfg-tool-sep {
-          width: 1px; height: 18px; background: #d1d5db; margin: 0 4px; flex-shrink: 0;
-        }
-
-        .rec-cfg-textarea {
-          border: none; padding: 10px;
-          font-size: 12px; font-family: 'Courier New', monospace; outline: none;
-          resize: vertical; background: #fff; width: 100%; box-sizing: border-box;
-          line-height: 1.6; display: block;
-        }
-
-        .rec-cfg-img-form {
-          display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-          padding: 8px 12px; background: #eff6ff;
-          border-bottom: 1px solid #bfdbfe;
-        }
-        .rec-cfg-img-label { font-size: 12px; color: #374151; flex: 1; min-width: 120px; }
-        .rec-cfg-img-btn-ok {
-          padding: 5px 12px; border-radius: 6px; border: none;
-          background: #1a3a5c; color: #fff; font-size: 12px;
-          font-family: 'DM Sans', sans-serif; cursor: pointer;
-        }
-        .rec-cfg-img-btn-ok:disabled { background: #9ca3af; cursor: default; }
-        .rec-cfg-img-btn-cancel {
-          padding: 5px 10px; border-radius: 6px;
-          border: 1px solid #d1d5db; background: #fff;
-          color: #6b7280; font-size: 12px;
-          font-family: 'DM Sans', sans-serif; cursor: pointer;
-        }
-
-        .rec-cfg-img-galeria {
-          border-top: 1px solid #e5e7eb; background: #f8fafc; padding: 10px 12px;
-        }
-        .rec-cfg-img-galeria-titulo {
-          font-size: 11px; font-weight: 600; color: #6b7280;
-          text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px;
-        }
-        .rec-cfg-img-galeria-lista { display: flex; flex-wrap: wrap; gap: 8px; }
-        .rec-cfg-img-item {
-          position: relative; display: inline-block;
-          border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden;
-          background: #fff;
-        }
-        .rec-cfg-img-thumb {
-          display: block; width: 80px; height: 60px; object-fit: cover;
-        }
-        .rec-cfg-img-eliminar {
-          position: absolute; top: 3px; right: 3px;
-          width: 20px; height: 20px; border-radius: 4px;
-          background: rgba(220,38,38,.85); border: none; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; color: #fff;
-          opacity: 0; transition: opacity .15s;
-        }
-        .rec-cfg-img-item:hover .rec-cfg-img-eliminar { opacity: 1; }
+        .rec-cfg-preview-btn:hover { background: #f3f4f6; }
+        .rec-cfg-preview-btn.activo { background: #dbeafe; color: #1a3a5c; border-color: #bfdbfe; }
 
         .rec-cfg-preview {
           padding: 16px; min-height: 120px; background: #fff;

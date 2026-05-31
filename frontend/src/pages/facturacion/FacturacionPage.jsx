@@ -1628,45 +1628,57 @@ export default function FacturacionPage() {
     <>
       <style>{`
         .fac-page { display: flex; flex-direction: column; height: 100%; }
-        .fac-header-icon { width: 36px; height: 36px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .fac-header-titles { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; margin-right: 4px; }
-        .fac-header-title { font-size: 17px; font-weight: 600; color: #111827; white-space: nowrap; }
-        .fac-header-sub   { font-size: 12px; color: #9ca3af; white-space: nowrap; }
-        .fac-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #f3f4f6; }
-        .fac-search-wrap { flex: 1; min-width: 200px; max-width: 340px; display: flex; align-items: center; gap: 8px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 12px; background: #fff; }
-        .fac-search-main { flex: 1; border: none; outline: none; font-size: 13px; font-family: 'DM Sans', sans-serif; background: transparent; color: #374151; }
-        .fac-search-main::placeholder { color: #9ca3af; }
-        .fac-filtro-select { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; background: #fff; color: #374151; height: 36px; }
-        .fac-filtro-date { border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; background: #fff; color: #374151; height: 36px; width: 138px; }
-        .fac-btn-reporte { display: flex; align-items: center; gap: 5px; padding: 7px 13px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #374151; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; }
-        .fac-btn-reporte:hover:not(:disabled) { background: #f3f4f6; }
-        .fac-btn-reporte.excel { color: #15803d; border-color: #bbf7d0; }
-        .fac-btn-reporte.excel:hover:not(:disabled) { background: #dcfce7; }
-        .fac-btn-reporte:disabled { opacity: 0.6; cursor: default; }
-        .fac-btn-nuevo { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: #1a3a5c; color: #fff; margin-left: auto; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; }
-        .fac-btn-nuevo:hover { background: #15304d; }
-        .fac-body { flex: 1; overflow: hidden; padding: 14px 24px 24px; }
-        .fac-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; overflow-y: auto; }
-        .fac-tabla { width: 100%; border-collapse: collapse; }
-        .fac-th { text-align: left; padding: 10px 14px; font-size: 11.5px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; background: #f8fafc; border-bottom: 1px solid #e8edf2; position: sticky; top: 0; }
-        .fac-td { padding: 12px 14px; font-size: 13px; color: #374151; vertical-align: middle; border-bottom: 1px solid #f3f4f6; }
+        .fac-header-icon { width: 40px; height: 40px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .fac-header-titles { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+        .fac-header-title { font-size: 22px; font-weight: 600; color: #1a3a5c; }
+        .fac-header-sub   { font-size: 13px; color: #6b7280; }
+        .fac-toolbar { display: flex; align-items: flex-start; gap: 10px; padding: 0 24px 16px; flex-wrap: wrap; }
+        .fac-toolbar-right { display: flex; align-items: flex-start; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+        .fac-toolbar-actions { display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+        .fac-search-wrap { position: relative; width: 240px; flex-shrink: 1; min-width: 160px; }
+        .fac-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+        .fac-search-main { width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827; background: #fff; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+        .fac-search-main:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
+        .fac-search-main::placeholder { color: #d1d5db; }
+        .fac-filtro-select { border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 8px 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; background: #fff; color: #374151; height: 38px; }
+        .fac-filtro-date { border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 0 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; background: #fff; color: #374151; height: 38px; width: 138px; }
+        .fac-btn-reporte { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 9px; border: none; background: #dc2626; color: #fff; font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s, box-shadow 0.15s; }
+        .fac-btn-reporte:hover:not(:disabled) { background: #b91c1c; box-shadow: 0 4px 12px rgba(220,38,38,0.2); }
+        .fac-btn-reporte.excel { background: #16a34a; }
+        .fac-btn-reporte.excel:hover:not(:disabled) { background: #15803d; box-shadow: 0 4px 12px rgba(22,163,74,0.2); }
+        .fac-btn-reporte:disabled { opacity: 0.6; cursor: not-allowed; }
+        .fac-btn-nuevo-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .fac-btn-nuevo { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; border: none; background: #1a3a5c; color: #fff; font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s, box-shadow 0.15s; }
+        .fac-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
+        .fac-btn-nuevo-hint { font-size: 10.5px; color: #9ca3af; white-space: nowrap; }
+        .fac-body { flex: 1; overflow: hidden; padding: 0 24px 24px; }
+        .fac-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 12px; background: #fff; overflow-y: auto; }
+        .fac-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .fac-th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; background: #f8fafc; border-bottom: 1px solid #e8edf2; position: sticky; top: 0; white-space: nowrap; }
+        .fac-td { padding: 12px 16px; color: #374151; vertical-align: middle; border-bottom: 1px solid #f3f4f6; }
         .fac-tr:last-child .fac-td { border-bottom: none; }
-        .fac-tr:nth-child(even) .fac-td { background: #f9fafb; }
-        .fac-tr-clickable { cursor: pointer; }
-        .fac-tr-clickable:hover .fac-td { background: #eff6ff !important; }
+        .fac-tr:nth-child(odd)  .fac-td { background: #ffffff; }
+        .fac-tr:nth-child(even) .fac-td { background: #f8fafc; }
+        .fac-tr-clickable { cursor: pointer; transition: background 0.15s; }
+        .fac-tr-clickable:hover .fac-td { background: #f0f4f8 !important; }
         .fac-tr-anulado .fac-td { background: #fff5f5 !important; }
         .fac-tr-anulado:hover .fac-td { background: #fee2e2 !important; }
-        .fac-td-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-        .fac-td-acciones { display: flex; gap: 4px; justify-content: flex-end; }
-        .fac-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+        .fac-td-hint { font-size: 11.5px; color: #9ca3af; margin-top: 3px; font-style: italic; }
+        .fac-td-acciones { display: flex; gap: 6px; justify-content: flex-end; }
+        .fac-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
         .fac-badge.contado  { background: #dcfce7; color: #166534; }
         .fac-badge.credito  { background: #fef3c7; color: #92400e; }
         .fac-badge.anulado  { background: #fee2e2; color: #991b1b; }
-        .fac-row-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7280; }
-        .fac-row-btn:hover { background: #f3f4f6; }
-        .fac-row-btn.danger { border-color: #fecaca; color: #dc2626; }
-        .fac-row-btn.danger:hover { background: #fef2f2; }
-        .fac-empty   { text-align: center; color: #9ca3af; padding: 48px; font-size: 13.5px; }
+        .fac-row-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid #e8edf2; background: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7280; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+        .fac-row-btn:hover        { background: #f0f4f8; }
+        .fac-row-btn.edit:hover   { background: #eff6ff; color: #1a3a5c; border-color: #bfdbfe; }
+        .fac-row-btn.anular       { color: #b45309; border-color: #fde68a; }
+        .fac-row-btn.anular:hover { background: #fffbeb; border-color: #f59e0b; }
+        .fac-row-btn.danger       { border-color: #fecaca; color: #dc2626; }
+        .fac-row-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; }
+        .fac-empty { text-align: center; padding: 48px 16px; color: #9ca3af; font-size: 13.5px; }
+        .fac-empty-icon { width: 40px; height: 40px; margin: 0 auto 12px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #d1d5db; }
+        .fac-empty-title { font-weight: 500; color: #6b7280; margin-bottom: 4px; }
         .fac-loading { text-align: center; color: #9ca3af; padding: 48px; font-size: 13px; }
         .fac-mono { font-family: 'Courier New', monospace; }
         .fac-modal-wrap { display: flex; flex-direction: column; height: 100%; }
@@ -1812,9 +1824,14 @@ export default function FacturacionPage() {
         .fac-det-prod-hint { font-size: 12px; color: #9ca3af; font-style: italic; }
         .fac-det-panel-izq input:disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: 1; }
         @media (max-width: 767px) {
-          .fac-toolbar { padding: 8px 14px; gap: 8px; }
-          .fac-search-wrap { max-width: 100%; min-width: 0; margin-left: 0 !important; }
-          .fac-body { padding: 10px 14px 14px; }
+          .fac-toolbar { padding: 0 14px 12px; gap: 8px; }
+          .fac-toolbar-right { flex-basis: 100%; margin-left: 0; }
+          .fac-search-wrap { width: 100%; min-width: 0; }
+          .fac-toolbar-actions { flex-wrap: wrap; }
+          .fac-header-title { font-size: 18px; }
+          .fac-header-sub   { display: none; }
+          .fac-btn-nuevo-hint { display: none; }
+          .fac-body { padding: 0 14px 14px; }
           .fac-det-master { flex-direction: column; }
           .fac-det-panel-izq { width: 100%; }
           .fac-tabla-wrap { overflow-x: auto; }
@@ -1835,39 +1852,47 @@ export default function FacturacionPage() {
             <div className="fac-header-sub">Emisión y gestión de facturas</div>
           </div>
 
-          <div className="fac-search-wrap" style={{ marginLeft: 'auto' }}>
-            <Search size={13} color="#9ca3af" />
-            <input
-              className="fac-search-main"
-              placeholder="Buscar por cliente o comprobante…"
-              onChange={handleSearchChange}
-              autoComplete="off"
-            />
+          <div className="fac-toolbar-right">
+            <div className="fac-search-wrap">
+              <Search size={15} className="fac-search-icon" />
+              <input
+                className="fac-search-main"
+                placeholder="Buscar por cliente o comprobante…"
+                onChange={handleSearchChange}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="fac-toolbar-actions">
+              <select className="fac-filtro-select" value={filtros.condicion_vta}
+                onChange={e => setFiltros(f => ({ ...f, condicion_vta: e.target.value }))}>
+                <option value="">Todas</option>
+                <option value="true">Contado</option>
+                <option value="false">Crédito</option>
+              </select>
+
+              <input type="date" className="fac-filtro-date" title="Fecha desde"
+                value={filtros.fecha_desde}
+                onChange={e => setFiltros(f => ({ ...f, fecha_desde: e.target.value }))} />
+              <input type="date" className="fac-filtro-date" title="Fecha hasta"
+                value={filtros.fecha_hasta}
+                onChange={e => setFiltros(f => ({ ...f, fecha_hasta: e.target.value }))} />
+
+              <button className="fac-btn-reporte" onClick={handleVerPdf} disabled={loadingPdf}>
+                <FileText size={14} /> {loadingPdf ? 'Generando…' : 'PDF'}
+              </button>
+              <button className="fac-btn-reporte excel" onClick={handleDescargarExcel} disabled={loadingExcel}>
+                <FileDown size={14} /> {loadingExcel ? 'Generando…' : 'Excel'}
+              </button>
+
+              <div className="fac-btn-nuevo-wrap">
+                <button className="fac-btn-nuevo" onClick={() => setModalAbierto(true)}>
+                  <Plus size={15} /> Nueva factura
+                </button>
+                <span className="fac-btn-nuevo-hint">Presioná Ins para nueva factura</span>
+              </div>
+            </div>
           </div>
-
-          <select className="fac-filtro-select" value={filtros.condicion_vta}
-            onChange={e => setFiltros(f => ({ ...f, condicion_vta: e.target.value }))}>
-            <option value="">Todas</option>
-            <option value="true">Contado</option>
-            <option value="false">Crédito</option>
-          </select>
-
-          <input type="date" className="fac-filtro-date" title="Fecha desde"
-            value={filtros.fecha_desde}
-            onChange={e => setFiltros(f => ({ ...f, fecha_desde: e.target.value }))} />
-          <input type="date" className="fac-filtro-date" title="Fecha hasta"
-            value={filtros.fecha_hasta}
-            onChange={e => setFiltros(f => ({ ...f, fecha_hasta: e.target.value }))} />
-
-          <button className="fac-btn-reporte" onClick={handleVerPdf} disabled={loadingPdf}>
-            <FileText size={14} /> {loadingPdf ? 'Generando…' : 'PDF'}
-          </button>
-          <button className="fac-btn-reporte excel" onClick={handleDescargarExcel} disabled={loadingExcel}>
-            <FileDown size={14} /> {loadingExcel ? 'Generando…' : 'Excel'}
-          </button>
-          <button className="fac-btn-nuevo" onClick={() => setModalAbierto(true)}>
-            <Plus size={15} /> Nueva factura
-          </button>
         </div>
 
         <div className="fac-body">
@@ -1875,7 +1900,11 @@ export default function FacturacionPage() {
             {isLoading ? (
               <div className="fac-loading">Cargando facturas…</div>
             ) : facturas.length === 0 ? (
-              <div className="fac-empty">No hay facturas registradas.</div>
+              <div className="fac-empty">
+                <div className="fac-empty-icon"><FileText size={18} /></div>
+                <div className="fac-empty-title">No hay facturas registradas</div>
+                <div>Usá los filtros para buscar, o emitís una nueva factura.</div>
+              </div>
             ) : (
               <table className="fac-tabla">
                 <thead>
@@ -1918,7 +1947,7 @@ export default function FacturacionPage() {
                       <td className="fac-td" onClick={e => e.stopPropagation()}>
                         <div className="fac-td-acciones">
                           {!f.is_anulado && (
-                            <button className="fac-row-btn" title="Editar"
+                            <button className="fac-row-btn edit" title="Editar"
                               onClick={() => setFacturaViendo({ id: f.id, modo: 'editar' })}>
                               <Pencil size={12} />
                             </button>
@@ -1928,7 +1957,7 @@ export default function FacturacionPage() {
                             <Printer size={12} />
                           </button>
                           {!f.is_anulado && (
-                            <button className="fac-row-btn" title="Anular" style={{ color: '#b45309', borderColor: '#fde68a' }}
+                            <button className="fac-row-btn anular" title="Anular"
                               onClick={() => handleAnular(f)}>
                               <Ban size={12} />
                             </button>

@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Eventos Clínicos · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    /* ── Portada ── */
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    /* ── TOC ── */
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    /* ── Contenido ── */
+    .content { padding: 0 64px 64px; }
+
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    /* ── Screenshot ── */
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    /* ── Tablas ── */
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    /* ── Callouts ── */
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    /* ── Steps ── */
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    /* ── Badges ── */
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+
+    /* ── Kbd ── */
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    /* ── Acciones ── */
+    .action-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:14px; }
+    .action-icon { background:#f8fafc; border:1px solid #e8edf2; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Eventos Clínicos</h1>
+    <p class="cover-subtitle">Registro y gestión de los tipos de evento que clasifican las consultas médicas</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Consultas → Eventos clínicos</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TOC ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar un evento clínico</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de un evento clínico</a></li>
+      <li><a href="#s6"><span class="num">06</span> Crear un evento clínico</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un evento clínico</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar un evento clínico</a></li>
+      <li><a href="#s9"><span class="num">09</span> Protección de cambios sin guardar</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 ─ Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Eventos Clínicos</strong> permite registrar y administrar los tipos de evento
+        que clasifican las consultas médicas de la clínica. Cada evento se identifica con un nombre
+        único que describe la naturaleza de la atención (ej: <em>Consulta General</em>,
+        <em>Cirugía Programada</em>, <em>Urgencia</em>, <em>Control Post-operatorio</em>).
+      </p>
+      <p>
+        Al registrar una consulta médica, el profesional puede indicar a qué tipo de evento corresponde.
+        Este dato queda registrado en el historial del paciente y permite filtrar y analizar la
+        actividad clínica por categoría. Por eso es importante mantener este catálogo actualizado
+        antes de comenzar a cargar consultas.
+      </p>
+
+      <table>
+        <thead><tr><th>Acción</th><th><span class="badge badge-admin">Administrador</span></th><th><span class="badge badge-recep">Recepcionista</span></th></tr></thead>
+        <tbody>
+          <tr><td>Ver listado y detalle</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Crear evento clínico</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Editar evento clínico</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Eliminar evento clínico</td><td>✅</td><td>🚫</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los roles <strong>Médico</strong> y <strong>Secretaria de médico</strong> pueden ver el listado
+          de eventos clínicos (disponible como opción al registrar consultas) pero no pueden crear,
+          editar ni eliminar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ─ Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, expandí la sección <strong>Consultas</strong> y hacé clic
+        en <strong>Eventos clínicos</strong>.
+      </p>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Si el ítem <strong>Eventos clínicos</strong> no aparece en el menú, tu rol no tiene acceso
+          a este módulo. Contactá al administrador del sistema.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 ─ Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado de eventos clínicos</h2>
+      </div>
+      <p>
+        Al ingresar al módulo se muestra una tabla con todos los eventos clínicos activos registrados
+        en el sistema, junto con la barra de búsqueda y el botón para crear uno nuevo.
+        Los eventos se ordenan alfabéticamente de forma automática.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/01_listado.png" alt="Listado de eventos clínicos" />
+        <div class="screenshot-caption">Vista principal — tabla con tipo de evento y acciones. Debajo de cada evento aparece el hint "Hacé clic para ver el detalle"</div>
+      </div>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Tipo de evento</strong></td>
+            <td>Nombre del evento clínico. Debajo aparece el texto <em>"Hacé clic para ver el detalle"</em> en las filas no seleccionadas.</td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>
+              Dos botones que aparecen al pasar el cursor sobre la fila:<br><br>
+              <div class="action-row"><div class="action-icon">✏️</div><span><strong>Editar</strong> — abre el panel lateral en modo edición</span></div>
+              <div class="action-row"><div class="action-icon">🗑️</div><span><strong>Eliminar</strong> — abre el diálogo de confirmación (solo Administrador)</span></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          El ícono de papelera 🗑️ <strong>solo es visible para el rol Administrador</strong>.
+          Las Recepcionistas no ven ese botón.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 ─ Buscar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar un evento clínico</h2>
+      </div>
+      <p>
+        El campo de búsqueda en la parte superior derecha filtra la tabla en tiempo real
+        por tipo de evento. La búsqueda tiene un retardo de 300 ms para evitar
+        peticiones en cada tecla.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/02_busqueda.png" alt="Búsqueda activa" />
+        <div class="screenshot-caption">Búsqueda activa — la tabla muestra solo los eventos cuyo nombre contiene el texto ingresado</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Comportamiento</th><th>Detalle</th></tr></thead>
+        <tbody>
+          <tr><td>Búsqueda por nombre</td><td>Filtra cualquier evento cuyo <strong>Tipo de evento</strong> contenga el texto (sin distinción de mayúsculas).</td></tr>
+          <tr><td>Búsqueda parcial</td><td>No hace falta escribir el nombre completo; con las primeras letras ya se filtra la lista.</td></tr>
+          <tr><td>Sin resultados</td><td>La tabla muestra el mensaje <em>"Sin eventos clínicos registrados"</em> con un ícono.</td></tr>
+          <tr><td>Limpiar búsqueda</td><td>Borrá el texto del campo para volver a ver todos los eventos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5 ─ Ver detalle -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de un evento clínico</h2>
+      </div>
+      <p>
+        Hacé clic en cualquier parte de una fila de la tabla (excepto en los botones de acciones)
+        para abrir el panel lateral derecho con los datos del evento en modo lectura.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/03_panel_detalle.png" alt="Panel de detalle" />
+        <div class="screenshot-caption">Panel lateral en modo Detalle — muestra el Tipo de evento; botones Eliminar y Editar en el pie</div>
+      </div>
+
+      <p>El panel de detalle muestra:</p>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2.2;">
+        <li>Ícono de actividad clínica en el encabezado del panel</li>
+        <li><strong>Tipo de evento</strong>: el nombre del evento clínico</li>
+      </ul>
+
+      <p>Desde el panel de detalle podés ejecutar dos acciones:</p>
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;">Editar</div><span style="font-size:14px;color:#374151;">Cambia el panel al modo edición sin cerrarlo.</span></div>
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;color:#dc2626;border-color:#fecaca;">Eliminar</div><span style="font-size:14px;color:#374151;">Abre el diálogo de confirmación (solo Administrador).</span></div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La fila seleccionada se resalta con fondo azul claro en la tabla y el hint
+          <em>"Hacé clic para ver el detalle"</em> desaparece de esa fila mientras el panel esté abierto.
+        </div>
+      </div>
+
+      <p>Para cerrar el panel hacé clic en la <strong>X</strong> del encabezado del panel.</p>
+    </div>
+
+    <!-- 6 ─ Crear -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Crear un evento clínico</h2>
+      </div>
+      <p>
+        Hacé clic en el botón <strong>+ Nuevo evento clínico</strong> en la esquina superior derecha
+        (o presioná la tecla <kbd>Insert</kbd> cuando el panel esté cerrado).
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/04_panel_crear.png" alt="Panel de creación vacío" />
+        <div class="screenshot-caption">Panel "Nuevo evento clínico" recién abierto — el cursor se posiciona automáticamente en el campo Tipo de evento; el botón Guardar está deshabilitado hasta completarlo</div>
+      </div>
+
+      <h3>Pasos para crear un evento clínico</h3>
+      <ol class="steps">
+        <li><div class="step-text">Hacé clic en <strong>+ Nuevo evento clínico</strong> o presioná <kbd>Insert</kbd>. El panel lateral aparece con el título "Nuevo evento clínico" y el cursor se posiciona automáticamente en el campo <strong>Tipo de evento</strong>.</div></li>
+        <li><div class="step-text">Ingresá el nombre del evento en el campo <strong>Tipo de evento *</strong> (requerido). Ejemplos: <code>Consulta General</code>, <code>Cirugía Programada</code>, <code>Urgencia</code>, <code>Control Post-operatorio</code>.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd> desde el campo del formulario.</div></li>
+        <li><div class="step-text">El panel se cierra automáticamente y el nuevo evento aparece en la tabla ordenado alfabéticamente. Se muestra una notificación verde de confirmación.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/05_panel_crear_completo.png" alt="Panel con datos completos listo para guardar" />
+        <div class="screenshot-caption">Panel con el tipo de evento completo — el botón Guardar se habilita en cuanto se ingresa algún texto; F10 funciona desde el campo</div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Campo requerido:</strong> el <strong>Tipo de evento</strong> es obligatorio.
+          El botón Guardar permanece deshabilitado mientras ese campo esté vacío.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          El nombre es único sin distinción de mayúsculas: <code>urgencia</code> y
+          <code>Urgencia</code> se consideran el mismo. Si intentás crear un evento duplicado,
+          el sistema mostrará un error y el panel permanecerá abierto para que corrijas el valor.
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 ─ Editar -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un evento clínico</h2>
+      </div>
+      <p>
+        Podés abrir el modo edición de dos formas: desde el ícono de lápiz en la fila de la tabla,
+        o desde el botón <strong>Editar</strong> dentro del panel de detalle.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/06_panel_editar.png" alt="Panel en modo edición con datos precargados" />
+        <div class="screenshot-caption">Panel "Editar evento clínico" — el campo está precargado con el valor actual; el botón Guardar se habilita de inmediato</div>
+      </div>
+
+      <h3>Pasos para editar</h3>
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila del evento que querés modificar y hacé clic en el ícono ✏️, <strong>o</strong> abrí el detalle del evento y hacé clic en <strong>Editar</strong>.</div></li>
+        <li><div class="step-text">El panel lateral muestra el formulario de edición con el valor actual precargado.</div></li>
+        <li><div class="step-text">Modificá el tipo de evento.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd>.</div></li>
+        <li><div class="step-text">El panel vuelve al modo lectura mostrando el dato actualizado. Se muestra una notificación verde de confirmación.</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Al editar, la validación de nombre único <strong>excluye el propio registro</strong>.
+          Esto significa que podés guardar sin modificar el nombre sin que el sistema lo rechace por duplicado.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Renombrar un evento clínico actualiza su nombre en todas las consultas que lo tengan
+          asignado, ya que se almacena como referencia por ID. Verificá que el nuevo nombre
+          sea coherente con el historial existente antes de confirmar el cambio.
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 ─ Eliminar -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar un evento clínico</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar eventos clínicos.
+          Las Recepcionistas no ven el ícono de papelera.
+        </div>
+      </div>
+
+      <p>
+        Eliminar un evento clínico lo quita de las listas activas y del selector en la pantalla
+        de consultas, pero <strong>no lo borra físicamente</strong> de la base de datos (borrado lógico).
+        Los datos históricos vinculados permanecen intactos.
+      </p>
+
+      <h3>Pasos para eliminar</h3>
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila del evento y hacé clic en el ícono de papelera 🗑️, <strong>o</strong> abrí el detalle y hacé clic en <strong>Eliminar</strong>.</div></li>
+        <li><div class="step-text">El sistema muestra un diálogo de confirmación con la advertencia sobre consultas vinculadas.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar, o en <strong>Cancelar</strong> para volver sin cambios.</div></li>
+        <li><div class="step-text">El evento desaparece de la tabla. Se muestra una notificación verde de confirmación.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/07_confirm_eliminar.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">Diálogo de confirmación — advierte que si el evento tiene consultas vinculadas activas no se podrá eliminar</div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar un evento clínico si tiene consultas activas vinculadas.</strong>
+          En ese caso el sistema retorna un error y el evento no se elimina.
+          Para poder eliminarlo primero debés desvincular ese evento de todas las consultas activas
+          que lo tengan asignado (en Consultas → Consulta médica), o bien aguardar a que esas
+          consultas queden finalizadas o sean anuladas.
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Si las consultas que tenían asignado el evento ya fueron eliminadas lógicamente,
+          no bloquean la eliminación. Solo las consultas <strong>activas</strong>
+          (con <code>is_deleted = False</code>) generan el bloqueo.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Guard -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Protección de cambios sin guardar</h2>
+      </div>
+      <p>
+        El sistema detecta automáticamente cuando comenzaste a editar el formulario y no guardaste
+        los cambios. Si intentás cerrar el panel, navegar a otro módulo o hacer clic en "Cancelar"
+        con cambios pendientes, aparece un diálogo de advertencia.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/eventoclinico/08_navigation_guard.png" alt="Diálogo de cambios sin guardar" />
+        <div class="screenshot-caption">Diálogo "¿Salir sin guardar?" — aparece al cancelar o navegar con cambios pendientes; podés volver al formulario o confirmar el descarte</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Opción</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Seguir editando</strong></td>
+            <td>Cierra el diálogo y vuelve al formulario con los cambios intactos para que puedas seguir editando o guardar.</td>
+          </tr>
+          <tr>
+            <td><strong>Continuar sin guardar</strong></td>
+            <td>Descarta todos los cambios realizados en el formulario y cierra el panel (o navega al destino solicitado).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La protección se activa en cuanto escribís algo en el campo del formulario.
+          Si abrís el panel pero <strong>no modificás nada</strong>, cerrarlo no dispara el diálogo.
+        </div>
+      </div>
+
+      <h3>Situaciones en las que aparece el diálogo</h3>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2.2;">
+        <li>Hacés clic en <strong>Cancelar</strong> en el formulario (crear o editar)</li>
+        <li>Hacés clic en la <strong>X</strong> del panel con cambios pendientes</li>
+        <li>Hacés clic en otra fila de la tabla para cambiar el evento seleccionado</li>
+        <li>Navegás a otro módulo desde el menú lateral</li>
+      </ul>
+    </div>
+
+    <!-- 10 ─ Errores -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead><tr><th>Mensaje</th><th>Situación</th><th>Qué hacer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>"Ya existe un evento clínico con ese nombre"</td>
+            <td>Al crear o editar, el nombre ingresado ya lo usa otro evento activo (sin distinción de mayúsculas).</td>
+            <td>Usá un nombre diferente. Si creés que es un error, buscá el evento existente con ese nombre en la tabla.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar: el evento clínico tiene consultas activas vinculadas"</td>
+            <td>El evento está asignado a una o más consultas que aún están activas.</td>
+            <td>Navegá a Consultas → Consulta médica, localizá las consultas que usan ese evento y remové la asignación o aguardá a que finalicen. Luego volvé a intentar la eliminación.</td>
+          </tr>
+          <tr>
+            <td>Botón Guardar deshabilitado</td>
+            <td>El campo <strong>Tipo de evento</strong> está vacío.</td>
+            <td>Completá el campo con el nombre del evento antes de guardar.</td>
+          </tr>
+          <tr>
+            <td>El panel no se cierra tras hacer clic en Guardar</td>
+            <td>Hubo un error de validación (ej: nombre duplicado). El panel permanece abierto para que corrijas el valor.</td>
+            <td>Revisá el mensaje de error que aparece en la notificación roja y corregí el campo indicado.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que pueden confundirse con errores</h3>
+      <table>
+        <thead><tr><th>Situación</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>No aparece el ícono de papelera 🗑️ en las filas</td>
+            <td>Tu rol es Recepcionista. Solo los Administradores pueden eliminar eventos clínicos. Es un comportamiento intencional.</td>
+          </tr>
+          <tr>
+            <td>No aparece el botón "Eliminar" en el panel de detalle</td>
+            <td>Mismo motivo: tu rol no tiene permiso de eliminación.</td>
+          </tr>
+          <tr>
+            <td>Al hacer clic en Cancelar aparece un diálogo inesperado</td>
+            <td>Es la protección de cambios sin guardar (sección 09). Escribiste algo en el formulario y el sistema te avisa antes de descartarlo. Hacé clic en "Seguir editando" para volver al formulario, o en "Continuar sin guardar" para cerrarlo.</td>
+          </tr>
+          <tr>
+            <td>La tabla muestra "Sin eventos clínicos registrados" aunque haya datos</td>
+            <td>Hay un filtro de búsqueda activo. Borrá el texto del campo de búsqueda para ver todos los eventos.</td>
+          </tr>
+          <tr>
+            <td>El evento recién creado no aparece al final de la lista</td>
+            <td>La tabla se ordena alfabéticamente. El nuevo evento se ubica según su nombre dentro del orden alfabético, no al final.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="callout ok" style="margin-top:32px;">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Trazabilidad:</strong> todas las operaciones en este módulo (crear, editar y eliminar
+        eventos clínicos) quedan registradas en el módulo <strong>Auditoría</strong>
+        (<em>Administración → Auditoría</em>) con fecha, hora, usuario que realizó la acción
+        y los valores antes y después del cambio.
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top:16px;">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>Impacto en otros módulos:</strong> los eventos clínicos registrados aquí aparecen
+        como opción en el formulario de <em>Consulta médica</em> (Consultas → Consulta médica),
+        donde el médico o el recepcionista puede indicar a qué tipo de evento corresponde cada
+        atención. El dato queda visible en el historial del paciente.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Módulo Eventos Clínicos v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

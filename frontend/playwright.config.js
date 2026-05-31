@@ -48,6 +48,132 @@ module.exports = defineConfig({
       },
     },
     {
+      name: 'consultorio',
+      dependencies: ['setup'],
+      testMatch: /consultorio\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'paciente',
+      dependencies: ['setup'],
+      testMatch: /paciente\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'paciente-responsable',
+      dependencies: ['setup'],
+      testMatch: /paciente-responsable\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'tipo-doc-dig',
+      dependencies: ['setup'],
+      testMatch: /tipo-doc-dig\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'eventoclinico',
+      dependencies: ['setup'],
+      testMatch: /eventoclinico\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'especialidad',
+      dependencies: ['setup'],
+      testMatch: /especialidad\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'horario-prestador',
+      dependencies: ['setup'],
+      testMatch: /horario-prestador\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'prestador',
+      dependencies: ['setup'],
+      testMatch: /prestador\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'agenda',
+      dependencies: ['setup'],
+      testMatch: /agenda\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'consultas',
+      dependencies: ['setup'],
+      testMatch: /consultas\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'recordatorios',
+      dependencies: ['setup'],
+      testMatch: /recordatorios\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'timbrado',
+      dependencies: ['setup'],
+      testMatch: /timbrado\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'grupos-productos',
+      dependencies: ['setup'],
+      testMatch: /grupos-productos\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
+      name: 'facturacion',
+      dependencies: ['setup'],
+      testMatch: /facturacion\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/admin.json',
+      },
+    },
+    {
       name: 'screenshots-manual',
       dependencies: ['setup'],
       testMatch: /screenshots-.*\.spec\.js/,

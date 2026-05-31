@@ -52,7 +52,8 @@ export default function Navbar({ collapsed, onMenuToggle }) {
     return segs.map(capitalizar)
   })()
 
-  const [dropOpen, setDropOpen] = useState(false)
+  const [dropOpen,   setDropOpen]   = useState(false)
+  const [dismissed,  setDismissed]  = useState(false)
   const dropRef = useRef(null)
 
   const { data: stats }   = useStatsRecordatorios()
@@ -65,7 +66,15 @@ export default function Navbar({ collapsed, onMenuToggle }) {
       : []
 
   const total = (stats?.vencidas || 0) + (stats?.proximos_7_dias || 0)
-  const badge = total > 0 ? (total > 99 ? '99+' : String(total)) : null
+  const badge = (!dismissed && total > 0) ? (total > 99 ? '99+' : String(total)) : null
+
+  // Reaparece solo si llegan items nuevos (total sube)
+  useEffect(() => { setDismissed(false) }, [total])
+
+  // Descartar al visitar la página de recordatorios
+  useEffect(() => {
+    if (pathname === '/agenda/recordatorios') setDismissed(true)
+  }, [pathname])
 
   useEffect(() => {
     if (!dropOpen) return
@@ -76,8 +85,15 @@ export default function Navbar({ collapsed, onMenuToggle }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [dropOpen])
 
+  const handleBellClick = () => {
+    const abriendo = !dropOpen
+    setDropOpen(v => !v)
+    if (abriendo) setDismissed(true)
+  }
+
   const handleIrRecordatorios = () => {
     setDropOpen(false)
+    setDismissed(true)
     navigate('/agenda/recordatorios')
   }
 
@@ -302,7 +318,7 @@ export default function Navbar({ collapsed, onMenuToggle }) {
         <div className="nb-drop-wrap" ref={dropRef}>
           <button
             className={`nb-bell ${dropOpen ? 'active' : ''}`}
-            onClick={() => setDropOpen(v => !v)}
+            onClick={handleBellClick}
             title="Recordatorios"
           >
             <Bell size={16} />

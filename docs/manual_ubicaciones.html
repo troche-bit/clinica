@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Ubicaciones · Clínica Lichi</title>
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #111827;
+      background: #f0f4f8;
+    }
+
+    /* ── Layout ── */
+    .page-wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 2px 32px rgba(0,0,0,0.10);
+    }
+
+    /* ── Portada ── */
+    .cover {
+      background: #1a3a5c;
+      color: #fff;
+      padding: 60px 64px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      top: -120px; right: -80px;
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      width: 240px; height: 240px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      bottom: -60px; left: -40px;
+    }
+    .cover-tag {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 20px;
+    }
+    .cover h1 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 42px;
+      font-weight: 400;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .cover-subtitle {
+      font-size: 16px;
+      color: rgba(255,255,255,0.72);
+      margin-bottom: 36px;
+    }
+    .cover-meta {
+      display: flex;
+      gap: 32px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      border-top: 1px solid rgba(255,255,255,0.12);
+      padding-top: 20px;
+    }
+    .cover-meta span strong { color: rgba(255,255,255,0.9); }
+
+    /* ── Tabla de contenidos ── */
+    .toc {
+      padding: 36px 64px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e8edf2;
+    }
+    .toc h2 {
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 16px;
+    }
+    .toc ol {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 40px;
+    }
+    .toc li a {
+      text-decoration: none;
+      color: #1a3a5c;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .toc li a:hover { color: #15304d; }
+    .toc .num {
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      min-width: 20px;
+    }
+
+    /* ── Contenido ── */
+    .content {
+      padding: 0 64px 64px;
+    }
+
+    /* ── Secciones ── */
+    .section {
+      margin-top: 52px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #e8edf2;
+    }
+    .section-number {
+      background: #1a3a5c;
+      color: #fff;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a3a5c;
+    }
+    .section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+      margin: 28px 0 10px;
+    }
+    .section p {
+      color: #374151;
+      margin-bottom: 14px;
+    }
+
+    /* ── Capturas ── */
+    .screenshot {
+      margin: 20px 0 24px;
+      border: 1px solid #e8edf2;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    .screenshot img {
+      width: 100%;
+      display: block;
+    }
+    .screenshot-caption {
+      background: #f8fafc;
+      border-top: 1px solid #e8edf2;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    /* ── Tablas ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 14px;
+    }
+    th {
+      background: #f8fafc;
+      border: 1px solid #e8edf2;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: #374151;
+      font-size: 13px;
+    }
+    td {
+      border: 1px solid #e8edf2;
+      padding: 10px 14px;
+      vertical-align: top;
+      color: #374151;
+    }
+    tr:nth-child(even) td { background: #fafbfc; }
+    td code {
+      background: #f0f4f8;
+      border: 1px solid #e8edf2;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #1a3a5c;
+    }
+
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      font-size: 14px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout.info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+    .callout.warn { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .callout.danger { background: #fff5f5; border-left: 4px solid #dc2626; }
+    .callout.ok { background: #f0fdf4; border-left: 4px solid #22c55e; }
+    .callout-body { color: #374151; }
+    .callout-body strong { color: #111827; }
+
+    /* ── Pasos numerados ── */
+    .steps {
+      list-style: none;
+      counter-reset: steps;
+      margin: 12px 0 20px;
+    }
+    .steps li {
+      counter-increment: steps;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+    .steps li::before {
+      content: counter(steps);
+      background: #e8f0fe;
+      color: #1a3a5c;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .steps li .step-text { color: #374151; font-size: 14px; }
+    .steps li .step-text strong { color: #111827; }
+
+    /* ── Badges de rol ── */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 20px;
+      vertical-align: middle;
+    }
+    .badge-admin  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .badge-recep  { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .badge-nivel  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+    /* ── Acciones de tabla (descripción) ── */
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 6px 0;
+      font-size: 14px;
+    }
+    .action-icon {
+      background: #f8fafc;
+      border: 1px solid #e8edf2;
+      border-radius: 6px;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ── Diagrama de columnas (solo texto) ── */
+    .col-diagram {
+      display: flex;
+      gap: 0;
+      border: 1px solid #e8edf2;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    .col-diagram-col {
+      flex: 1;
+      border-right: 1px solid #e8edf2;
+      padding: 0;
+    }
+    .col-diagram-col:last-child { border-right: none; }
+    .col-diagram-header {
+      background: #1a3a5c;
+      color: #fff;
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .col-diagram-header .col-badge {
+      background: rgba(255,255,255,0.18);
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 10px;
+    }
+    .col-diagram-body {
+      padding: 12px 16px;
+      color: #374151;
+      background: #fafbfc;
+      min-height: 100px;
+    }
+    .col-diagram-item {
+      padding: 5px 8px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .col-diagram-item.active {
+      background: #e8f0fe;
+      border-left: 3px solid #1a3a5c;
+      font-weight: 600;
+      color: #1a3a5c;
+    }
+    .col-diagram-item.normal {
+      background: #fff;
+      border: 1px solid #e8edf2;
+      color: #374151;
+    }
+    .col-diagram-item .item-actions {
+      display: flex;
+      gap: 4px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    /* ── Divisor ── */
+    hr { border: none; border-top: 1px solid #e8edf2; margin: 40px 0; }
+
+    /* ── Footer ── */
+    .footer {
+      background: #1a3a5c;
+      color: rgba(255,255,255,0.55);
+      text-align: center;
+      padding: 24px 64px;
+      font-size: 12px;
+      margin-top: 0;
+    }
+    .footer strong { color: rgba(255,255,255,0.8); }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; font-size: 13px; }
+      .page-wrap { box-shadow: none; max-width: 100%; }
+      .cover { padding: 40px; }
+      .content { padding: 0 40px 40px; }
+      .toc { padding: 24px 40px; }
+      .section { page-break-inside: avoid; }
+      .screenshot { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Ubicaciones</h1>
+    <p class="cover-subtitle">Gestión de la estructura geográfica: países, departamentos y ciudades</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Mantenimiento → Ubicaciones</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDOS ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — tres columnas en cascada</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar dentro de una columna</a></li>
+      <li><a href="#s5"><span class="num">05</span> Agregar un país</a></li>
+      <li><a href="#s6"><span class="num">06</span> Editar un país</a></li>
+      <li><a href="#s7"><span class="num">07</span> Eliminar un país</a></li>
+      <li><a href="#s8"><span class="num">08</span> Agregar un departamento</a></li>
+      <li><a href="#s9"><span class="num">09</span> Editar un departamento</a></li>
+      <li><a href="#s10"><span class="num">10</span> Eliminar un departamento</a></li>
+      <li><a href="#s11"><span class="num">11</span> Agregar una ciudad</a></li>
+      <li><a href="#s12"><span class="num">12</span> Editar una ciudad</a></li>
+      <li><a href="#s13"><span class="num">13</span> Eliminar una ciudad</a></li>
+      <li><a href="#s14"><span class="num">14</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 - Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Ubicaciones</strong> gestiona la estructura geográfica del sistema: los
+        países, sus departamentos y las ciudades de cada departamento. Esta información se utiliza
+        como dato de referencia en los formularios de pacientes, responsables y prestadores.
+      </p>
+      <p>
+        La estructura tiene tres niveles jerárquicos:
+      </p>
+
+      <div class="col-diagram">
+        <div class="col-diagram-col">
+          <div class="col-diagram-header">
+            Nivel 1
+            <span class="col-badge">País</span>
+          </div>
+          <div class="col-diagram-body">
+            <div class="col-diagram-item active">Paraguay <span class="item-actions">✏️ 🗑️</span></div>
+            <div class="col-diagram-item normal">Argentina <span class="item-actions">✏️ 🗑️</span></div>
+            <div class="col-diagram-item normal">Brasil <span class="item-actions">✏️ 🗑️</span></div>
+          </div>
+        </div>
+        <div class="col-diagram-col">
+          <div class="col-diagram-header">
+            Nivel 2
+            <span class="col-badge">Departamento</span>
+          </div>
+          <div class="col-diagram-body">
+            <div class="col-diagram-item active">Central <span class="item-actions">✏️ 🗑️</span></div>
+            <div class="col-diagram-item normal">Alto Paraná <span class="item-actions">✏️ 🗑️</span></div>
+            <div class="col-diagram-item normal">Itapúa <span class="item-actions">✏️ 🗑️</span></div>
+          </div>
+        </div>
+        <div class="col-diagram-col">
+          <div class="col-diagram-header">
+            Nivel 3
+            <span class="col-badge">Ciudad</span>
+          </div>
+          <div class="col-diagram-body">
+            <div class="col-diagram-item normal">Asunción <span class="item-actions">✏️ 🗑️</span></div>
+            <div class="col-diagram-item normal">Lambaré <span class="item-actions">✏️ 🗑️</span></div>
+            <div class="col-diagram-item normal">Fernando de la Mora <span class="item-actions">✏️ 🗑️</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p>
+        Al seleccionar un país, la columna central se actualiza automáticamente mostrando solo
+        sus departamentos. Al seleccionar un departamento, la columna derecha muestra solo sus ciudades.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nivel</th>
+            <th>Descripción</th>
+            <th>Depende de</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-nivel">País</span></td>
+            <td>Raíz de la jerarquía. Ejemplos: Paraguay, Argentina, Brasil.</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-nivel">Departamento</span></td>
+            <td>División del país. Ejemplos: Central, Alto Paraná, Itapúa.</td>
+            <td>País seleccionado</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-nivel">Ciudad</span></td>
+            <td>División del departamento. Ejemplos: Asunción, Ciudad del Este.</td>
+            <td>Departamento seleccionado</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th><span class="badge badge-admin">Administrador</span></th>
+            <th><span class="badge badge-recep">Recepcionista</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver listado</td>
+            <td>✅</td>
+            <td>✅</td>
+          </tr>
+          <tr>
+            <td>Agregar país / departamento / ciudad</td>
+            <td>✅</td>
+            <td>✅</td>
+          </tr>
+          <tr>
+            <td>Editar nombre</td>
+            <td>✅</td>
+            <td>✅</td>
+          </tr>
+          <tr>
+            <td>Eliminar (borrado lógico)</td>
+            <td>✅</td>
+            <td>🚫</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2 - Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, bajo la sección <strong>Mantenimiento</strong>, hacé clic en
+        <strong>Ubicaciones</strong>.
+      </p>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          El módulo Ubicaciones es accesible para los roles <strong>Administrador</strong> y
+          <strong>Recepcionista</strong>. Los roles Médico y Secretaria de médico no tienen acceso
+          a este módulo.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 - Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — tres columnas en cascada</h2>
+      </div>
+      <p>
+        Al ingresar al módulo se muestran tres columnas una al lado de la otra. La selección en
+        cada columna determina qué se muestra en la siguiente.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/01_pantalla_principal.png" alt="Pantalla principal con tres columnas" />
+        <div class="screenshot-caption">Vista principal — columna Países con 8 registros cargados; Departamentos y Ciudades esperan selección</div>
+      </div>
+
+      <h3>Cómo navegar la jerarquía</h3>
+      <ol class="steps">
+        <li><div class="step-text">En la columna <strong>Países</strong> (izquierda), hacé clic sobre el país que querés explorar. El ítem seleccionado se resalta con un borde azul en el lateral izquierdo.</div></li>
+        <li><div class="step-text">La columna <strong>Departamentos</strong> (centro) se actualiza automáticamente mostrando solo los departamentos del país elegido.</div></li>
+        <li><div class="step-text">Hacé clic sobre un departamento para que la columna <strong>Ciudades</strong> (derecha) muestre sus ciudades.</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Cada columna muestra un <strong>contador</strong> en el encabezado con el total de ítems
+          cargados (ej: "17 ciudades"). Cuando hay más de 5 ítems en una columna, aparece
+          automáticamente un campo de búsqueda local en la parte superior de esa columna.
+        </div>
+      </div>
+
+      <h3>Visualización en mobile</h3>
+      <p>
+        En dispositivos móviles, las tres columnas no caben en pantalla al mismo tiempo.
+        El sistema muestra de a una columna por vez y agrega un breadcrumb en la parte superior
+        (ej: <em>Paraguay › Central</em>) que permite volver al nivel anterior con un toque.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/02_navegacion_cascada.png" alt="Selección de país que carga departamentos" />
+        <div class="screenshot-caption">Al hacer clic en "Argentina", la columna Departamentos se activa y muestra "Mendoza"; el breadcrumb indica el país activo</div>
+      </div>
+    </div>
+
+    <!-- 4 - Buscar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar dentro de una columna</h2>
+      </div>
+      <p>
+        Cuando una columna tiene más de <strong>5 ítems</strong>, aparece automáticamente un campo
+        de búsqueda en la parte superior de esa columna. La búsqueda filtra por nombre en tiempo real
+        (sin necesidad de presionar Enter).
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/03_busqueda_local.png" alt="Búsqueda local dentro de la columna de ciudades" />
+        <div class="screenshot-caption">Búsqueda activa en la columna Países — al escribir "a" filtra los resultados en tiempo real; las tres columnas cargadas simultáneamente</div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La búsqueda se limpia automáticamente cuando cambia el ítem padre. Por ejemplo: si
+          estabas buscando en la columna Ciudades y después seleccionás otro Departamento,
+          el campo de búsqueda de Ciudades se vacía y muestra todas las ciudades del nuevo departamento.
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 - Agregar país -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Agregar un país</h2>
+      </div>
+      <p>
+        Para registrar un nuevo país hacé clic en el botón <strong>+</strong> que aparece en el
+        encabezado de la columna <strong>Países</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/04_agregar_pais.png" alt="Fila de edición para agregar un nuevo país" />
+        <div class="screenshot-caption">Fila editable en la columna Países con el texto "Bolivia" escrito — botones Guardar y Cancelar visibles</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">Hacé clic en el botón <strong>+</strong> del encabezado de la columna Países. Aparece una nueva fila al final con un campo de texto vacío.</div></li>
+        <li><div class="step-text">Escribí el nombre del país (ej: <code>Uruguay</code>).</div></li>
+        <li><div class="step-text">Presioná <strong>Enter</strong> o hacé clic en el ícono de guardar (✓) para confirmar.</div></li>
+        <li><div class="step-text">El país aparece en la lista con sus botones de edición y eliminación.</div></li>
+      </ol>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Para <strong>cancelar</strong> sin guardar, presioná la tecla <strong>Escape</strong>
+          o hacé clic en el ícono de cancelar (✕). La fila desaparece y no se guarda nada.
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Los nombres de países son únicos. Si intentás agregar un país que ya existe (sin importar
+          mayúsculas o minúsculas), el sistema mostrará un error.
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 - Editar país -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Editar un país</h2>
+      </div>
+      <p>
+        Para cambiar el nombre de un país existente, pasá el cursor sobre la fila y hacé clic en
+        el ícono de lápiz (✏️) que aparece a la derecha.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/05_editar_pais.png" alt="Fila en modo edición con input de texto" />
+        <div class="screenshot-caption">Fila en modo edición con el nombre "Argentina" precargado y seleccionado — botones Guardar y Cancelar activos</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila del país que querés modificar. Aparecen los botones de edición y eliminación.</div></li>
+        <li><div class="step-text">Hacé clic en el ícono de lápiz (✏️). La fila se convierte en un campo de texto con el nombre actual.</div></li>
+        <li><div class="step-text">Modificá el nombre y presioná <strong>Enter</strong> o hacé clic en el ícono de guardar (✓).</div></li>
+        <li><div class="step-text">El nombre actualizado se muestra en la fila. El cambio queda registrado en Auditoría.</div></li>
+      </ol>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Si comenzaste a editar una fila y hacés clic en otra fila para editarla también, el
+          sistema mostrará un diálogo <strong>¿Descartar cambios?</strong>. Confirmá para continuar
+          o cancelá para seguir editando la fila actual.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Presionar <strong>Escape</strong> durante la edición cancela la operación y restaura el
+          nombre original sin guardar ningún cambio.
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 - Eliminar país -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Eliminar un país</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar países.
+          Las Recepcionistas no ven el ícono de papelera.
+        </div>
+      </div>
+
+      <p>
+        Eliminar un país lo quita de la lista activa pero <strong>no lo borra físicamente</strong>
+        de la base de datos (borrado lógico). Los datos históricos vinculados permanecen intactos.
+      </p>
+
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila del país y hacé clic en el ícono de papelera 🗑️.</div></li>
+        <li><div class="step-text">El sistema muestra un diálogo de confirmación: <em>"¿Eliminar [nombre del país]? Esta acción no puede deshacerse."</em></div></li>
+        <li><div class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar, o en <strong>Cancelar</strong> para volver.</div></li>
+        <li><div class="step-text">El país desaparece de la lista. Se muestra una notificación de confirmación.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/06_eliminar_confirm.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">ConfirmDialog "¿Eliminar este país?" — advierte que si tiene departamentos vinculados no se podrá eliminar; botones Cancelar y Eliminar</div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar un país si tiene:</strong>
+          <ul style="margin-top:6px;margin-left:16px;font-size:14px;">
+            <li>Departamentos activos registrados bajo ese país.</li>
+            <li>Personas (pacientes, prestadores, responsables) con ese país en su dirección.</li>
+          </ul>
+          En estos casos el sistema mostrará un mensaje de error indicando la dependencia.
+          Primero debés reasignar o eliminar los registros dependientes.
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 - Agregar departamento -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Agregar un departamento</h2>
+      </div>
+      <p>
+        Los departamentos se agregan dentro del país que tengas seleccionado en ese momento.
+        Primero asegurate de tener el país correcto activo (fila resaltada en azul).
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/07_agregar_departamento.png" alt="Agregar departamento bajo un país seleccionado" />
+        <div class="screenshot-caption">Fila editable en la columna Departamentos con "Central Norte" escrito — se agregará a "Argentina" (país activo en el breadcrumb)</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">En la columna <strong>Países</strong>, hacé clic sobre el país al que querés agregar un departamento.</div></li>
+        <li><div class="step-text">En la columna <strong>Departamentos</strong>, hacé clic en el botón <strong>+</strong> del encabezado.</div></li>
+        <li><div class="step-text">Aparece una fila editable al final. Escribí el nombre del departamento.</div></li>
+        <li><div class="step-text">Presioná <strong>Enter</strong> o hacé clic en el ícono de guardar (✓).</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los nombres de departamentos son únicos <strong>dentro del mismo país</strong>. Podés tener
+          un departamento "Central" en Paraguay y otro "Central" en otro país sin conflicto.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 - Editar departamento -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Editar un departamento</h2>
+      </div>
+      <p>
+        El procedimiento es idéntico al de editar un país, pero dentro de la columna central.
+      </p>
+
+      <ol class="steps">
+        <li><div class="step-text">Asegurate de tener seleccionado el país al que pertenece el departamento.</div></li>
+        <li><div class="step-text">En la columna <strong>Departamentos</strong>, pasá el cursor sobre el departamento a modificar y hacé clic en el ícono de lápiz (✏️).</div></li>
+        <li><div class="step-text">Modificá el nombre en la fila editable y presioná <strong>Enter</strong> o el ícono de guardar.</div></li>
+      </ol>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Si comenzaste a editar un departamento y cambiás de país seleccionado, la columna de
+          departamentos se actualiza y el modo edición se cancela automáticamente.
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 - Eliminar departamento -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Eliminar un departamento</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar departamentos.
+        </div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">En la columna <strong>Departamentos</strong>, pasá el cursor sobre el departamento y hacé clic en el ícono de papelera 🗑️.</div></li>
+        <li><div class="step-text">Confirmá en el diálogo que aparece.</div></li>
+        <li><div class="step-text">El departamento desaparece de la lista.</div></li>
+      </ol>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar un departamento si tiene:</strong>
+          <ul style="margin-top:6px;margin-left:16px;font-size:14px;">
+            <li>Ciudades activas registradas bajo ese departamento.</li>
+            <li>Personas con ese departamento en su dirección.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 11 - Agregar ciudad -->
+    <div class="section" id="s11">
+      <div class="section-header">
+        <div class="section-number">11</div>
+        <h2>Agregar una ciudad</h2>
+      </div>
+      <p>
+        Las ciudades se agregan dentro del departamento seleccionado. Asegurate de tener activos
+        el país y el departamento correctos antes de hacer clic en <strong>+</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/ubicaciones/08_agregar_ciudad.png" alt="Agregar ciudad bajo un departamento seleccionado" />
+        <div class="screenshot-caption">Fila editable en la columna Ciudades con "San Lorenzo" escrito — breadcrumb muestra Argentina › Mendoza como contexto activo</div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">Seleccioná el <strong>País</strong> y el <strong>Departamento</strong> correctos haciendo clic en sus respectivas filas.</div></li>
+        <li><div class="step-text">En la columna <strong>Ciudades</strong>, hacé clic en el botón <strong>+</strong> del encabezado.</div></li>
+        <li><div class="step-text">Escribí el nombre de la ciudad y presioná <strong>Enter</strong> o el ícono de guardar.</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los nombres de ciudades son únicos <strong>dentro del mismo departamento</strong>.
+          Podés tener una ciudad "San Lorenzo" en diferentes departamentos sin conflicto.
+        </div>
+      </div>
+    </div>
+
+    <!-- 12 - Editar ciudad -->
+    <div class="section" id="s12">
+      <div class="section-header">
+        <div class="section-number">12</div>
+        <h2>Editar una ciudad</h2>
+      </div>
+      <p>
+        El procedimiento es idéntico al de editar un país o departamento, pero dentro de la
+        columna derecha.
+      </p>
+
+      <ol class="steps">
+        <li><div class="step-text">Asegurate de tener seleccionados el país y departamento correspondientes para que la ciudad sea visible.</div></li>
+        <li><div class="step-text">En la columna <strong>Ciudades</strong>, pasá el cursor sobre la ciudad a modificar y hacé clic en el ícono de lápiz (✏️).</div></li>
+        <li><div class="step-text">Modificá el nombre en la fila editable y presioná <strong>Enter</strong> o el ícono de guardar.</div></li>
+      </ol>
+    </div>
+
+    <!-- 13 - Eliminar ciudad -->
+    <div class="section" id="s13">
+      <div class="section-header">
+        <div class="section-number">13</div>
+        <h2>Eliminar una ciudad</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar ciudades.
+        </div>
+      </div>
+
+      <ol class="steps">
+        <li><div class="step-text">En la columna <strong>Ciudades</strong>, pasá el cursor sobre la ciudad y hacé clic en el ícono de papelera 🗑️.</div></li>
+        <li><div class="step-text">Confirmá en el diálogo que aparece.</div></li>
+        <li><div class="step-text">La ciudad desaparece de la lista.</div></li>
+      </ol>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar una ciudad si hay personas</strong> (pacientes, prestadores
+          o responsables) que tienen esa ciudad registrada en su dirección.
+          En ese caso el sistema mostrará un mensaje de error.
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          El borrado es <strong>lógico</strong>: la ciudad no se borra físicamente de la base de datos.
+          Solo queda oculta en las listas activas. Los datos históricos vinculados permanecen intactos.
+        </div>
+      </div>
+    </div>
+
+    <!-- 14 - Mensajes de error -->
+    <div class="section" id="s14">
+      <div class="section-header">
+        <div class="section-number">14</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Mensaje</th>
+            <th>Situación</th>
+            <th>Qué hacer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>"Ya existe un país con ese nombre"</td>
+            <td>Se intenta agregar o renombrar un país con un nombre que ya existe (la comparación no distingue mayúsculas de minúsculas).</td>
+            <td>Usá un nombre diferente o verificá que el país ya esté en la lista.</td>
+          </tr>
+          <tr>
+            <td>"Ya existe un departamento con ese nombre en este país"</td>
+            <td>El nombre de departamento ya está registrado dentro del país activo.</td>
+            <td>Verificá si el departamento ya existe o usá un nombre diferente.</td>
+          </tr>
+          <tr>
+            <td>"Ya existe una ciudad con ese nombre en este departamento"</td>
+            <td>El nombre de ciudad ya está registrado dentro del departamento activo.</td>
+            <td>Verificá si la ciudad ya existe o usá un nombre diferente.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar: tiene departamentos activos"</td>
+            <td>Se intenta eliminar un país que aún tiene departamentos activos.</td>
+            <td>Eliminá primero todos los departamentos del país (y sus ciudades), luego intentá eliminar el país.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar: tiene ciudades activas"</td>
+            <td>Se intenta eliminar un departamento que aún tiene ciudades activas.</td>
+            <td>Eliminá primero todas las ciudades del departamento.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar: tiene personas activas vinculadas"</td>
+            <td>Se intenta eliminar un país, departamento o ciudad que tiene personas (pacientes, prestadores, responsables) con esa ubicación en su dirección.</td>
+            <td>No es posible eliminar la ubicación mientras tenga personas vinculadas. Contactá al administrador si necesitás reorganizar la estructura geográfica.</td>
+          </tr>
+          <tr>
+            <td>Campo requerido vacío al guardar</td>
+            <td>Se intentó guardar una fila con el campo de nombre vacío.</td>
+            <td>Ingresá un nombre antes de confirmar.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que pueden confundirse con errores</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Situación</th>
+            <th>Explicación</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>La columna Departamentos aparece vacía al seleccionar un país</td>
+            <td>Es correcto. Ese país no tiene departamentos cargados todavía. Usá el botón <strong>+</strong> para agregar el primero.</td>
+          </tr>
+          <tr>
+            <td>La columna Ciudades aparece vacía al seleccionar un departamento</td>
+            <td>Es correcto. Ese departamento no tiene ciudades cargadas. Usá el botón <strong>+</strong> para agregar la primera.</td>
+          </tr>
+          <tr>
+            <td>No aparece el ícono de papelera 🗑️ junto a los ítems</td>
+            <td>Tu rol no tiene permiso para eliminar. Solo los Administradores ven ese ícono. Las Recepcionistas solo pueden agregar y editar.</td>
+          </tr>
+          <tr>
+            <td>El campo de búsqueda no aparece en una columna</td>
+            <td>La búsqueda local se muestra solo cuando la columna tiene más de 5 ítems. Con 5 o menos, no es necesaria.</td>
+          </tr>
+          <tr>
+            <td>Al cambiar de país seleccionado, la búsqueda de departamentos desaparece</td>
+            <td>Es correcto. La búsqueda local se limpia automáticamente cuando cambia el padre, para mostrar todos los ítems del nuevo contexto.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="callout ok" style="margin-top:32px;">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Trazabilidad:</strong> todas las operaciones en este módulo (agregar, editar o eliminar
+        un país, departamento o ciudad) quedan registradas en el módulo <strong>Auditoría</strong>
+        (<em>Administración → Auditoría</em>) con fecha, hora, usuario que realizó la acción y los
+        valores antes y después del cambio.
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top:16px;">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>Impacto en otros módulos:</strong> las ubicaciones configuradas aquí se utilizan
+        automáticamente en los formularios de <em>Pacientes</em>, <em>Responsables</em> y
+        <em>Persona RRHH</em> como datos de domicilio. Mantener esta información actualizada
+        garantiza que los selectores de esos formularios muestren opciones correctas.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Módulo Ubicaciones v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

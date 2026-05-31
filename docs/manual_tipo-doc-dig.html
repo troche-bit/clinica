@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Tipos de Documento Digitalizado · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-no-edit { background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db; font-family:'Courier New',monospace; font-size:11px; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .action-row { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:14px; }
+    .action-icon { background:#f8fafc; border:1px solid #e8edf2; border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+
+    .key-pill { display:inline-block; font-family:'Courier New',monospace; font-size:12px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:5px; padding:1px 8px; color:#374151; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Tipos de Documento Digitalizado</h1>
+    <p class="cover-subtitle">Registro y gestión de las categorías de documentos clínicos digitalizados</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Mantenimiento → Tipo Doc. Digitalizado</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TOC ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar un tipo de documento</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de un tipo</a></li>
+      <li><a href="#s6"><span class="num">06</span> Crear un tipo de documento</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un tipo de documento</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar un tipo de documento</a></li>
+      <li><a href="#s9"><span class="num">09</span> Protección de cambios sin guardar</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 1 ─ Descripción -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Tipos de Documento Digitalizado</strong> permite registrar y administrar
+        las categorías bajo las cuales se archivan los documentos clínicos digitalizados de la clínica.
+        Cada tipo define un nombre visible para el usuario y una <strong>clave de almacenamiento</strong>
+        interna que determina la ruta física donde se guardan los archivos en el servidor.
+      </p>
+      <p>
+        Ejemplos de tipos: <em>Historia Clínica</em>, <em>Receta Médica</em>,
+        <em>Consentimiento Informado</em>, <em>Informe Radiológico</em>.
+        Al subir un documento a la ficha de un paciente o de un prestador, el usuario selecciona
+        el tipo correspondiente de este catálogo.
+      </p>
+
+      <table>
+        <thead><tr><th>Acción</th><th><span class="badge badge-admin">Administrador</span></th><th><span class="badge badge-recep">Recepcionista</span></th></tr></thead>
+        <tbody>
+          <tr><td>Ver listado y detalle</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Crear tipo de documento</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Editar descripción</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Eliminar tipo de documento</td><td>✅</td><td>🚫</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los roles <strong>Médico</strong> y <strong>Secretaria de médico</strong> pueden ver
+          el listado (disponible como selector al subir documentos) pero no pueden crear, editar
+          ni eliminar tipos.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ─ Acceder -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        En el menú lateral izquierdo, expandí la sección <strong>Mantenimiento</strong> y hacé clic
+        en <strong>Tipo doc. digitalizado</strong>.
+      </p>
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Si el ítem no aparece en el menú, tu rol no tiene acceso a este módulo.
+          Contactá al administrador del sistema.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 ─ Pantalla principal -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado</h2>
+      </div>
+      <p>
+        Al ingresar se muestra una tabla con todos los tipos activos, ordenados alfabéticamente
+        por descripción. La columna <strong>Clave</strong> muestra el identificador técnico de
+        almacenamiento en formato monoespaciado.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/01_listado.png" alt="Listado de tipos de documento" />
+        <div class="screenshot-caption">Vista principal — tabla con Descripción, Clave de almacenamiento y Acciones. El hint "Hacé clic para ver el detalle" aparece debajo de cada fila no seleccionada</div>
+      </div>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Descripción</strong></td>
+            <td>Nombre legible del tipo de documento. Debajo aparece el hint <em>"Hacé clic para ver el detalle"</em> en filas no seleccionadas.</td>
+          </tr>
+          <tr>
+            <td><strong>Clave</strong></td>
+            <td>Identificador técnico en formato <span class="key-pill">slug</span> (minúsculas y guiones bajos). Define la carpeta de almacenamiento de los archivos. <strong>No se puede cambiar una vez creado.</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>
+              <div class="action-row"><div class="action-icon">✏️</div><span><strong>Editar</strong> — abre el panel en modo edición</span></div>
+              <div class="action-row"><div class="action-icon">🗑️</div><span><strong>Eliminar</strong> — abre el diálogo de confirmación (solo Administrador)</span></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          El ícono 🗑️ <strong>solo es visible para el Administrador</strong>.
+          Las Recepcionistas no lo ven.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 ─ Buscar -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar un tipo de documento</h2>
+      </div>
+      <p>
+        El campo de búsqueda filtra la tabla en tiempo real. A diferencia de otros módulos,
+        la búsqueda funciona tanto por <strong>descripción</strong> como por
+        <strong>clave de almacenamiento</strong>.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/02_busqueda.png" alt="Búsqueda activa" />
+        <div class="screenshot-caption">Búsqueda activa — se puede buscar por el nombre visible o por la clave técnica</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Comportamiento</th><th>Detalle</th></tr></thead>
+        <tbody>
+          <tr><td>Por descripción</td><td>Filtra por el nombre del tipo de documento (sin distinción de mayúsculas).</td></tr>
+          <tr><td>Por clave</td><td>También filtra por <span class="key-pill">storage_key</span>. Útil para localizar un tipo cuando se conoce su identificador técnico.</td></tr>
+          <tr><td>Sin resultados</td><td>Muestra el mensaje <em>"Sin tipos de documento registrados"</em> con ícono.</td></tr>
+          <tr><td>Limpiar</td><td>Borrá el texto del campo para restaurar el listado completo.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5 ─ Ver detalle -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de un tipo</h2>
+      </div>
+      <p>
+        Hacé clic en cualquier parte de una fila (excepto en los botones de acciones) para abrir
+        el panel lateral con los datos completos en modo lectura.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/03_panel_detalle.png" alt="Panel de detalle" />
+        <div class="screenshot-caption">Panel lateral en modo Detalle — muestra la Descripción y la Clave de almacenamiento; botones Eliminar y Editar en el pie</div>
+      </div>
+
+      <p>El panel de detalle muestra:</p>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2.2;">
+        <li>Ícono de documento en el encabezado del panel</li>
+        <li><strong>Descripción</strong>: el nombre legible del tipo</li>
+        <li><strong>Clave de almacenamiento</strong>: el identificador técnico en formato <span class="key-pill">slug</span></li>
+      </ul>
+
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;">Editar</div><span style="font-size:14px;color:#374151;">Cambia el panel al modo edición sin cerrarlo.</span></div>
+      <div class="action-row" style="margin-bottom:8px;"><div class="action-icon" style="width:auto;padding:4px 10px;font-size:13px;color:#dc2626;border-color:#fecaca;">Eliminar</div><span style="font-size:14px;color:#374151;">Abre el diálogo de confirmación (solo Administrador).</span></div>
+
+      <p style="margin-top:12px;">Para cerrar el panel hacé clic en la <strong>X</strong> del encabezado.</p>
+    </div>
+
+    <!-- 6 ─ Crear -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Crear un tipo de documento</h2>
+      </div>
+      <p>
+        Hacé clic en <strong>+ Nuevo tipo</strong> en la esquina superior derecha
+        (o presioná <kbd>Insert</kbd> cuando el panel esté cerrado).
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/04_panel_crear.png" alt="Panel de creación vacío" />
+        <div class="screenshot-caption">Panel "Nuevo tipo de documento" — muestra los dos campos requeridos; el botón Guardar permanece deshabilitado hasta completarlos</div>
+      </div>
+
+      <h3>Pasos para crear</h3>
+      <ol class="steps">
+        <li><div class="step-text">Hacé clic en <strong>+ Nuevo tipo</strong> o presioná <kbd>Insert</kbd>. El panel lateral aparece con el título "Nuevo tipo de documento".</div></li>
+        <li><div class="step-text">Completá el campo <strong>Descripción *</strong> con el nombre visible del tipo. Ej: <code>Historia Clínica</code>, <code>Receta Médica</code>.</div></li>
+        <li><div class="step-text">Completá el campo <strong>Clave de almacenamiento *</strong> con un identificador en formato <span class="key-pill">slug</span>: solo minúsculas, números y guiones bajos. Ej: <code>historia_clinica</code>, <code>receta_medica</code>. El sistema normaliza automáticamente a minúsculas si ingresás mayúsculas.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd>.</div></li>
+        <li><div class="step-text">El panel se cierra y el nuevo tipo aparece en la tabla ordenado alfabéticamente. Se muestra una notificación verde de confirmación.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/05_panel_crear_completo.png" alt="Panel con ambos campos completos" />
+        <div class="screenshot-caption">Panel con ambos campos completados — el botón Guardar se habilita cuando los dos campos tienen contenido</div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Ambos campos son obligatorios.</strong> El botón Guardar permanece deshabilitado
+          mientras cualquiera de los dos esté vacío.
+        </div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🔒</div>
+        <div class="callout-body">
+          <strong>La clave de almacenamiento no puede modificarse después de la creación.</strong>
+          Elegila con cuidado: define la carpeta física donde se guardarán todos los archivos
+          de este tipo. Cambiarla rompiría las rutas de archivos ya almacenados. Si elegís una
+          clave incorrecta, deberás eliminar el tipo y crear uno nuevo — siempre que no tenga
+          documentos vinculados.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Tanto la descripción como la clave son únicas. No pueden existir dos tipos activos
+          con el mismo nombre (sin distinción de mayúsculas) ni con la misma clave.
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 ─ Editar -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un tipo de documento</h2>
+      </div>
+      <p>
+        Podés editar la <strong>descripción</strong> de un tipo desde el ícono de lápiz en la
+        fila o desde el botón <strong>Editar</strong> dentro del panel de detalle.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/06_panel_editar.png" alt="Panel en modo edición" />
+        <div class="screenshot-caption">Panel "Editar tipo de documento" — el campo Descripción es editable; la Clave de almacenamiento aparece como texto con el badge "No editable"</div>
+      </div>
+
+      <h3>Pasos para editar</h3>
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila y hacé clic en ✏️, <strong>o</strong> abrí el detalle y hacé clic en <strong>Editar</strong>.</div></li>
+        <li><div class="step-text">El panel muestra el formulario de edición. La <strong>Descripción</strong> es editable; la <strong>Clave de almacenamiento</strong> aparece como texto con el badge <span class="badge-no-edit">No editable</span> — no se puede modificar.</div></li>
+        <li><div class="step-text">Modificá la descripción.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Guardar</strong> o presioná <kbd>F10</kbd>.</div></li>
+        <li><div class="step-text">El panel vuelve al modo lectura con el dato actualizado. Se muestra una notificación verde.</div></li>
+      </ol>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Al editar la descripción, la validación de unicidad <strong>excluye el propio registro</strong>,
+          por lo que podés guardar con la misma descripción sin que el sistema lo rechace.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Cambiar la descripción actualiza el nombre visible en toda la interfaz, pero
+          <strong>no afecta las rutas de archivos</strong> ya almacenados (esas dependen de la
+          clave, que es inmutable).
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 ─ Eliminar -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar un tipo de documento</h2>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Solo el Administrador</strong> puede eliminar tipos de documento.
+          Las Recepcionistas no ven el ícono de papelera.
+        </div>
+      </div>
+
+      <p>
+        Eliminar un tipo lo quita de las listas activas y del selector al subir documentos,
+        pero <strong>no borra los archivos físicos</strong> ni los registros históricos.
+        Es un borrado lógico.
+      </p>
+
+      <h3>Pasos para eliminar</h3>
+      <ol class="steps">
+        <li><div class="step-text">Pasá el cursor sobre la fila y hacé clic en 🗑️, <strong>o</strong> abrí el detalle y hacé clic en <strong>Eliminar</strong>.</div></li>
+        <li><div class="step-text">El sistema muestra un diálogo de confirmación con la advertencia sobre documentos vinculados.</div></li>
+        <li><div class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar, o en <strong>Cancelar</strong> para volver sin cambios.</div></li>
+        <li><div class="step-text">El tipo desaparece de la tabla. Se muestra una notificación verde de confirmación.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/07_confirm_eliminar.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">Diálogo de confirmación — advierte que si el tipo tiene documentos vinculados activos no se podrá eliminar</div>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>No se puede eliminar un tipo que tenga documentos activos vinculados</strong>,
+          ya sean documentos de pacientes o de prestadores. El sistema retorna un error
+          y el tipo no se elimina.<br><br>
+          Para poder eliminarlo, primero debés remover o eliminar todos los documentos
+          activos que usen ese tipo desde las fichas correspondientes
+          (pacientes o prestadores).
+        </div>
+      </div>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Si los documentos vinculados ya fueron eliminados lógicamente, no bloquean
+          la eliminación del tipo. Solo los documentos <strong>activos</strong> generan el bloqueo.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Guard -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Protección de cambios sin guardar</h2>
+      </div>
+      <p>
+        El sistema detecta cuando comenzaste a editar el formulario sin guardar. Si intentás
+        cerrar el panel, cambiar de fila o navegar a otro módulo, aparece un diálogo de advertencia.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/tipo-doc-dig/08_navigation_guard.png" alt="Diálogo de cambios sin guardar" />
+        <div class="screenshot-caption">Diálogo de protección — aparece al cancelar o navegar con cambios pendientes en el formulario</div>
+      </div>
+
+      <table>
+        <thead><tr><th>Opción</th><th>Qué hace</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Seguir editando</strong></td>
+            <td>Cierra el diálogo y vuelve al formulario con los cambios intactos.</td>
+          </tr>
+          <tr>
+            <td><strong>Continuar sin guardar</strong></td>
+            <td>Descarta los cambios y cierra el panel (o navega al destino solicitado).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          La protección se activa en cuanto escribís algo en el campo <strong>Descripción</strong>
+          (en modo crear o editar). Abrir el panel sin modificar nada no la activa.
+        </div>
+      </div>
+
+      <h3>Situaciones en las que aparece el diálogo</h3>
+      <ul style="margin-left:20px;margin-bottom:14px;color:#374151;font-size:14px;line-height:2.2;">
+        <li>Hacés clic en <strong>Cancelar</strong> con el campo Descripción modificado</li>
+        <li>Hacés clic en la <strong>X</strong> del panel con cambios pendientes</li>
+        <li>Hacés clic en otra fila de la tabla para cambiar el tipo seleccionado</li>
+        <li>Navegás a otro módulo desde el menú lateral</li>
+      </ul>
+    </div>
+
+    <!-- 10 ─ Errores -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead><tr><th>Mensaje / Situación</th><th>Causa</th><th>Qué hacer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>"Ya existe un tipo de documento con esa descripción"</td>
+            <td>La descripción ingresada ya la usa otro tipo activo (sin distinción de mayúsculas).</td>
+            <td>Elegí un nombre diferente o buscá el tipo existente con ese nombre en la tabla.</td>
+          </tr>
+          <tr>
+            <td>"Ya existe un tipo de documento con esa clave de almacenamiento"</td>
+            <td>La clave ingresada ya la usa otro tipo activo.</td>
+            <td>Elegí una clave diferente. Las claves son únicas en todo el sistema.</td>
+          </tr>
+          <tr>
+            <td>"No se puede eliminar: tiene documentos activos vinculados"</td>
+            <td>El tipo está asociado a documentos de pacientes o prestadores que siguen activos.</td>
+            <td>Eliminá o remové esos documentos desde las fichas correspondientes y volvé a intentarlo.</td>
+          </tr>
+          <tr>
+            <td>Botón Guardar deshabilitado</td>
+            <td>Uno o ambos campos requeridos están vacíos.</td>
+            <td>Completá tanto la <strong>Descripción</strong> como la <strong>Clave de almacenamiento</strong> antes de guardar.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que pueden confundirse con errores</h3>
+      <table>
+        <thead><tr><th>Situación</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>La Clave de almacenamiento aparece con el badge <span class="badge-no-edit">No editable</span> en el panel de edición</td>
+            <td>Es correcto e intencional. La clave solo puede definirse al crear el tipo; modificarla después rompería las rutas de los archivos ya almacenados.</td>
+          </tr>
+          <tr>
+            <td>Ingresé la clave en MAYÚSCULAS pero se guardó en minúsculas</td>
+            <td>El sistema normaliza automáticamente la clave a minúsculas. Es un comportamiento esperado: las claves siempre son <span class="key-pill">slug</span> en minúsculas.</td>
+          </tr>
+          <tr>
+            <td>No aparece el ícono 🗑️ en las filas</td>
+            <td>Tu rol es Recepcionista. Solo los Administradores pueden eliminar tipos. Es intencional.</td>
+          </tr>
+          <tr>
+            <td>No aparece el botón "Eliminar" en el panel de detalle</td>
+            <td>Mismo motivo: el rol no tiene permiso de eliminación.</td>
+          </tr>
+          <tr>
+            <td>Al hacer clic en Cancelar aparece un diálogo inesperado</td>
+            <td>Es la protección de cambios (sección 09). Modificaste el campo Descripción. Hacé clic en "Seguir editando" para volver, o en "Continuar sin guardar" para cerrar.</td>
+          </tr>
+          <tr>
+            <td>La tabla muestra "Sin tipos de documento registrados" aunque haya datos</td>
+            <td>Hay un filtro de búsqueda activo. Borrá el texto del buscador para ver todos los tipos.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr />
+
+    <div class="callout ok" style="margin-top:32px;">
+      <div class="callout-icon">📋</div>
+      <div class="callout-body">
+        <strong>Trazabilidad:</strong> todas las operaciones (crear, editar, eliminar) quedan
+        registradas en <strong>Administración → Auditoría</strong> con fecha, hora, usuario
+        y los valores antes y después del cambio.
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top:16px;">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>Impacto en otros módulos:</strong> los tipos registrados aquí aparecen como
+        selector al subir documentos digitalizados en las fichas de
+        <em>Pacientes</em> y <em>Prestadores (Persona RRHH)</em>.
+        También forman parte de los filtros en la pantalla de gestión de documentos.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Tipos de Documento Digitalizado v1.0 · Mayo 2026
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

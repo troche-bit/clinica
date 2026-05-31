@@ -353,12 +353,16 @@ function PanelVer({ item, onEditar, onEliminar, eliminando }) {
       )}
 
       <div className="tim-panel-acciones">
-        <button className="tim-btn-danger" onClick={onEliminar} disabled={eliminando}>
-          <Trash2 size={14} /> {eliminando ? 'Eliminando…' : 'Eliminar'}
-        </button>
-        <button className="tim-btn-primario" onClick={onEditar}>
-          <Pencil size={14} /> Editar
-        </button>
+        {onEliminar && (
+          <button className="tim-btn-danger" onClick={onEliminar} disabled={eliminando}>
+            <Trash2 size={14} /> {eliminando ? 'Eliminando…' : 'Eliminar'}
+          </button>
+        )}
+        {onEditar && (
+          <button className="tim-btn-primario" onClick={onEditar}>
+            <Pencil size={14} /> Editar
+          </button>
+        )}
       </div>
     </div>
   )

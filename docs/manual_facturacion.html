@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Facturación · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:42px; font-weight:400; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+    td code { background:#f0f4f8; border:1px solid #e8edf2; border-radius:4px; padding:1px 6px; font-family:'Courier New',monospace; font-size:13px; color:#1a3a5c; }
+
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin  { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; }
+    .badge-contado { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+    .badge-credito { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .badge-anulado { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    .tab-demo { display:flex; gap:0; border-bottom:2px solid #e8edf2; margin:16px 0 20px; }
+    .tab-demo-item { padding:10px 20px; font-size:14px; color:#6b7280; cursor:default; border-bottom:3px solid transparent; margin-bottom:-2px; }
+    .tab-demo-item.active { color:#1a3a5c; border-bottom-color:#1a3a5c; font-weight:500; }
+
+    .comprobante-demo { font-family:'Courier New',monospace; font-size:20px; font-weight:700; color:#1a3a5c; letter-spacing:2px; background:#f0f5ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 20px; display:inline-block; margin:8px 0 16px; }
+
+    .iva-badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; }
+    .iva-10 { background:#dbeafe; color:#1e40af; }
+    .iva-5  { background:#d1fae5; color:#065f46; }
+    .iva-ex { background:#f3f4f6; color:#6b7280; }
+
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Facturación</h1>
+    <p class="cover-subtitle">Emisión, gestión y seguimiento de comprobantes fiscales</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Facturación / Ventas</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista · Médico (lectura)</span>
+      <span><strong>Fecha</strong> Mayo 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar y filtrar facturas</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de una factura</a></li>
+      <li><a href="#s6"><span class="num">06</span> Emitir una nueva factura</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar una factura</a></li>
+      <li><a href="#s8"><span class="num">08</span> Anular y eliminar facturas</a></li>
+      <li><a href="#s9"><span class="num">09</span> Protección de cambios sin guardar</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ SECCIÓN 1 ══ -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+
+      <p>El módulo <strong>Facturación</strong> permite emitir, consultar y gestionar los comprobantes fiscales de la clínica. Cada factura queda vinculada a un cliente (persona), a un timbrado vigente y a uno o varios productos o servicios. Según la condición de venta elegida, el sistema genera automáticamente los movimientos de caja (venta al contado) o las cuotas a cobrar (venta a crédito).</p>
+
+      <p>El módulo contempla dos tipos de operación fiscales:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li><strong>Contado:</strong> el pago se registra al momento de emitir la factura. Se generan movimientos en caja.</li>
+        <li><strong>Crédito:</strong> el pago se difiere en cuotas. Se genera una cuenta a cobrar por cada cuota pactada.</li>
+      </ul>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Administrador</th>
+            <th>Recepcionista</th>
+            <th>Médico</th>
+            <th>Secretaria médico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver listado de facturas</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Ver detalle de una factura</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Emitir nueva factura</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Editar una factura</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Anular una factura</td>
+            <td>✅</td><td>✅</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Eliminar una factura</td>
+            <td>✅</td><td>—</td><td>—</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Descargar reportes PDF / Excel</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>—</td>
+          </tr>
+          <tr>
+            <td>Ver dashboard mensual</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">El módulo de Facturación no está disponible para el rol <strong>Secretaria médico</strong>. Los <strong>Médicos</strong> pueden consultar facturas pero no emitir, editar, anular ni eliminar.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 2 ══ -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+
+      <p>El módulo de Facturación se encuentra en el menú lateral bajo el grupo <strong>Facturación</strong>.</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Iniciá sesión en el sistema con tu usuario y contraseña.</span></li>
+        <li><span class="step-text">En el menú lateral izquierdo, hacé clic en <strong>Facturación</strong> para expandir el grupo.</span></li>
+        <li><span class="step-text">Seleccioná <strong>Ventas / Facturas</strong> dentro del grupo.</span></li>
+        <li><span class="step-text">La pantalla principal carga automáticamente con el listado de facturas registradas.</span></li>
+      </ol>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">Para emitir facturas, primero asegurate de tener configurado al menos un <strong>Timbrado vigente</strong> (ver módulo Facturación → Timbrado). Sin timbrado activo, no es posible generar comprobantes.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 3 ══ -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/01_listado.png" alt="Pantalla principal de Facturación" />
+        <div class="screenshot-caption">Pantalla principal: título a la izquierda; buscador, filtros, PDF (rojo), Excel (verde) y Nueva factura a la derecha en una sola fila.</div>
+      </div>
+
+      <p>La pantalla principal tiene dos zonas:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li><strong>Izquierda:</strong> ícono del módulo junto al título <em>Facturación</em> y el subtítulo <em>Emisión y gestión de facturas</em>.</li>
+        <li><strong>Derecha:</strong> buscador de texto, filtro de condición, selectores de fecha, botón <strong style="color:#dc2626">PDF</strong> (rojo), botón <strong style="color:#16a34a">Excel</strong> (verde) y botón <strong>+ Nueva factura</strong> (azul), todos en una sola fila. Debajo del botón Nueva factura aparece el atajo de teclado disponible.</li>
+      </ul>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Contenido</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Comprobante</strong></td>
+            <td>Número de comprobante en formato <code>SUC-EXP-NNNNNNN</code> (ej: <code>001-001-0000123</code>), en tipografía monoespaciada y negrita.</td>
+          </tr>
+          <tr>
+            <td><strong>Fecha</strong></td>
+            <td>Fecha de emisión del comprobante.</td>
+          </tr>
+          <tr>
+            <td><strong>Cliente</strong></td>
+            <td>Nombre o razón social del cliente. Debajo aparece el texto <em>"Click para ver detalle"</em> indicando que la fila es interactiva.</td>
+          </tr>
+          <tr>
+            <td><strong>Documento</strong></td>
+            <td>Número de documento del cliente (cédula o RUC). Esta columna se oculta en pantallas pequeñas.</td>
+          </tr>
+          <tr>
+            <td><strong>Condición</strong></td>
+            <td>
+              <span class="badge badge-contado">Contado</span> o
+              <span class="badge badge-credito">Crédito</span> según la condición de venta.
+              Las facturas anuladas muestran <span class="badge badge-anulado">Anulada</span> en lugar de la condición.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Total</strong></td>
+            <td>Monto total del comprobante en guaraníes (₲), con separador de miles. Las facturas anuladas muestran el monto tachado en gris.</td>
+          </tr>
+          <tr>
+            <td><strong>Acciones</strong></td>
+            <td>Botones de acción rápida: <strong>Editar</strong> (lápiz), <strong>Visualizar / Imprimir</strong> (impresora), <strong>Anular</strong> (prohibido) y <strong>Eliminar</strong> (papelera). Los botones Editar y Anular no aparecen en facturas ya anuladas.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Filas anuladas</h3>
+      <p>Las facturas anuladas se muestran con fondo rojo suave para distinguirlas visualmente del resto. No se pueden editar ni anular nuevamente.</p>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body"><strong>Clic en cualquier parte de una fila</strong> (excepto los botones de acción) abre el modal de detalle completo. Los botones de acción en la última columna tienen efecto propio sin abrir el detalle.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 4 ══ -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar y filtrar facturas</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/02_busqueda.png" alt="Filtros activos en el listado de facturas" />
+        <div class="screenshot-caption">Tabla filtrada por cliente con filtro de condición "Contado" aplicado.</div>
+      </div>
+
+      <h3>Búsqueda por texto</h3>
+      <p>El campo de búsqueda filtra por <strong>nombre o razón social del cliente</strong>, por <strong>número de documento</strong> del cliente o por <strong>número de comprobante</strong>. La búsqueda aplica con un breve retardo automático mientras se escribe; no es necesario presionar Enter.</p>
+
+      <h3>Filtros disponibles</h3>
+      <table>
+        <thead><tr><th>Filtro</th><th>Opciones</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Condición</strong></td>
+            <td>Todas / Contado / Crédito</td>
+            <td>Filtra por condición de venta. Por defecto muestra todas.</td>
+          </tr>
+          <tr>
+            <td><strong>Fecha desde</strong></td>
+            <td>Selector de fecha</td>
+            <td>Muestra solo facturas emitidas a partir de esa fecha.</td>
+          </tr>
+          <tr>
+            <td><strong>Fecha hasta</strong></td>
+            <td>Selector de fecha</td>
+            <td>Muestra solo facturas emitidas hasta esa fecha.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Los filtros se pueden combinar. Por ejemplo: buscar "García" + Condición "Crédito" + Fecha desde "01/05/2026" muestra solo las facturas a crédito del cliente García emitidas desde esa fecha.</p>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Si la búsqueda no encuentra resultados, la tabla muestra <strong>"No hay facturas registradas."</strong> — no es un error. Borrá el texto de búsqueda o limpiá los filtros para volver al listado completo.</div>
+      </div>
+
+      <h3>Reportes PDF y Excel</h3>
+      <p>El botón <strong style="color:#dc2626">PDF</strong> (rojo) y el botón <strong style="color:#16a34a">Excel</strong> (verde), ubicados en la barra derecha junto al buscador, generan informes del listado actual respetando todos los filtros aplicados. El PDF se abre en una nueva pestaña del navegador; el Excel se descarga automáticamente como archivo <code>.xlsx</code>.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 5 ══ -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de una factura</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/03_panel_detalle.png" alt="Modal de detalle de factura" />
+        <div class="screenshot-caption">Modal de detalle con datos del comprobante, toolbar de acciones y tabs de cobranza.</div>
+      </div>
+
+      <p>Al hacer clic en una fila se abre el <strong>modal de detalle</strong> con la información completa de la factura. Para cerrarlo, hacé clic en la <strong>X</strong> del encabezado o presioná <kbd>Escape</kbd>.</p>
+
+      <h3>Toolbar de acciones</h3>
+      <p>En la parte superior del modal, la barra de herramientas ofrece:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li><strong>Editar</strong> — cambia el modal a modo edición (solo si la factura no está anulada).</li>
+        <li><strong>Visualizar / Imprimir</strong> — abre el PDF de la factura en una nueva pestaña del navegador.</li>
+        <li><strong>Anular</strong> — solicita confirmación para anular el comprobante (solo si no está anulada).</li>
+        <li><strong>Eliminar</strong> — solicita confirmación para eliminar el comprobante (solo administradores).</li>
+      </ul>
+
+      <h3>Información mostrada</h3>
+      <table>
+        <thead><tr><th>Sección</th><th>Datos</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Datos del comprobante</strong></td>
+            <td>Número de comprobante, fecha, condición de venta (Contado / Crédito), cliente con su documento, y observación si fue ingresada.</td>
+          </tr>
+          <tr>
+            <td><strong>Detalle de ítems</strong></td>
+            <td>Tabla con producto/servicio, cantidad, precio unitario, tipo de IVA (<span class="iva-badge iva-10">IVA 10%</span>, <span class="iva-badge iva-5">IVA 5%</span> o <span class="iva-badge iva-ex">Exenta</span>) y subtotal de cada línea. Al final muestra los totales: gravada 5%, gravada 10%, IVA 5%, IVA 10% y monto total.</td>
+          </tr>
+          <tr>
+            <td><strong>Detalle de cobranza</strong> (solo contado)</td>
+            <td>Forma de pago, cuenta de caja/banco y monto de cada pago registrado al momento de emitir.</td>
+          </tr>
+          <tr>
+            <td><strong>Cuotas a cobrar</strong> (solo crédito)</td>
+            <td>Tabla con número de cuota, fecha de vencimiento, monto de cuota y saldo pendiente. El estado de cada cuota puede ser <em>Pendiente</em>, <em>Pagado</em> o <em>Vencido</em>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Navegación entre secciones con tabs</h3>
+      <p>Cuando la factura tiene cobranza o cuotas registradas, aparecen tabs de navegación:</p>
+      <div class="tab-demo">
+        <div class="tab-demo-item active">Cabecera y Detalle</div>
+        <div class="tab-demo-item">Cobranza</div>
+      </div>
+      <p>Hacé clic en cada tab para ver la sección correspondiente sin cerrar el modal.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 6 ══ -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Emitir una nueva factura</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo los roles <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span> pueden emitir nuevas facturas.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/04_panel_crear.png" alt="Modal de nueva factura — pestaña Cabecera" />
+        <div class="screenshot-caption">Modal de emisión con la pestaña "Cabecera y Detalle" activa y los campos principales.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en el botón <strong>+ Nueva factura</strong> (azul) ubicado en el extremo derecho de la barra de herramientas. También podés presionar <kbd>Ins</kbd> desde el listado.</span></li>
+        <li><span class="step-text">Se abre el modal de emisión. Completá los datos en la pestaña <strong>Cabecera y Detalle</strong>.</span></li>
+        <li><span class="step-text">Agregá los ítems de la factura en la sección <em>Detalle de ítems</em>.</span></li>
+        <li><span class="step-text">Si la condición es <strong>Contado</strong>, pasá a la pestaña <strong>Cobranza</strong> y registrá el pago.</span></li>
+        <li><span class="step-text">Si la condición es <strong>Crédito</strong>, pasá a la pestaña <strong>Cuenta a Cobrar</strong> y configurá las cuotas.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Emitir factura</strong> para guardar el comprobante.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/05_panel_crear_completo.png" alt="Modal de nueva factura completo con ítems cargados" />
+        <div class="screenshot-caption">Formulario con cliente, comprobante validado e ítems cargados, listo para emitir.</div>
+      </div>
+
+      <h3>Campos de la pestaña Cabecera</h3>
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Fecha *</strong></td>
+            <td>Fecha de emisión. Por defecto toma la fecha del día. Se puede cambiar si la factura corresponde a otro día.</td>
+          </tr>
+          <tr>
+            <td><strong>Contado</strong></td>
+            <td>Casilla de verificación. Marcada = venta al contado (requiere cobranza). Desmarcada = venta a crédito (requiere configuración de cuotas). El texto de ayuda debajo indica en qué pestaña continuar.</td>
+          </tr>
+          <tr>
+            <td><strong>Cliente *</strong></td>
+            <td>Buscador de personas por nombre o número de documento. Al escribir 2 o más caracteres aparece el listado de sugerencias. Seleccioná el cliente con clic o con las teclas ↑↓ y Enter.</td>
+          </tr>
+          <tr>
+            <td><strong>Comprobante *</strong></td>
+            <td>
+              Número de comprobante dividido en tres campos: <strong>Punto sucursal</strong> (3 dígitos), <strong>Punto expedición</strong> (3 dígitos) y <strong>Número</strong> (7 dígitos). Al completar los tres, el sistema valida automáticamente contra el timbrado vigente y muestra el número sugerido como referencia.
+              <br><br>
+              <div class="comprobante-demo">001-001-0001234</div>
+              El sistema muestra junto al campo el número de timbrado activo y el próximo número disponible. Si el número ingresado ya está en uso o está fuera del rango habilitado, aparece un indicador de error en rojo.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Observación</strong></td>
+            <td>Campo de texto libre, opcional. Para notas internas o leyendas en el comprobante.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Sección Detalle de ítems</h3>
+      <p>En la misma pestaña, en la parte inferior, se encuentran los paneles para cargar los productos y servicios de la factura:</p>
+      <ol class="steps">
+        <li><span class="step-text">En el <strong>panel izquierdo</strong>, buscá el producto o servicio escribiendo en el buscador. Aparece el listado con la descripción, grupo e IVA de cada producto.</span></li>
+        <li><span class="step-text">Seleccioná el producto. Automáticamente se muestra el tipo de IVA (<span class="iva-badge iva-10">IVA 10%</span>, <span class="iva-badge iva-5">IVA 5%</span> o <span class="iva-badge iva-ex">Exenta</span>).</span></li>
+        <li><span class="step-text">Completá la <strong>Cantidad</strong> y el <strong>Precio unitario</strong>. El subtotal se calcula automáticamente.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Agregar →</strong> para agregar el ítem a la tabla del panel derecho.</span></li>
+        <li><span class="step-text">Repetí el proceso para agregar más ítems. Podés editar o quitar ítems ya agregados desde la tabla.</span></li>
+      </ol>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">El cálculo del IVA (10% o 5%) es automático y se determina por el tipo de IVA del producto seleccionado. Los totales se actualizan en tiempo real al agregar o modificar ítems.</div>
+      </div>
+
+      <h3>Pestaña Cobranza (venta al contado)</h3>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/06_panel_editar.png" alt="Pestaña Cobranza" />
+        <div class="screenshot-caption">Pestaña Cobranza con forma de pago, cuenta y monto. El resumen muestra si el cobro está completo.</div>
+      </div>
+
+      <p>Cuando la condición es <strong>Contado</strong>, completá los datos de pago:</p>
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Forma de pago</strong></td>
+            <td>Seleccioná el método: Efectivo, Tarjeta, Transferencia u Otro. Si elegís Tarjeta, aparece un campo adicional para el número de voucher. Si elegís Transferencia, aparece un campo para el número de referencia.</td>
+          </tr>
+          <tr>
+            <td><strong>Cuenta</strong></td>
+            <td>Cuenta de caja o banco donde se acredita el pago.</td>
+          </tr>
+          <tr>
+            <td><strong>Monto</strong></td>
+            <td>Monto recibido para esta forma de pago. Si se recibe más del total de la factura, el sistema calcula el vuelto automáticamente.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Podés registrar múltiples formas de pago haciendo clic en <strong>+ Agregar forma de pago</strong>. El resumen al final muestra el total de la factura, el total cobrado y si hay vuelto o falta dinero por cobrar.</p>
+
+      <h3>Pestaña Cuenta a Cobrar (venta a crédito)</h3>
+      <p>Cuando la condición es <strong>Crédito</strong>, configurá las cuotas:</p>
+      <table>
+        <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Cantidad de cuotas *</strong></td>
+            <td>Número de cuotas en que se dividirá el total. Mínimo 1.</td>
+          </tr>
+          <tr>
+            <td><strong>Días entre cuotas *</strong></td>
+            <td>Intervalo en días entre cada cuota. Por ejemplo, 30 días = cuotas mensuales.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Al completar ambos campos, aparece automáticamente una vista previa de las cuotas con los montos y fechas de vencimiento calculados.</p>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">Para emitir la factura exitosamente, asegurate de que el número de comprobante ingresado sea <strong>único</strong>, esté dentro del <strong>rango del timbrado vigente</strong> y no haya sido usado previamente. El indicador junto al campo del comprobante muestra en verde ✓ cuando el número es válido.</div>
+      </div>
+
+      <h3>Atajo de teclado</h3>
+      <p>Desde cualquier campo del formulario de nueva factura, podés presionar <kbd>F10</kbd> para intentar emitir el comprobante sin usar el ratón.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 7 ══ -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar una factura</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo los roles <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span> pueden editar facturas.</div>
+      </div>
+
+      <p>Hay dos formas de editar una factura:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li>Hacé clic en el <strong>ícono de lápiz</strong> en la columna de acciones de la fila (no abre el detalle previo).</li>
+        <li>Abrí el <strong>modal de detalle</strong> haciendo clic en la fila y luego hacé clic en el botón <strong>Editar</strong> de la toolbar.</li>
+      </ul>
+
+      <p>En ambos casos, el modal cambia al <strong>modo de edición</strong> con los datos del comprobante precargados.</p>
+
+      <h3>Edición simple (sin cambiar el detalle)</h3>
+      <p>Si solo necesitás corregir la <strong>fecha</strong>, el <strong>cliente</strong> o la <strong>observación</strong>, podés hacerlo sin tocar los ítems. Hacé los cambios y presioná el botón <strong>Guardar</strong> o <kbd>F10</kbd>.</p>
+
+      <h3>Edición completa (con detalle de ítems)</h3>
+      <p>Si modificás el <strong>detalle de ítems</strong> (cambiar productos, cantidades o precios), el sistema realiza una actualización completa que también puede afectar:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li>La condición de venta (podés cambiar de contado a crédito o viceversa).</li>
+        <li>Los totales y la distribución de IVA.</li>
+        <li>Los registros de cobranza y movimientos de caja (se reemplazan).</li>
+        <li>Las cuotas de la cuenta a cobrar (se reemplazan).</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>No se puede editar una factura a crédito que ya tiene cobros registrados</strong> (cobranzas ingresadas desde el módulo Cobranzas). En ese caso, el sistema muestra un aviso indicando los números de cobranza vinculados. Para poder editar, primero eliminá esas cobranzas.</div>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>No se puede editar una factura anulada.</strong> El sistema rechazará cualquier intento de edición y mostrará un mensaje de error.</div>
+      </div>
+
+      <p>Al guardar, el modal vuelve al modo de <strong>vista detalle</strong> mostrando los datos actualizados. No se cierra automáticamente; presioná <kbd>Escape</kbd> o la <strong>X</strong> para cerrarlo.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 8 ══ -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Anular y eliminar facturas</h2>
+      </div>
+
+      <h3>Anular una factura</h3>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">La anulación es la operación habitual para invalidar un comprobante ya emitido. El comprobante <strong>no desaparece del listado</strong> — queda visible con el badge <span class="badge badge-anulado">Anulada</span> y el monto tachado, para trazabilidad fiscal.</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/07_confirm_eliminar.png" alt="Diálogo de confirmación de anulación" />
+        <div class="screenshot-caption">Diálogo de confirmación de anulación con advertencia sobre la acción.</div>
+      </div>
+
+      <p>Para anular una factura:</p>
+      <ol class="steps">
+        <li><span class="step-text">Hacé clic en el <strong>ícono de prohibido</strong> (⊘) en la columna de acciones de la fila, <strong>o bien</strong> abrí el detalle y hacé clic en <strong>Anular</strong> en la toolbar.</span></li>
+        <li><span class="step-text">Aparece un diálogo de confirmación indicando que el comprobante quedará marcado como anulado y no podrá editarse.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Anular factura</strong> para confirmar, o en <strong>Cancelar</strong> para volver sin cambios.</span></li>
+      </ol>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body"><strong>No se puede anular</strong> una factura a crédito que tiene cobros registrados. Primero eliminá las cobranzas asociadas desde el módulo <strong>Finanzas → Cobranzas</strong>.</div>
+      </div>
+
+      <p>Al anular, el sistema cancela automáticamente:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li>Los detalles de ítems de la factura.</li>
+        <li>Los registros de cobranza (si era contado).</li>
+        <li>Los movimientos de caja generados (si era contado).</li>
+        <li>Las cuotas pendientes de la cuenta a cobrar (si era crédito).</li>
+      </ul>
+
+      <h3>Eliminar una factura</h3>
+
+      <div class="callout danger">
+        <span class="callout-icon">🔒</span>
+        <div class="callout-body">Solo el rol <span class="badge badge-admin">Admin</span> puede eliminar facturas. La eliminación es definitiva a nivel de listado (borrado lógico).</div>
+      </div>
+
+      <p>Para eliminar una factura:</p>
+      <ol class="steps">
+        <li><span class="step-text">Abrí el <strong>modal de detalle</strong> haciendo clic en la fila.</span></li>
+        <li><span class="step-text">Hacé clic en el botón <strong>Eliminar</strong> en la toolbar del modal.</span></li>
+        <li><span class="step-text">Aparece el diálogo de confirmación indicando que se eliminarán también los movimientos de caja vinculados.</span></li>
+        <li><span class="step-text">Hacé clic en <strong>Eliminar</strong> para confirmar.</span></li>
+      </ol>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body"><strong>No se puede eliminar</strong> una factura a crédito que tiene cobros registrados. Primero eliminá las cobranzas desde el módulo <strong>Finanzas → Cobranzas</strong>.</div>
+      </div>
+
+      <h3>Diferencia entre anular y eliminar</h3>
+      <table>
+        <thead><tr><th>Aspecto</th><th>Anular</th><th>Eliminar</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Visible en listado</strong></td>
+            <td>Sí, con badge <span class="badge badge-anulado">Anulada</span></td>
+            <td>No aparece más en el listado</td>
+          </tr>
+          <tr>
+            <td><strong>Acceso requerido</strong></td>
+            <td>Admin o Recepcionista</td>
+            <td>Solo Admin</td>
+          </tr>
+          <tr>
+            <td><strong>Uso recomendado</strong></td>
+            <td>Cuando el comprobante fue entregado al cliente y debe quedar registrado como inválido por trazabilidad fiscal</td>
+            <td>Cuando el comprobante no llegó a entregarse y se cargó por error</td>
+          </tr>
+          <tr>
+            <td><strong>Recuperación</strong></td>
+            <td>No es reversible desde la interfaz</td>
+            <td>No es reversible</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ SECCIÓN 9 ══ -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Protección de cambios sin guardar</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/facturacion/08_navigation_guard.png" alt="Diálogo de protección de cambios" />
+        <div class="screenshot-caption">Aviso que aparece al intentar cerrar el modal con cambios sin guardar.</div>
+      </div>
+
+      <p>El sistema protege los datos ingresados en los formularios de emisión y edición. Cuando hay cambios sin guardar y se intenta cerrar el modal, el sistema muestra un <strong>diálogo de confirmación</strong>:</p>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><em>"Descartar cambios — Hay datos ingresados. ¿Deseas descartar los cambios?"</em></div>
+      </div>
+
+      <h3>Cuándo aparece este aviso</h3>
+      <p>La protección se activa cuando:</p>
+      <ul style="margin:8px 0 16px 20px; font-size:14px; color:#374151;">
+        <li>Se cierra el modal de <strong>nueva factura</strong> (con X o botón Cancelar) después de haber completado algún campo.</li>
+        <li>Se cierra el modal de <strong>edición</strong> (con X, Cancelar o Escape) después de haber modificado algún dato.</li>
+      </ul>
+
+      <h3>Opciones del diálogo</h3>
+      <table>
+        <thead><tr><th>Botón</th><th>Acción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Descartar</strong></td>
+            <td>Cierra el modal y descarta todos los cambios. Los datos ingresados se pierden.</td>
+          </tr>
+          <tr>
+            <td><strong>Seguir editando</strong></td>
+            <td>Cierra el diálogo y vuelve al formulario para poder guardar o seguir trabajando.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">Si guardás el formulario correctamente (<strong>Emitir factura</strong> o <strong>Guardar</strong>), el modal se cierra sin mostrar este aviso. El aviso solo aparece cuando se descarta el formulario manualmente.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 10 ══ -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:42%">Mensaje o situación</th>
+            <th>Causa y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><em>"Timbrado no encontrado."</em></td>
+            <td>El ID de timbrado ingresado no existe en el sistema. Verificá que el número de punto de sucursal y expedición correspondan a un timbrado registrado en <strong>Facturación → Timbrado</strong>.</td>
+          </tr>
+          <tr>
+            <td><em>"El timbrado no está vigente."</em></td>
+            <td>El timbrado existe pero su fecha de vigencia está vencida o aún no comenzó. Registrá un timbrado vigente o corregí las fechas del existente.</td>
+          </tr>
+          <tr>
+            <td><em>"Número fuera del rango del timbrado (XXXXX–YYYYY)."</em></td>
+            <td>El número de comprobante ingresado no está dentro del rango habilitado por el timbrado. Ingresá un número dentro del rango indicado.</td>
+          </tr>
+          <tr>
+            <td><em>"Este número de comprobante ya está en uso."</em></td>
+            <td>El número de comprobante ya fue utilizado en una factura anterior. El indicador junto al campo muestra el siguiente número disponible.</td>
+          </tr>
+          <tr>
+            <td><em>"Producto ID N no encontrado o inactivo."</em></td>
+            <td>Uno de los productos seleccionados fue marcado como inactivo o eliminado. Buscá y seleccioná un producto activo.</td>
+          </tr>
+          <tr>
+            <td><em>"Debe incluir al menos un ítem."</em></td>
+            <td>Se intentó emitir sin agregar productos o servicios. Agregá al menos un ítem en la sección Detalle de ítems antes de emitir.</td>
+          </tr>
+          <tr>
+            <td><em>"Requiere al menos un registro de cobranza."</em></td>
+            <td>La condición de venta es Contado pero no se completó la pestaña Cobranza. Pasá a la pestaña Cobranza y registrá el pago.</td>
+          </tr>
+          <tr>
+            <td><em>"Requiere datos de cuotas."</em></td>
+            <td>La condición de venta es Crédito pero no se configuraron las cuotas. Pasá a la pestaña Cuenta a Cobrar y completá la cantidad de cuotas y los días entre cuotas.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede editar: el comprobante tiene cobros registrados."</em></td>
+            <td>La factura a crédito tiene cobranzas registradas en el módulo Finanzas → Cobranzas. Para editar, primero eliminá esas cobranzas.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede editar una factura anulada."</em></td>
+            <td>No se puede modificar un comprobante ya anulado. Si fue anulado por error, consultá con el administrador para una solución alternativa.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede anular: tiene cobros registrados."</em></td>
+            <td>Igual que para edición: eliminá las cobranzas del módulo Finanzas → Cobranzas antes de anular.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede eliminar: el comprobante tiene cobros registrados."</em></td>
+            <td>Igual que los casos anteriores: eliminá las cobranzas vinculadas antes de eliminar la factura.</td>
+          </tr>
+          <tr>
+            <td>El botón <strong>+ Nueva factura</strong> no aparece</td>
+            <td>El usuario tiene rol Médico. Solo Administrador y Recepcionista pueden emitir facturas.</td>
+          </tr>
+          <tr>
+            <td>El botón <strong>Eliminar</strong> no aparece en el modal de detalle</td>
+            <td>El usuario tiene rol Recepcionista. Solo los administradores pueden eliminar facturas.</td>
+          </tr>
+          <tr>
+            <td>El indicador del comprobante aparece en rojo después de completar los tres campos</td>
+            <td>El número ingresado es inválido: ya fue usado, está fuera del rango, o no existe un timbrado vigente para ese punto de emisión. Revisá el número o consultá el timbrado en <strong>Facturación → Timbrado</strong>.</td>
+          </tr>
+          <tr>
+            <td>La tabla de detalle de ítems muestra "—" en la columna Precio</td>
+            <td>El ítem fue agregado con precio 0. Seleccioná el ítem y corregí el precio antes de emitir.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr>
+
+      <div class="highlight-box">
+        <strong>Flujo de trabajo recomendado para emitir una factura contado:</strong>
+        <ol style="margin:10px 0 0 20px; font-size:14px; color:#374151;">
+          <li style="margin-bottom:6px;">Ingresá al módulo <strong>Facturación → Ventas</strong>.</li>
+          <li style="margin-bottom:6px;">Hacé clic en <strong>+ Nueva factura</strong>.</li>
+          <li style="margin-bottom:6px;">En la pestaña <strong>Cabecera y Detalle</strong>: confirmá o ajustá la fecha, buscá al cliente, ingresá el número de comprobante (el sistema muestra el siguiente disponible como referencia).</li>
+          <li style="margin-bottom:6px;">Buscá cada producto o servicio en el buscador del panel izquierdo. Completá la cantidad y el precio. Hacé clic en <strong>Agregar →</strong>.</li>
+          <li style="margin-bottom:6px;">Pasá a la pestaña <strong>Cobranza</strong>. Seleccioná la forma de pago y la cuenta. Ingresá el monto recibido.</li>
+          <li>Hacé clic en <strong>Emitir factura</strong>. El comprobante queda registrado y podés imprimir el PDF con el botón <strong>Visualizar / Imprimir</strong> del detalle.</li>
+        </ol>
+      </div>
+
+      <div class="highlight-box" style="margin-top:16px; background:#f0fdf4; border-color:#bbf7d0;">
+        <strong>Flujo de trabajo recomendado para emitir una factura a crédito:</strong>
+        <ol style="margin:10px 0 0 20px; font-size:14px; color:#374151;">
+          <li style="margin-bottom:6px;">Seguí los mismos pasos 1 a 4 del flujo contado.</li>
+          <li style="margin-bottom:6px;">En el campo <strong>Contado</strong>, <strong>desmarcá</strong> la casilla para cambiar a condición Crédito.</li>
+          <li style="margin-bottom:6px;">Pasá a la pestaña <strong>Cuenta a Cobrar</strong>. Ingresá la cantidad de cuotas y los días entre cuotas. Verificá la vista previa de las fechas de vencimiento.</li>
+          <li>Hacé clic en <strong>Emitir factura</strong>. Las cuotas quedan registradas en <strong>Finanzas → Estado de Cuenta</strong> para su posterior cobro desde <strong>Finanzas → Cobranzas</strong>.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Manual de Usuario · Módulo Facturación · Versión 1.0 · Mayo 2026
+  </div>
+
+</div>
+</body>
+</html>

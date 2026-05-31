@@ -241,9 +241,110 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
    - persona_rrhh ✅ → horario_prestador ✅ → agenda ✅ → consultas ✅
    - documentos ✅ → recordatorios ✅
    - facturacion ✅ → caja_banco ✅ → cobranzas ✅ → pago_prestador ✅
-4. **Agregar tests backend** — ⚠️ archivos `tests.py` creados (placeholder vacío) en consultorio, especialidad, eventoclinico, ubicacion, core. Pendiente: escribir los tests reales módulo por módulo.
+4. **Agregar tests + documentación por módulo** — en curso. Ver tabla de estado más abajo.
 5. **Dashboard conectado al router** — ✅ `HomeRedirect` activo: admin → `/informes/dashboard/prestadores`, médico/secretaria → `/consultas`
 6. **Módulo Informes** — ✅ `InformesPacientePage` + 8 dashboards implementados. Pendiente: informes de agenda y horario por prestador.
+
+---
+
+## Checklist por Módulo — Tests + Documentación
+
+Al trabajar en un módulo, completar los 4 pasos en orden. **Actualizar la tabla de estado al terminar cada paso.**
+
+### Paso 1 — Tests backend `backend/apps/{ruta}/tests.py`
+
+Cuatro clases obligatorias:
+
+| Clase | Qué cubre |
+|---|---|
+| `BaseX` | `setUp` con admin/recep/medico + instancia de prueba; helper `auth(user)` |
+| `PermisosTest` | anónimo→401, médico lee/no escribe, recep lee+crea+edita/no elimina, admin todo incluyendo `eliminados` |
+| `XCrudTest` | list (solo activos, búsqueda, campos serializados), retrieve, create (válido, trim, duplicado exacto/case/mayúsculas, vacío, reutilizable tras borrado), patch (campo, mismo valor no falla, duplicado de otro→400), destroy (is_deleted+fecha, no aparece en list, ya borrado→404), eliminados (solo borrados, no paginado) |
+| `XConstraintTest` | dependencia activa bloquea el borrado; error menciona el recurso bloqueante; solo borrado lógico no bloquea; sin dependencias → permite borrar |
+| `XAuditoriaTest` | crear/editar/eliminar registran en `RegistroAuditoria`; tabla y acción correctas; usuario correcto; snapshots `datos_antes`/`datos_despues` no nulos |
+
+Ejecutar: `docker compose exec backend python manage.py test apps.{ruta_con_puntos} --verbosity=2`
+
+### Paso 2 — Tests E2E frontend `frontend/e2e/{modulo}.spec.js`
+
+- Registrar el proyecto en `playwright.config.js` (con `dependencies: ['setup']` y `storageState`)
+- Grupos de tests obligatorios:
+
+| Grupo | Tests clave |
+|---|---|
+| Estructura inicial | carga con tabla + buscador + botón Nuevo; sin panel al entrar; encabezados correctos |
+| Crear | panel en modo crear; Guardar deshabilitado con campo vacío; crear válido aparece en tabla; toast de confirmación; duplicado muestra error sin cerrar; cancelar con NavigationGuard no guarda; F10 guarda |
+| Ver detalle | clic en fila abre panel en modo Detalle; muestra datos correctos; botones Editar y Eliminar para admin; hint visible; fila activa resaltada; X cierra el panel |
+| Editar | lápiz abre modo editar; datos precargados; editar guarda cambio; botón Editar del panel de detalle cambia modo; duplicado de otro→error; cancelar con guard no guarda |
+| Eliminar | papelera muestra ConfirmDialog; cancelar mantiene registro; confirmar quita de tabla + toast; botón Eliminar del panel dispara ConfirmDialog |
+| Búsqueda | filtra tabla; sin resultados muestra estado vacío; limpiar restaura lista |
+| Permisos recepcionista | no ve papelera; puede abrir panel crear; no ve botón Eliminar en detalle |
+
+Ejecutar: `npx playwright test --project={modulo}`
+
+> **Campos `soloLectura: true` en PanelSimple:** en modo editar, estos campos se renderizan como `div.panel-value-readonly` con badge "No editable" — **no** como `<input disabled>`. Para verificarlos en E2E usar `expect(page.locator('.panel-value-readonly')).toBeVisible()` y `expect(page.locator('input[name="campo"]')).not.toBeVisible()`. Nunca usar `toBeDisabled()` — causará timeout de 5s y arrastrará los tests siguientes.
+
+### Paso 3 — Capturas de pantalla `frontend/e2e/screenshots-{modulo}.spec.js`
+
+8 capturas estándar en `docs/imagenes/{modulo}/`:
+
+```
+01_listado.png         02_busqueda.png          03_panel_detalle.png
+04_panel_crear.png     05_panel_crear_completo.png  06_panel_editar.png
+07_confirm_eliminar.png  08_navigation_guard.png
+```
+
+Ejecutar: `npx playwright test --project=screenshots-manual e2e/screenshots-{modulo}.spec.js`
+
+### Paso 4 — Manual de usuario `docs/manual_{modulo}.html`
+
+10 secciones obligatorias:
+
+| # | Sección |
+|---|---|
+| 01 | Descripción del módulo + tabla de permisos por rol (admin/recep/médico/secretaria) |
+| 02 | Acceder al módulo (ruta en el menú lateral) |
+| 03 | Pantalla principal — listado (columnas, comportamiento de acciones) |
+| 04 | Buscar (filtros disponibles, sin resultados, limpiar) |
+| 05 | Ver detalle (clic en fila, contenido del panel, cerrar) |
+| 06 | Crear (pasos, campo requerido, unicidad, F10 / Insert) |
+| 07 | Editar (desde lápiz y desde detalle, validación excluye propio registro) |
+| 08 | Eliminar (solo admin, restricción de dependencias activas, borrado lógico) |
+| 09 | Protección de cambios sin guardar (NavigationGuard — cuándo aparece, opciones) |
+| 10 | Mensajes de error frecuentes + comportamientos esperados que no son errores |
+
+---
+
+## Estado de Tests y Documentación por Módulo
+
+**Actualizar esta tabla al completar cada paso de un módulo.**
+
+| Módulo | Tests backend | E2E frontend | Manual |
+|---|---|---|---|
+| `core` (BaseModel) | ✅ | — | — |
+| `users` | ✅ | ✅ | ✅ |
+| `ubicacion` | ✅ | ✅ | ✅ |
+| `consultorio` | ✅ | ✅ | ✅ |
+| `especialidad` | ✅ | ✅ | ✅ |
+| `eventoclinico` | ✅ | ✅ | ✅ |
+| `tipo_doc_dig` | ✅ | ✅ | ✅ |
+| `persona` | ✅ | — | — |
+| `paciente` | ✅ | ✅ | ✅ |
+| `paciente_responsable` | ✅ | ✅ | ✅ |
+| `persona_rrhh` | ✅ | ✅ | ✅ |
+| `horario_prestador` | ✅ | ✅ | ✅ |
+| `agenda` | ✅ | ✅ | ✅ |
+| `consultas` | ✅ | ✅ | ✅ |
+| `documentos` | — | — | — |
+| `notificaciones` | ✅ | ✅ | ✅ |
+| `timbrado` | ✅ | ✅ | ✅ |
+| `stock/productos` | ✅ | ✅ | ✅ |
+| `finanzas/caja_banco` | ❌ | ❌ | ❌ |
+| `finanzas/cobranzas` | ❌ | ❌ | ❌ |
+| `finanzas/pago_prestador` | ❌ | ❌ | ❌ |
+| `facturacion/ventas` | ✅ | ✅ | ✅ |
+
+> **Convención:** ✅ completo · ❌ pendiente · ⚠️ parcial · — no aplica (sin UI propia o dato de referencia)
 
 ---
 
@@ -251,7 +352,7 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 
 | Pendiente | Alcance | Prioridad |
 |---|---|---|
-| **Tests backend** — escribir tests reales en todos los módulos (archivos placeholder ya existen) | Backend | 🔴 Alta |
+| **Tests + documentación** — completar módulo por módulo según checklist (ver tabla de estado arriba) | Backend + Frontend | 🔴 Alta |
 | **Interceptor Axios para 401 / 403 / 500** | `src/api/client.js` | 🔴 Alta |
 | **Crear `.env.example`** | Raíz del proyecto | 🔴 Alta (requerido para deploy) |
 | **Config producción** — Nginx + Gunicorn + SSL (Let's Encrypt) | Infraestructura | 🔴 Alta (requerido para deploy) |
@@ -262,7 +363,6 @@ Campo clave: `.descripcion` — NUNCA usar `.nombre`. Es fijo en base de datos, 
 | select_related / prefetch_related en listados | Viewsets con datos anidados | 🟡 Media |
 | Informe de horario por prestador — PDF/Excel con todos los horarios (activos e inactivos), día, franja, intervalo y especialidades | Backend + Frontend | 🟡 Media |
 | Informes de agenda | Backend + Frontend | 🟢 Post-tests |
-| Tests frontend (hooks + E2E críticos) | Frontend | 🟢 Post-tests backend |
 
 ---
 
