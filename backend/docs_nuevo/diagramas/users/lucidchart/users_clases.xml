@@ -1,0 +1,363 @@
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- ACTORES                                             -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- Actor: Administrador -->
+    <mxCell id="actor_admin" value="&lt;&lt;actor&gt;&gt;&#xa;Administrador" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="30" y="160" width="160" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Actor: UsuarioAutenticado -->
+    <mxCell id="actor_user" value="&lt;&lt;actor&gt;&gt;&#xa;UsuarioAutenticado" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="30" y="460" width="160" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- INTERFACES                                          -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- Interface: LoginAPI -->
+    <mxCell id="iface_login" value="&lt;&lt;Interface&gt;&gt;&#xa;LoginAPI" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="240" y="60" width="220" height="178" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_login_a1" value="url : POST /api/token/" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_login">
+      <mxGeometry x="0" y="46" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_login_a2" value="url_refresh : POST /api/token/refresh/" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_login">
+      <mxGeometry x="0" y="70" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_login_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="iface_login">
+      <mxGeometry x="0" y="94" width="220" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_login_m1" value="+ obtener_token(username, password) : JWT" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_login">
+      <mxGeometry x="0" y="102" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_login_m2" value="+ refrescar_token(refresh) : JWT" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_login">
+      <mxGeometry x="0" y="126" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_login_m3" value="+ invalidar_token(refresh) : void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_login">
+      <mxGeometry x="0" y="150" width="220" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- Interface: UsuariosAPI -->
+    <mxCell id="iface_usuarios" value="&lt;&lt;Interface&gt;&gt;&#xa;UsuariosAPI" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="240" y="290" width="220" height="298" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_a1" value="url_base : /api/usuarios/" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="46" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="70" width="220" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m1" value="+ listar() : List[PerfilUsuario]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="78" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m2" value="+ crear(data) : PerfilUsuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="102" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m3" value="+ obtener(id) : PerfilUsuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="126" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m4" value="+ actualizar(id, data) : PerfilUsuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="150" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m5" value="+ me() : PerfilUsuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="174" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m6" value="+ cambiar_password(data) : void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="198" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m7" value="+ cambiar_estado(id) : PerfilUsuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="222" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m8" value="+ resetear_password(id, data) : void" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="246" width="220" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="iface_usuarios_m9" value="+ eliminados() : List[PerfilUsuario]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="iface_usuarios">
+      <mxGeometry x="0" y="270" width="220" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- CONTROLS (ViewSets / Serializers)                   -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- Control: CustomTokenObtainPairView -->
+    <mxCell id="ctrl_token_view" value="&lt;&lt;control&gt;&gt;&#xa;CustomTokenObtainPairView" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="530" y="60" width="260" height="130" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_view_a1" value="serializer_class : CustomTokenObtainPairSerializer" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_token_view">
+      <mxGeometry x="0" y="46" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_view_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ctrl_token_view">
+      <mxGeometry x="0" y="70" width="260" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_view_m1" value="+ post(request) : Response[JWT]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_token_view">
+      <mxGeometry x="0" y="78" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_view_m2" value="+ validate(attrs) : dict" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_token_view">
+      <mxGeometry x="0" y="102" width="260" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- Control: CustomTokenObtainPairSerializer -->
+    <mxCell id="ctrl_token_ser" value="&lt;&lt;control&gt;&gt;&#xa;CustomTokenObtainPairSerializer" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="530" y="230" width="260" height="130" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_ser_a1" value="rol : str" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_token_ser">
+      <mxGeometry x="0" y="46" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_ser_a2" value="persona_rrhh_id : int | null" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_token_ser">
+      <mxGeometry x="0" y="70" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_ser_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ctrl_token_ser">
+      <mxGeometry x="0" y="94" width="260" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_token_ser_m1" value="+ get_token(user) : Token" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_token_ser">
+      <mxGeometry x="0" y="102" width="260" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- Control: PerfilUsuarioViewSet -->
+    <mxCell id="ctrl_viewset" value="&lt;&lt;control&gt;&gt;&#xa;PerfilUsuarioViewSet" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="530" y="410" width="260" height="322" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_a1" value="queryset : QuerySet[PerfilUsuario]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="46" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="70" width="260" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m1" value="+ get_permissions() : List[Permission]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="78" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m2" value="+ get_serializer_class() : Serializer" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="102" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m3" value="+ list(request) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="126" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m4" value="+ create(request) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="150" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m5" value="+ retrieve(request, pk) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="174" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m6" value="+ partial_update(request, pk) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="198" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m7" value="+ me(request) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="222" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m8" value="+ cambiar_password(request) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="246" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m9" value="+ cambiar_estado(request, pk) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="270" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_viewset_m10" value="+ resetear_password(request, pk) : Response" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_viewset">
+      <mxGeometry x="0" y="294" width="260" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- Control: PerfilUsuarioSerializer -->
+    <mxCell id="ctrl_perfil_ser" value="&lt;&lt;control&gt;&gt;&#xa;PerfilUsuarioSerializer" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="530" y="780" width="260" height="202" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_a1" value="username : CharField (read_only)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="46" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_a2" value="nombre_completo : CharField (read_only)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="70" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_a3" value="rol_display : CharField (read_only)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="94" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_a4" value="medicos_asignados_ids : List[int]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="118" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="142" width="260" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_m1" value="+ get_medicos_asignados_ids(obj) : List[int]" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="150" width="260" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ctrl_perfil_ser_m2" value="+ get_es_master(obj) : bool" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ctrl_perfil_ser">
+      <mxGeometry x="0" y="174" width="260" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- ENTIDADES                                           -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- Entidad: User (Django) -->
+    <mxCell id="ent_user" value="&lt;&lt;entidad&gt;&gt;&#xa;User (Django)" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="870" y="60" width="240" height="226" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a1" value="id : AutoField (PK)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="46" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a2" value="username : CharField (unique)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="70" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a3" value="password : CharField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="94" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a4" value="email : EmailField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="118" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a5" value="first_name : CharField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="142" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a6" value="last_name : CharField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="166" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_a7" value="is_superuser : BooleanField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="190" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_user_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ent_user">
+      <mxGeometry x="0" y="214" width="240" height="8" as="geometry" />
+    </mxCell>
+
+    <!-- Entidad: PerfilUsuario -->
+    <mxCell id="ent_perfil" value="&lt;&lt;entidad&gt;&gt;&#xa;PerfilUsuario" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="870" y="340" width="240" height="298" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_a1" value="id : AutoField (PK)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="46" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_a2" value="user : OneToOneField → User" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="70" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_a3" value="rol : CharField (choices)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="94" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_a4" value="persona_rrhh : FK → PersonaRRHH" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="118" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_a5" value="medicos_asignados : M2M → PersonaRRHH" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="142" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_a6" value="activo : BooleanField (default=True)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="166" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="190" width="240" height="8" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_m1" value="+ nombre_completo : str (property)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="198" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_m2" value="+ iniciales : str (property)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="222" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_m3" value="+ __str__() : str" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="246" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_perfil_m4" value="Meta: db_table = users_perfilusuario" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;fontStyle=2;" vertex="1" parent="ent_perfil">
+      <mxGeometry x="0" y="270" width="240" height="24" as="geometry" />
+    </mxCell>
+
+    <!-- Entidad: RegistroAuditoria (referencia) -->
+    <mxCell id="ent_auditoria" value="&lt;&lt;entidad&gt;&gt;&#xa;RegistroAuditoria" style="swimlane;startSize=46;fillColor=#ffffff;strokeColor=#000000;fontStyle=1;collapsible=0;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="870" y="700" width="240" height="202" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_a1" value="tabla : CharField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="46" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_a2" value="registro_id : IntegerField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="70" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_a3" value="accion : CharField (CREAR/EDITAR/ELIMINAR)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="94" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_a4" value="datos_antes : JSONField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="118" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_a5" value="datos_despues : JSONField" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="142" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_a6" value="usuario : FK → User" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;overflow=hidden;rotatable=0;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="166" width="240" height="24" as="geometry" />
+    </mxCell>
+    <mxCell id="ent_auditoria_sep" value="" style="line;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="ent_auditoria">
+      <mxGeometry x="0" y="190" width="240" height="8" as="geometry" />
+    </mxCell>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- CONECTORES                                          -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- Administrador → LoginAPI -->
+    <mxCell id="edge_admin_login" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="actor_admin" target="iface_login" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- Administrador → UsuariosAPI -->
+    <mxCell id="edge_admin_usuarios" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="actor_admin" target="iface_usuarios" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- UsuarioAutenticado → LoginAPI -->
+    <mxCell id="edge_user_login" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="actor_user" target="iface_login" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- UsuarioAutenticado → UsuariosAPI (solo me y cambiar_password) -->
+    <mxCell id="edge_user_usuarios" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="actor_user" target="iface_usuarios" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- LoginAPI → CustomTokenObtainPairView -->
+    <mxCell id="edge_login_view" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="iface_login" target="ctrl_token_view" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- UsuariosAPI → PerfilUsuarioViewSet -->
+    <mxCell id="edge_usuarios_viewset" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="iface_usuarios" target="ctrl_viewset" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- CustomTokenObtainPairView → CustomTokenObtainPairSerializer -->
+    <mxCell id="edge_view_ser" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="ctrl_token_view" target="ctrl_token_ser" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- PerfilUsuarioViewSet → PerfilUsuarioSerializer -->
+    <mxCell id="edge_viewset_ser" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="ctrl_viewset" target="ctrl_perfil_ser" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- CustomTokenObtainPairSerializer → PerfilUsuario (entidad) -->
+    <mxCell id="edge_tokenser_perfil" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="ctrl_token_ser" target="ent_perfil" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- PerfilUsuarioSerializer → PerfilUsuario (entidad) -->
+    <mxCell id="edge_ser_perfil" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="ctrl_perfil_ser" target="ent_perfil" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <!-- PerfilUsuarioViewSet → RegistroAuditoria (logs mediante _log()) -->
+    <mxCell id="edge_viewset_auditoria" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="ctrl_viewset" target="ent_auditoria" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="660" y="950" />
+          <mxPoint x="990" y="950" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+
+    <!-- User → PerfilUsuario (OneToOne) con multiplicidad -->
+    <mxCell id="edge_user_perfil" value="" style="edgeStyle=orthogonalEdgeStyle;endArrow=open;endFill=0;strokeColor=#000000;" edge="1" source="ent_user" target="ent_perfil" parent="1">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="edge_user_perfil_src_lbl" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_user_perfil">
+      <mxGeometry x="-0.8" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+    </mxCell>
+    <mxCell id="edge_user_perfil_tgt_lbl" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_user_perfil">
+      <mxGeometry x="0.8" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+    </mxCell>
+
+  </root>
+</mxGraphModel>

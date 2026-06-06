@@ -310,6 +310,38 @@
         "metadata": {
           "actualWorkers": 1
         },
+        "id": "pago-prestador",
+        "name": "pago-prestador",
+        "testDir": "/home/enzo_coronel/clinica/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/pago-prestador\\.spec\\.js/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/enzo_coronel/clinica/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "cobranzas",
+        "name": "cobranzas",
+        "testDir": "/home/enzo_coronel/clinica/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/cobranzas\\.spec\\.js/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/enzo_coronel/clinica/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
         "id": "screenshots-manual",
         "name": "screenshots-manual",
         "testDir": "/home/enzo_coronel/clinica/frontend/e2e",
@@ -368,12 +400,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1334,
+                  "duration": 1300,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:15:50.670Z",
+                  "startTime": "2026-06-02T01:43:41.023Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -389,8 +421,8 @@
       ]
     },
     {
-      "title": "screenshots-facturacion.spec.js",
-      "file": "screenshots-facturacion.spec.js",
+      "title": "screenshots-cobranzas.spec.js",
+      "file": "screenshots-cobranzas.spec.js",
       "column": 0,
       "line": 0,
       "specs": [
@@ -410,12 +442,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1892,
+                  "duration": 1635,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:15:53.005Z",
+                  "startTime": "2026-06-02T01:43:43.245Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -423,13 +455,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-92ab370eb371d504e221",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 174,
+          "id": "5de9779b5682f181e1ca-9e8b307ee3e6715ffab3",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 166,
           "column": 1
         },
         {
-          "title": "02 - busqueda activa con filtro contado",
+          "title": "02 - busqueda con filtro cliente",
           "ok": true,
           "tags": [],
           "tests": [
@@ -444,12 +476,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2358,
+                  "duration": 2233,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:15:53.345Z",
+                  "startTime": "2026-06-02T01:43:46.385Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -457,13 +489,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-646b933acec1cc818ad0",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 180,
+          "id": "5de9779b5682f181e1ca-d30fbc9148d5440f5340",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 173,
           "column": 1
         },
         {
-          "title": "03 - modal detalle factura contado",
+          "title": "03 - modal detalle de cobranza",
           "ok": true,
           "tags": [],
           "tests": [
@@ -478,12 +510,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3140,
+                  "duration": 3011,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:15:55.716Z",
+                  "startTime": "2026-06-02T01:43:48.629Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -491,13 +523,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-d2577a593f417e16aad2",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 191,
+          "id": "5de9779b5682f181e1ca-c1c5ec4065a47a873e3e",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 183,
           "column": 1
         },
         {
-          "title": "04 - modal nueva factura vacio",
+          "title": "04 - modal nueva cobranza vacio tab cabecera",
           "ok": true,
           "tags": [],
           "tests": [
@@ -512,12 +544,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2489,
+                  "duration": 2255,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:15:58.867Z",
+                  "startTime": "2026-06-02T01:43:51.650Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -525,13 +557,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-626a6eea3d2f5ed2b438",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 206,
+          "id": "5de9779b5682f181e1ca-3636f9dd19c926962f4a",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 199,
           "column": 1
         },
         {
-          "title": "05 - modal nueva factura con comprobante validado",
+          "title": "05 - modal con cliente seleccionado y cuotas visibles",
           "ok": true,
           "tags": [],
           "tests": [
@@ -546,12 +578,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 4485,
+                  "duration": 3526,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:16:01.369Z",
+                  "startTime": "2026-06-02T01:43:53.916Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -559,13 +591,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-33ddce57d213fcd19f07",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 216,
+          "id": "5de9779b5682f181e1ca-cf25f636f4c6951d7b6a",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 210,
           "column": 1
         },
         {
-          "title": "06 - modal editar factura",
+          "title": "06 - modal tab valores recibidos con datos",
           "ok": true,
           "tags": [],
           "tests": [
@@ -580,12 +612,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 3999,
+                  "duration": 3203,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:16:05.867Z",
+                  "startTime": "2026-06-02T01:43:57.452Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -593,13 +625,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-4d091060e9e99b112836",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 243,
+          "id": "5de9779b5682f181e1ca-8f6885f601307878c278",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 232,
           "column": 1
         },
         {
-          "title": "07 - confirm dialog anular factura",
+          "title": "07 - confirm dialog eliminar cobranza",
           "ok": true,
           "tags": [],
           "tests": [
@@ -614,12 +646,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2898,
+                  "duration": 2872,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:16:09.878Z",
+                  "startTime": "2026-06-02T01:44:00.668Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -627,13 +659,13 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-1d43faef265cde23e070",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 269,
+          "id": "5de9779b5682f181e1ca-dd62b46b28ef0ee25327",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 256,
           "column": 1
         },
         {
-          "title": "08 - navigation guard al cerrar modal con cambios",
+          "title": "08 - filtros de fecha activos",
           "ok": true,
           "tags": [],
           "tests": [
@@ -648,12 +680,12 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 2983,
+                  "duration": 2232,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-30T17:16:12.788Z",
+                  "startTime": "2026-06-02T01:44:03.551Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -661,9 +693,9 @@
               "status": "expected"
             }
           ],
-          "id": "774c1558dc50e3731282-0f42836f05b53be56058",
-          "file": "screenshots-facturacion.spec.js",
-          "line": 284,
+          "id": "5de9779b5682f181e1ca-0587cfbbaeda94eddbde",
+          "file": "screenshots-cobranzas.spec.js",
+          "line": 272,
           "column": 1
         }
       ]
@@ -671,8 +703,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-05-30T17:15:47.342Z",
-    "duration": 31409.036,
+    "startTime": "2026-06-02T01:43:37.995Z",
+    "duration": 30547.883,
     "expected": 9,
     "skipped": 0,
     "unexpected": 0,

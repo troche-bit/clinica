@@ -339,9 +339,9 @@ Ejecutar: `npx playwright test --project=screenshots-manual e2e/screenshots-{mod
 | `notificaciones` | ✅ | ✅ | ✅ |
 | `timbrado` | ✅ | ✅ | ✅ |
 | `stock/productos` | ✅ | ✅ | ✅ |
-| `finanzas/caja_banco` | ❌ | ❌ | ❌ |
-| `finanzas/cobranzas` | ❌ | ❌ | ❌ |
-| `finanzas/pago_prestador` | ❌ | ❌ | ❌ |
+| `finanzas/caja_banco` | ✅ | ✅ | ✅ |
+| `finanzas/cobranzas` | ✅ | ✅ | ✅ |
+| `finanzas/pago_prestador` | ✅ | ✅ | ✅ |
 | `facturacion/ventas` | ✅ | ✅ | ✅ |
 
 > **Convención:** ✅ completo · ❌ pendiente · ⚠️ parcial · — no aplica (sin UI propia o dato de referencia)

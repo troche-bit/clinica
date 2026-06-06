@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Pago a Prestadores · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    /* ── Portada ── */
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-size:42px; font-weight:700; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    /* ── Tabla de contenido ── */
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    /* ── Contenido ── */
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+    .section ul, .section ol { margin:8px 0 16px 20px; font-size:14px; color:#374151; }
+    .section li { margin-bottom:6px; }
+
+    /* ── Capturas ── */
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    /* ── Tabla ── */
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+
+    /* ── Callouts ── */
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    /* ── Pasos numerados ── */
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    /* ── Badges ── */
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin  { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-pagado { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+    .badge-parcial { background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
+    .badge-pendiente { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+
+    /* ── Teclado ── */
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    /* ── Highlight ── */
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    /* ── Tabs demo ── */
+    .tab-demo { display:flex; gap:0; border-bottom:2px solid #e8edf2; margin:16px 0 20px; }
+    .tab-demo-item { padding:10px 20px; font-size:14px; color:#6b7280; cursor:default; border-bottom:3px solid transparent; margin-bottom:-2px; }
+    .tab-demo-item.active { color:#1a3a5c; border-bottom-color:#1a3a5c; font-weight:500; }
+
+    /* ── Estado chip ── */
+    .estado-chip { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; padding:4px 12px; border-radius:20px; }
+    .estado-pagado   { background:#dcfce7; color:#166534; }
+    .estado-parcial  { background:#dbeafe; color:#1e40af; }
+    .estado-pendiente { background:#fef3c7; color:#92400e; }
+
+    /* ── Pie ── */
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Pago a Prestadores</h1>
+    <p class="cover-subtitle">Registro y seguimiento de honorarios médicos por bloques de atención</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Finanzas / Pago a Prestadores</span>
+      <span><strong>Acceso</strong> Administrador (gestión) · Recepcionista / Médico (consulta)</span>
+      <span><strong>Fecha</strong> Junio 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar y filtrar pagos</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de un pago</a></li>
+      <li><a href="#s6"><span class="num">06</span> Registrar un nuevo pago</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar un pago</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar un pago</a></li>
+      <li><a href="#s9"><span class="num">09</span> Protección de cambios sin guardar</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ SECCIÓN 1 ══ -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+
+      <p>El módulo <strong>Pago a Prestadores</strong> registra los honorarios abonados a médicos y otros profesionales de la clínica por los turnos de atención que han cubierto. Cada pago agrupa uno o varios <em>bloques</em> — combinación de un horario y una fecha — y calcula automáticamente el monto total multiplicando las horas trabajadas por el valor acordado.</p>
+
+      <p>Al registrar un pago el sistema realiza tres operaciones de forma atómica:</p>
+      <ul>
+        <li>Crea el comprobante de pago con su estado financiero (Pendiente / Parcial / Pagado).</li>
+        <li>Marca los turnos de agenda incluidos como <strong>pagados</strong>, vinculándolos al comprobante.</li>
+        <li>Genera los movimientos de egreso en las cuentas de caja/banco utilizadas.</li>
+      </ul>
+
+      <h3>Estados del pago</h3>
+      <table>
+        <thead>
+          <tr><th>Estado</th><th>Condición</th><th>Saldo</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="estado-chip estado-pendiente">Pendiente</span></td>
+            <td>No se ingresó ningún monto de pago (Gs. 0)</td>
+            <td>Igual al monto total</td>
+          </tr>
+          <tr>
+            <td><span class="estado-chip estado-parcial">Parcial</span></td>
+            <td>El monto ingresado es mayor a 0 pero menor al total</td>
+            <td>Diferencia entre total y pagado</td>
+          </tr>
+          <tr>
+            <td><span class="estado-chip estado-pagado">Pagado</span></td>
+            <td>El monto ingresado cubre exactamente el total</td>
+            <td>Gs. 0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Administrador</th>
+            <th>Recepcionista</th>
+            <th>Médico</th>
+            <th>Secretaria médico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Ver listado de pagos</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+          <tr><td>Ver detalle de un pago</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+          <tr><td>Registrar nuevo pago</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Eliminar un pago</td><td>✅</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Ver bloques pendientes</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+          <tr><td>Descargar reporte PDF / Excel</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+          <tr><td>Ver recibo PDF de un pago</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>Solo el administrador</strong> puede registrar y eliminar pagos. Los demás roles pueden consultar el listado, ver el detalle de cada comprobante y descargar el recibo PDF, pero no modificar nada.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 2 ══ -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+
+      <p>El módulo se encuentra en el menú lateral izquierdo, dentro del grupo <strong>Finanzas</strong>:</p>
+      <ol class="steps">
+        <li><div class="step-text">Hacer clic en <strong>Finanzas</strong> en el menú lateral para expandir el grupo.</div></li>
+        <li><div class="step-text">Seleccionar <strong>Pago a Prestadores</strong> en el submenú desplegado.</div></li>
+      </ol>
+
+      <p>La ruta directa en el navegador es <code style="background:#f0f4f8;padding:2px 8px;border-radius:4px;font-family:monospace;">/finanzas/pago-prestador</code>.</p>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Si el grupo <strong>Finanzas</strong> no aparece en el menú lateral, el rol del usuario no tiene acceso a esta sección. Verificar con el administrador.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 3 ══ -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/01_listado.png" alt="Listado de pagos a prestadores" />
+        <div class="screenshot-caption">Pantalla principal del módulo Pago a Prestadores con el listado de comprobantes registrados.</div>
+      </div>
+
+      <p>La pantalla muestra una tabla con todos los pagos activos. Cada fila representa un comprobante e incluye:</p>
+
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Médico</strong></td><td>Nombre completo del prestador. Un clic en la fila abre el detalle del pago.</td></tr>
+          <tr><td><strong>Nro.</strong></td><td>Número de comprobante formateado a 7 dígitos (ej: <code>0007601</code>).</td></tr>
+          <tr><td><strong>Fecha pago</strong></td><td>Fecha en que se registró el pago.</td></tr>
+          <tr><td><strong>Total horas</strong></td><td>Suma de horas de todos los bloques incluidos en el pago.</td></tr>
+          <tr><td><strong>Monto/hora</strong></td><td>Valor acordado por hora de atención en guaraníes.</td></tr>
+          <tr><td><strong>Monto total</strong></td><td>Resultado de multiplicar horas × monto/hora.</td></tr>
+          <tr><td><strong>Estado</strong></td><td>Badge de color: <span class="estado-chip estado-pagado" style="font-size:11px;">Pagado</span> · <span class="estado-chip estado-parcial" style="font-size:11px;">Parcial</span> · <span class="estado-chip estado-pendiente" style="font-size:11px;">Pendiente</span></td></tr>
+          <tr><td><strong>Acciones</strong></td><td>Botones de fila: 👁 Ver detalle · 🖨 Recibo PDF · 🗑 Eliminar (solo admin).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Barra de herramientas</h3>
+      <p>En la parte superior se encuentran, de izquierda a derecha:</p>
+      <ul>
+        <li><strong>Buscador</strong> — filtra por nombre del médico o número de documento.</li>
+        <li><strong>Selector de estado</strong> — filtra por Todos / Pendiente / Parcial / Pagado.</li>
+        <li><strong>Fechas Desde / Hasta</strong> — filtra por rango de fecha de pago.</li>
+        <li><strong>Botón PDF</strong> (rojo) — descarga el listado actual en formato PDF.</li>
+        <li><strong>Botón Excel</strong> (verde) — descarga el listado actual en formato Excel.</li>
+        <li><strong>Nuevo pago</strong> (azul) — abre el formulario de registro (solo administrador).</li>
+      </ul>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Los reportes PDF y Excel respetan los filtros activos en el momento de la descarga: si hay una búsqueda o filtro de estado aplicado, el documento solo incluirá los pagos que coincidan con esos criterios.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 4 ══ -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar y filtrar pagos</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/02_busqueda.png" alt="Búsqueda con filtro activo" />
+        <div class="screenshot-caption">Búsqueda por nombre del prestador con filtro de estado "Pagado" aplicado.</div>
+      </div>
+
+      <h3>Búsqueda por texto</h3>
+      <p>El buscador acepta:</p>
+      <ul>
+        <li><strong>Nombre o apellido</strong> del médico/prestador.</li>
+        <li><strong>Número de documento</strong> del médico/prestador.</li>
+      </ul>
+      <p>El resultado se actualiza automáticamente 300 ms después de escribir, sin necesidad de presionar Enter.</p>
+
+      <h3>Filtro por estado</h3>
+      <p>El selector de estado permite mostrar únicamente los pagos en una situación financiera específica:</p>
+      <ul>
+        <li><strong>Todos los estados</strong> — muestra el listado completo (opción por defecto).</li>
+        <li><strong>Pendiente</strong> — pagos sin ningún abono registrado.</li>
+        <li><strong>Parcial</strong> — pagos con abono menor al monto total.</li>
+        <li><strong>Pagado</strong> — comprobantes completamente saldados.</li>
+      </ul>
+
+      <h3>Filtro por fecha</h3>
+      <p>Los campos <strong>Fecha desde</strong> y <strong>Fecha hasta</strong> pueden usarse de forma independiente o combinados para acotar el período de búsqueda. Se aplican a la fecha de pago de cada comprobante.</p>
+
+      <h3>Sin resultados</h3>
+      <p>Si ningún pago coincide con los criterios aplicados, la tabla muestra el mensaje <em>"Sin registros"</em>. Limpiar el buscador o restablecer los filtros restaura el listado completo.</p>
+    </div>
+
+    <!-- ══ SECCIÓN 5 ══ -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de un pago</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/03_panel_detalle.png" alt="Modal de detalle de un pago" />
+        <div class="screenshot-caption">Modal de detalle mostrando la cabecera del pago, el estado y la tabla de cobranza. La barra superior ofrece las acciones disponibles.</div>
+      </div>
+
+      <p>Para abrir el detalle de un pago existen dos vías:</p>
+      <ul>
+        <li>Hacer <strong>clic en cualquier parte de la fila</strong> en la tabla principal.</li>
+        <li>Hacer clic en el botón <strong>👁 Ver detalle</strong> en la columna de acciones.</li>
+      </ul>
+
+      <h3>Contenido del modal</h3>
+      <p>El modal se organiza en dos zonas:</p>
+
+      <p><strong>Barra de acciones superior</strong> — muestra los botones disponibles según el rol:</p>
+      <ul>
+        <li><strong>🖨 Recibo PDF</strong> — genera e imprime el recibo de honorarios del prestador en una nueva pestaña.</li>
+        <li><strong>🗑 Eliminar</strong> (solo admin, alineado a la derecha) — inicia el proceso de eliminación del pago.</li>
+      </ul>
+
+      <p><strong>Cabecera del comprobante</strong> — muestra en una grilla de tres columnas:</p>
+      <ul>
+        <li>Nro. de comprobante, Médico, Fecha de pago.</li>
+        <li>Total de horas, Monto por hora, Monto total.</li>
+        <li>Estado actual del pago.</li>
+      </ul>
+
+      <p><strong>Tabla de detalle de cobranza</strong> — lista cada forma de pago utilizada, la cuenta de caja/banco debitada, el monto y el número de voucher (si corresponde).</p>
+
+      <p>Para cerrar el modal se puede hacer clic en la <strong>✕</strong> de la esquina superior derecha o presionar <kbd>Escape</kbd>.</p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          El botón <strong>Eliminar</strong> solo es visible para el rol <span class="badge badge-admin">admin</span>. Los usuarios con otro rol ven el recibo PDF pero no pueden eliminar el pago.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 6 ══ -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Registrar un nuevo pago</h2>
+      </div>
+
+      <p>Para registrar un pago hacer clic en el botón <strong>Nuevo pago</strong> en la barra superior (solo visible para administradores). Se abre un modal con dos pestañas:</p>
+
+      <div class="tab-demo">
+        <div class="tab-demo-item active">Cabecera y bloques</div>
+        <div class="tab-demo-item">Forma de pago</div>
+      </div>
+
+      <h3>Tab 1 — Cabecera y bloques</h3>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/04_panel_crear.png" alt="Modal nuevo pago — Tab cabecera vacío" />
+        <div class="screenshot-caption">Formulario de nuevo pago con la pestaña "Cabecera y bloques" vacía. El número de comprobante se prerrellena automáticamente.</div>
+      </div>
+
+      <p>Esta pestaña contiene los datos principales del comprobante y la selección de bloques a pagar.</p>
+
+      <ol class="steps">
+        <li><div class="step-text"><strong>Fecha hasta</strong> — determina el corte de bloques pendientes que se mostrarán. Se puede adelantar o atrasar para incluir o excluir períodos. Por defecto es la fecha actual.</div></li>
+        <li><div class="step-text"><strong>Nro. comprobante</strong> — se prerrellena con el siguiente número disponible. Se puede cambiar; el sistema valida en tiempo real que el número no esté en uso (aparece <em>"Número disponible"</em> en verde o un error en rojo).</div></li>
+        <li><div class="step-text"><strong>Monto por hora (Gs.)</strong> — ingresar el valor acordado en guaraníes. El sistema lo utiliza para calcular el monto de cada bloque.</div></li>
+        <li><div class="step-text"><strong>Médico / Prestador</strong> — escribir parte del nombre o documento en el buscador. Al seleccionar un médico se cargan automáticamente sus bloques pendientes hasta la fecha indicada.</div></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/05_panel_crear_completo.png" alt="Modal con médico seleccionado y bloques cargados" />
+        <div class="screenshot-caption">Con el médico seleccionado y el monto por hora ingresado, el sistema muestra los bloques pendientes con el monto calculado por bloque.</div>
+      </div>
+
+      <h3>Tabla de bloques pendientes</h3>
+      <p>Una vez seleccionado el médico, aparece la lista de bloques pendientes de pago:</p>
+      <ul>
+        <li>Cada fila es un <strong>horario + fecha</strong> (ej: turno de 08:00 a 12:00 del 28/05/2026).</li>
+        <li>Todos los bloques vienen seleccionados por defecto. Se pueden desmarcar individualmente haciendo clic en la fila o en el checkbox.</li>
+        <li>Al final de la tabla se muestra el <strong>total de horas seleccionadas</strong> y el <strong>monto total calculado</strong>.</li>
+      </ul>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Si el médico no tiene bloques pendientes hasta la fecha seleccionada, el sistema mostrará el mensaje <em>"No hay bloques pendientes de pago hasta la fecha seleccionada."</em> Verificar la fecha de corte o si ya fueron pagados anteriormente.
+        </div>
+      </div>
+
+      <h3>Tab 2 — Forma de pago</h3>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/06_panel_editar.png" alt="Tab forma de pago con datos" />
+        <div class="screenshot-caption">Pestaña "Forma de pago" con la forma, cuenta y monto de egreso ingresados. La sección de totales indica el estado del pago.</div>
+      </div>
+
+      <p>En esta pestaña se especifica cómo se abona el honorario:</p>
+
+      <ol class="steps">
+        <li><div class="step-text">Seleccionar la <strong>Forma de pago</strong> (Efectivo, Transferencia, Tarjeta, etc.).</div></li>
+        <li><div class="step-text">Seleccionar la <strong>Cuenta</strong> de caja/banco desde la que se realiza el egreso.</div></li>
+        <li><div class="step-text">Ingresar el <strong>Monto</strong> que se abona por esta vía.</div></li>
+        <li><div class="step-text">Si la forma de pago es tarjeta, completar el campo <strong>Voucher</strong> con el número de operación.</div></li>
+        <li><div class="step-text">Si se paga con más de una forma (Efectivo + Transferencia), hacer clic en <strong>+ Agregar fila</strong> y completar cada una.</div></li>
+      </ol>
+
+      <p>La sección de totales al pie muestra:</p>
+      <ul>
+        <li><strong>Monto total a pagar</strong> — calculado en el Tab 1 (horas × monto/hora).</li>
+        <li><strong>Total ingresado</strong> — suma de todos los montos de pago ingresados.</li>
+        <li>Si el total ingresado coincide exactamente con el monto total, aparece el mensaje <em>"Monto exacto"</em> en verde. Si es menor, el pago quedará en estado Parcial. No se permite superar el monto total.</li>
+      </ul>
+
+      <h3>Guardar el pago</h3>
+      <p>Una vez completados ambos tabs, hacer clic en <strong>Registrar pago</strong> o presionar <kbd>F10</kbd>. El sistema valida todos los campos y, si todo es correcto, crea el comprobante.</p>
+
+      <div class="callout ok">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          Al guardar exitosamente, el modal se cierra y aparece un toast de confirmación. Los turnos de agenda quedan marcados como pagados y no vuelven a aparecer en los bloques pendientes del médico.
+        </div>
+      </div>
+
+      <h3>Errores de validación frecuentes al crear</h3>
+      <table>
+        <thead><tr><th>Campo</th><th>Error</th></tr></thead>
+        <tbody>
+          <tr><td>Nro. comprobante</td><td>El número ya está en uso → ingresar otro número disponible.</td></tr>
+          <tr><td>Médico</td><td>No se seleccionó ningún médico → usar el buscador para elegir uno.</td></tr>
+          <tr><td>Monto por hora</td><td>Campo vacío o igual a cero → ingresar un valor positivo en guaraníes.</td></tr>
+          <tr><td>Bloques</td><td>Ningún bloque seleccionado → marcar al menos uno en la tabla.</td></tr>
+          <tr><td>Forma de pago</td><td>No se ingresó ninguna fila válida → completar forma, cuenta y monto.</td></tr>
+          <tr><td>Total pagado</td><td>El monto supera el total a pagar → ajustar los valores de la forma de pago.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ SECCIÓN 7 ══ -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar un pago</h2>
+      </div>
+
+      <div class="callout danger">
+        <div class="callout-icon">🚫</div>
+        <div class="callout-body">
+          <strong>Los pagos a prestadores no pueden editarse.</strong> Una vez registrado un comprobante, sus datos (médico, bloques, monto, forma de pago) son inmutables para garantizar la integridad de los movimientos de caja y el registro de la agenda.
+        </div>
+      </div>
+
+      <p>Si se cometió un error al registrar un pago, el procedimiento correcto es:</p>
+      <ol class="steps">
+        <li><div class="step-text"><strong>Eliminar</strong> el pago incorrecto (ver Sección 08). Esto revierte automáticamente los movimientos de caja y desmarca los turnos de agenda.</div></li>
+        <li><div class="step-text"><strong>Registrar un nuevo pago</strong> con los datos correctos (ver Sección 06).</div></li>
+      </ol>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          Esta operación solo puede realizarla el <span class="badge badge-admin">admin</span>. Tanto la eliminación como el nuevo registro requieren el rol administrador.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 8 ══ -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar un pago</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/07_confirm_eliminar.png" alt="ConfirmDialog de eliminación de pago" />
+        <div class="screenshot-caption">Diálogo de confirmación antes de eliminar un pago. Muestra el nombre del médico, la fecha y advierte sobre el efecto en caja y agenda.</div>
+      </div>
+
+      <p>La eliminación de un pago está disponible exclusivamente para el rol <span class="badge badge-admin">admin</span> y puede iniciarse desde dos lugares:</p>
+      <ul>
+        <li>Botón <strong>🗑 Eliminar</strong> en la columna de acciones de la fila de la tabla.</li>
+        <li>Botón <strong>Eliminar</strong> en la barra de acciones del modal de detalle.</li>
+      </ul>
+
+      <p>Tras hacer clic en Eliminar, aparece un diálogo de confirmación que muestra el médico y la fecha del pago. Para continuar:</p>
+      <ul>
+        <li><strong>Cancelar</strong> — cierra el diálogo y el pago permanece intacto.</li>
+        <li><strong>Eliminar</strong> — confirma la operación.</li>
+      </ul>
+
+      <h3>Efectos de la eliminación</h3>
+      <p>Al confirmar, el sistema realiza las siguientes acciones de forma atómica:</p>
+      <ul>
+        <li>Marca el comprobante como eliminado (borrado lógico — no se borra de la base de datos).</li>
+        <li><strong>Revierte los movimientos de egreso</strong> en las cuentas de caja/banco utilizadas.</li>
+        <li><strong>Desmarca los turnos de agenda</strong> vinculados al pago: vuelven a aparecer como pendientes de cobro para el médico.</li>
+        <li>Elimina los registros de detalle de cobranza asociados al comprobante.</li>
+      </ul>
+
+      <div class="callout danger">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>La eliminación es irreversible desde la interfaz.</strong> Los movimientos de caja se borran y los turnos quedan disponibles para ser incluidos en un nuevo pago. Proceder con cuidado.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 9 ══ -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Protección de cambios sin guardar</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/pago-prestador/08_navigation_guard.png" alt="Diálogo de protección al cerrar con cambios" />
+        <div class="screenshot-caption">El sistema advierte antes de descartar los datos ingresados en el formulario de nuevo pago.</div>
+      </div>
+
+      <p>Cuando se empieza a completar el formulario de nuevo pago (se selecciona un médico, se ingresa un monto u otro dato) y luego se intenta cerrar el modal sin guardar, el sistema muestra un diálogo de confirmación:</p>
+
+      <ul>
+        <li><strong>Descartar</strong> — cierra el modal y descarta todos los datos ingresados.</li>
+        <li><strong>Seguir editando</strong> — vuelve al formulario para continuar completando los datos.</li>
+      </ul>
+
+      <p>Esta protección se activa en los siguientes casos:</p>
+      <ul>
+        <li>Hacer clic en la <strong>✕</strong> del modal.</li>
+        <li>Hacer clic en el botón <strong>Cancelar</strong>.</li>
+      </ul>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          Si el formulario está completamente vacío (no se seleccionó médico, ni se ingresó monto), el modal se cierra directamente sin mostrar el diálogo.
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 10 ══ -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes y comportamientos esperados</h2>
+      </div>
+
+      <h3>Errores al crear un pago</h3>
+      <table>
+        <thead><tr><th>Mensaje / Situación</th><th>Causa</th><th>Solución</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>"Ya existe un comprobante con el número X"</td>
+            <td>El número de comprobante ingresado ya está registrado en otro pago activo.</td>
+            <td>Cambiar el número o dejar que el sistema asigne el siguiente disponible automáticamente.</td>
+          </tr>
+          <tr>
+            <td>"Verificando número…" (no desaparece)</td>
+            <td>El sistema está consultando en tiempo real si el número está disponible.</td>
+            <td>Esperar un momento; el mensaje desaparece en menos de un segundo. No intentar guardar mientras aparece.</td>
+          </tr>
+          <tr>
+            <td>"Prestador no encontrado"</td>
+            <td>El médico seleccionado fue eliminado entre la búsqueda y el guardado.</td>
+            <td>Cerrar y reabrir el modal para actualizar la lista de médicos disponibles.</td>
+          </tr>
+          <tr>
+            <td>"El total pagado no puede superar el monto total a pagar"</td>
+            <td>La suma de los montos de la forma de pago excede el total calculado (horas × tarifa).</td>
+            <td>Ajustar los montos de la forma de pago para que no superen el total.</td>
+          </tr>
+          <tr>
+            <td>"Debe incluir al menos un bloque"</td>
+            <td>Se desmarcaron todos los bloques de la tabla.</td>
+            <td>Seleccionar al menos un bloque de la tabla de pendientes.</td>
+          </tr>
+          <tr>
+            <td>"Debe incluir al menos un valor de pago completo"</td>
+            <td>No se completó ninguna fila de forma de pago con forma, cuenta y monto válidos.</td>
+            <td>Completar al menos una fila con los tres campos requeridos.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos que no son errores</h3>
+      <table>
+        <thead><tr><th>Situación</th><th>Explicación</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>El buscador de médicos no muestra resultados</td>
+            <td>Solo aparecen los médicos que tienen <strong>turnos pendientes de pago</strong>. Si un médico no tiene bloques sin pagar, no aparece en el buscador de este formulario aunque exista en el sistema.</td>
+          </tr>
+          <tr>
+            <td>El estado queda en "Parcial" tras guardar</td>
+            <td>Es el comportamiento correcto cuando el monto abonado es menor al total. El saldo queda registrado para su seguimiento posterior.</td>
+          </tr>
+          <tr>
+            <td>El turno ya no aparece en los bloques pendientes</td>
+            <td>Ese turno fue incluido en un pago previo. Para verificarlo, buscar el pago del médico correspondiente en el listado.</td>
+          </tr>
+          <tr>
+            <td>El nro. de comprobante cambió al reabrir el formulario</td>
+            <td>Mientras el formulario estaba abierto, otro usuario registró un pago. El sistema actualiza automáticamente el siguiente número disponible.</td>
+          </tr>
+          <tr>
+            <td>Voucher deshabilitado en la fila de forma de pago</td>
+            <td>El campo Voucher solo se habilita cuando la forma de pago seleccionada es de tipo <strong>Tarjeta</strong>. Para otras formas (Efectivo, Transferencia) permanece deshabilitado.</td>
+          </tr>
+          <tr>
+            <td>El recibo PDF abre en una nueva pestaña</td>
+            <td>Comportamiento esperado. Si el navegador bloquea la ventana emergente, verificar que la URL del sistema esté en la lista de sitios permitidos para pop-ups.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <div class="highlight-box">
+        <strong>Atajo de teclado:</strong> Dentro del formulario de nuevo pago, presionar <kbd>F10</kbd> en cualquier campo equivale a hacer clic en el botón <strong>Registrar pago</strong>. Si hay errores de validación, el sistema cambia automáticamente a la pestaña donde se encuentra el primer error.
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <p>Manual de Usuario · Módulo Pago a Prestadores · <strong>Clínica Lichi</strong> · Versión 1.0 · Junio 2026</p>
+  </div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

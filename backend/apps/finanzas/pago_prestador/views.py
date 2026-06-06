@@ -45,6 +45,11 @@ class PagoPrestadorViewSet(AuditoriaMixin, viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
+    @action(detail=False, methods=['get'], url_path='eliminados')
+    def eliminados(self, request):
+        qs = PagoPrestador.objects.filter(is_deleted=True).select_related('persona_rrhh__persona')
+        return Response(PagoPrestadorListSerializer(qs, many=True).data)
+
     def get_queryset(self):
         qs = PagoPrestador.objects.filter(is_deleted=False).select_related('persona_rrhh__persona')
         if rrhh_id := self.request.query_params.get('persona_rrhh'):

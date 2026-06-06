@@ -708,48 +708,52 @@ export default function CobranzasPage() {
         .cob-page { display: flex; flex-direction: column; height: 100%; }
 
         /* ── Toolbar ── */
-        .cob-toolbar { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #f3f4f6; }
+        .cob-toolbar { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #e8edf2; }
         .cob-toolbar-icon { width: 34px; height: 34px; background: #e8f0fe; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #1a3a5c; flex-shrink: 0; align-self: center; }
         .cob-toolbar-titles { order: 1; flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 1px; justify-content: center; }
         .cob-toolbar-title { font-size: 15px; font-weight: 700; color: #1a3a5c; }
         .cob-toolbar-subtitle { font-size: 11px; color: #9ca3af; }
         .cob-search-wrap { order: 2; flex: 1 1 200px; max-width: 280px; position: relative; }
         .cob-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
-        .cob-search-input { width: 100%; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 10px 0 30px; font-size: 13px; outline: none; box-sizing: border-box; }
-        .cob-search-input:focus { border-color: #1a3a5c; }
+        .cob-search-input { width: 100%; height: 38px; border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 0 10px 0 30px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; outline: none; box-sizing: border-box; transition: border-color .2s; }
+        .cob-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
         .cob-filtros-wrap { order: 3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .cob-filtro-date { height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 8px; font-size: 13px; outline: none; color: #374151; }
+        .cob-filtro-date { height: 38px; border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 0 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; color: #374151; background: #fff; }
         .cob-filtro-date:focus { border-color: #1a3a5c; }
         .cob-toolbar-right { order: 4; margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .cob-btn-report { height: 36px; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; color: #374151; cursor: pointer; font-weight: 500; transition: all .12s; flex-shrink: 0; }
-        .cob-btn-report:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
-        .cob-btn-report:disabled { opacity: .6; cursor: default; }
-        .cob-btn-nuevo { height: 36px; display: flex; align-items: center; gap: 6px; background: #1a3a5c; color: #fff; border: none; border-radius: 8px; padding: 0 14px; font-size: 13px; font-weight: 500; cursor: pointer; flex-shrink: 0; }
-        .cob-btn-nuevo:hover { background: #15304d; }
+        .cob-btn-report { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 9px; border: none; background: #dc2626; color: #fff; font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background .15s, box-shadow .15s; flex-shrink: 0; }
+        .cob-btn-report:hover:not(:disabled) { background: #b91c1c; box-shadow: 0 4px 12px rgba(220,38,38,0.2); }
+        .cob-btn-report.excel { background: #16a34a; }
+        .cob-btn-report.excel:hover:not(:disabled) { background: #15803d; box-shadow: 0 4px 12px rgba(22,163,74,0.2); }
+        .cob-btn-report:disabled { opacity: .6; cursor: not-allowed; }
+        .cob-btn-nuevo { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; border: none; background: #1a3a5c; color: #fff; font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background .15s, box-shadow .15s; flex-shrink: 0; }
+        .cob-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
         @media (max-width: 600px) { .cob-search-wrap { order: 4; max-width: 100%; flex-basis: 100%; } .cob-toolbar-titles { display: none; } }
 
         /* ── Body y tabla ── */
         .cob-body { flex: 1; overflow: hidden; padding: 14px 24px 24px; }
-        .cob-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; overflow-y: auto; }
+        .cob-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 12px; background: #fff; overflow-y: auto; }
         .cob-table-wrap { overflow-x: auto; }
-        .cob-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .cob-th { padding: 10px 14px; background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+        .cob-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .cob-th { padding: 11px 16px; background: #f8fafc; color: #9ca3af; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
         .cob-th-right { text-align: right; }
         .cob-th-center { text-align: center; }
-        .cob-td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+        .cob-td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
         .cob-td-right { text-align: right; }
         .cob-td-center { text-align: center; }
-        .cob-td-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-        .cob-tr { cursor: pointer; }
-        .cob-tr:nth-child(even) .cob-td { background: #f9fafb; }
-        .cob-tr:hover .cob-td { background: #eff6ff !important; }
+        .cob-td-hint { font-size: 11.5px; color: #9ca3af; margin-top: 3px; font-style: italic; }
+        .cob-tr { cursor: pointer; transition: background .15s; }
+        .cob-tr:nth-child(odd)  .cob-td { background: #ffffff; }
+        .cob-tr:nth-child(even) .cob-td { background: #f8fafc; }
+        .cob-tr:hover .cob-td { background: #f0f4f8 !important; }
         .cob-tr:last-child .cob-td { border-bottom: none; }
         .cob-mono { font-family: 'Courier New', monospace; font-size: 12px; }
         .cob-monto-val { font-family: 'Courier New', monospace; font-weight: 600; color: #1a3a5c; }
 
         .cob-td-acciones { display: flex; gap: 4px; justify-content: center; }
-        .cob-row-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; transition: all .12s; }
-        .cob-row-btn:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a3a5c; }
+        .cob-row-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 7px; border: 1px solid #e8edf2; background: none; cursor: pointer; color: #6b7280; transition: background .15s, color .15s, border-color .15s; }
+        .cob-row-btn:hover { background: #f0f4f8; }
+        .cob-row-btn.print:hover { background: #eff6ff; color: #1a3a5c; border-color: #bfdbfe; }
         .cob-row-btn.danger { border-color: #fecaca; color: #dc2626; }
         .cob-row-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; }
         .cob-row-btn:disabled { opacity: .5; cursor: default; }
@@ -819,8 +823,8 @@ export default function CobranzasPage() {
         .cob-btn-remove:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 
         .cob-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 0 0; border-top: 1px solid #e8edf2; margin-top: auto; }
-        .cob-btn-pdf { height: 34px; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; color: #374151; cursor: pointer; }
-        .cob-btn-pdf:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .cob-btn-pdf { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; border: 1px solid #bfdbfe; background: #fff; color: #1a3a5c; transition: background .1s; }
+        .cob-btn-pdf:hover:not(:disabled) { background: #eff6ff; }
         .cob-btn-pdf:disabled { opacity: .6; cursor: default; }
 
         /* ── Modal ver ── */
@@ -866,7 +870,7 @@ export default function CobranzasPage() {
             <button className="cob-btn-report" onClick={handlePdfLista} disabled={generandoPdfLista}>
               <FileText size={14} />{generandoPdfLista ? 'Generando...' : 'PDF'}
             </button>
-            <button className="cob-btn-report" onClick={handleExcelLista} disabled={generandoExcelLista}>
+            <button className="cob-btn-report excel" onClick={handleExcelLista} disabled={generandoExcelLista}>
               <FileSpreadsheet size={14} />{generandoExcelLista ? 'Generando...' : 'Excel'}
             </button>
             <button className="cob-btn-nuevo" onClick={() => setModalAbierto(true)}>
@@ -905,11 +909,11 @@ export default function CobranzasPage() {
                     <td className="cob-td cob-td-right cob-mono">{fmt(c.vuelto)}</td>
                     <td className="cob-td cob-td-center">
                       <div className="cob-td-acciones" onClick={e => e.stopPropagation()}>
-                        <button className="cob-row-btn" title="Ver detalle"
+                        <button className="cob-row-btn print" title="Ver detalle"
                           onClick={() => setCobranzaViendo(c.id)}>
                           <Eye size={12} />
                         </button>
-                        <button className="cob-row-btn" title="Recibo PDF"
+                        <button className="cob-row-btn print" title="Recibo PDF"
                           disabled={generandoReciboId === c.id}
                           onClick={e => handleReciboFila(e, c)}>
                           {generandoReciboId === c.id ? '…' : <Printer size={12} />}

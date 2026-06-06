@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Cuentas Caja/Banco · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    /* ── Portada ── */
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-size:42px; font-weight:700; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    /* ── Tabla de contenido ── */
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    /* ── Contenido ── */
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+    .section ul, .section ol { margin:8px 0 16px 20px; font-size:14px; color:#374151; }
+    .section li { margin-bottom:6px; }
+
+    /* ── Capturas ── */
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    /* ── Tabla ── */
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+
+    /* ── Callouts ── */
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    /* ── Pasos numerados ── */
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    /* ── Badges ── */
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin  { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep  { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .badge-medico { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+    .badge-sec    { background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; }
+
+    /* ── Teclado ── */
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    /* ── Highlight ── */
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    /* ── Pie ── */
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Cuentas Caja/Banco</h1>
+    <p class="cover-subtitle">Gestión de cuentas de caja y banco, y registro de movimientos financieros</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Finanzas / Cuentas Caja/Banco</span>
+      <span><strong>Acceso</strong> Administrador (completo) · Recepcionista (movimientos) · Médico (consulta)</span>
+      <span><strong>Fecha</strong> Junio 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — cuentas</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar cuentas</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver movimientos de una cuenta</a></li>
+      <li><a href="#s6"><span class="num">06</span> Crear una cuenta</a></li>
+      <li><a href="#s7"><span class="num">07</span> Registrar un movimiento</a></li>
+      <li><a href="#s8"><span class="num">08</span> Editar cuenta o movimiento</a></li>
+      <li><a href="#s9"><span class="num">09</span> Eliminar cuenta o movimiento</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- 01 -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+      <p>
+        El módulo <strong>Cuentas Caja/Banco</strong> permite administrar las cuentas financieras de la clínica
+        (cajas, cuentas bancarias, fondos) y registrar todos sus movimientos de ingreso y egreso.
+        Funciona como un libro de caja digital: cada cuenta tiene su propio historial de transacciones
+        y el sistema calcula el saldo actual de forma automática.
+      </p>
+      <p>
+        Los movimientos pueden originarse de dos formas: <strong>manualmente</strong> (registrados directamente
+        en este módulo) o de forma <strong>automática</strong> cuando se procesan cobranzas o pagos a
+        prestadores. Los movimientos generados automáticamente no pueden editarse ni eliminarse desde
+        esta pantalla.
+      </p>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th><span class="badge badge-admin">Admin</span></th>
+            <th><span class="badge badge-recep">Recepcionista</span></th>
+            <th><span class="badge badge-medico">Médico</span></th>
+            <th><span class="badge badge-sec">Secretaria</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Ver lista de cuentas</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver movimientos de una cuenta</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver cuentas eliminadas</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Crear nueva cuenta</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Editar nombre de cuenta</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Eliminar cuenta</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Registrar movimiento manual</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Editar movimiento manual</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Eliminar movimiento</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>Dashboard mensual</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>Movimientos automáticos:</strong> los movimientos creados por cobranzas (<em>vrc_id</em>),
+          ventas (<em>vfdc_id</em>) o pagos a prestadores (<em>ppdc_id</em>) no pueden editarse ni eliminarse
+          manualmente. El botón de lápiz no aparece para esos movimientos; el botón de papelera
+          aparece (solo admin) pero el sistema rechaza la operación con un mensaje de error.
+        </div>
+      </div>
+    </div>
+
+    <!-- 02 -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+      <p>
+        El módulo se encuentra en el menú lateral izquierdo, dentro del grupo <strong>Finanzas</strong>.
+        Hacer clic en <strong>Cuentas Caja/Banco</strong> para abrir la pantalla principal.
+      </p>
+      <ol class="steps">
+        <li><span class="step-text">Iniciar sesión con un usuario con acceso al grupo <em>Finanzas</em> (admin o recepcionista).</span></li>
+        <li><span class="step-text">En el menú lateral, expandir el grupo <strong>Finanzas</strong>.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Cuentas Caja/Banco</strong>.</span></li>
+        <li><span class="step-text">Se carga la pantalla principal con la grilla de tarjetas de cuentas.</span></li>
+      </ol>
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          Los usuarios con rol <strong>Médico</strong> o <strong>Secretaria</strong> no tienen el grupo
+          <em>Finanzas</em> en su menú. Pueden acceder directamente por URL si tienen el enlace,
+          pero solo en modo de consulta (sin botones de acción).
+        </div>
+      </div>
+    </div>
+
+    <!-- 03 -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — cuentas</h2>
+      </div>
+      <p>
+        Al ingresar al módulo, se muestra una grilla de <strong>tarjetas</strong>, una por cada cuenta activa.
+        Cada tarjeta muestra:
+      </p>
+      <ul>
+        <li><strong>Nombre de la cuenta</strong> — descripción ingresada al crearla.</li>
+        <li><strong>Saldo actual</strong> — calculado automáticamente como suma de ingresos menos egresos de los movimientos activos. Se muestra en verde si es positivo, en rojo si es negativo.</li>
+        <li><strong>Cantidad de movimientos</strong> — total de movimientos activos registrados.</li>
+      </ul>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/01_listado.png" alt="Grilla de cuentas Caja/Banco" />
+        <div class="screenshot-caption">Pantalla principal: tarjetas de cuentas con saldo y cantidad de movimientos.</div>
+      </div>
+
+      <p>
+        En el encabezado de la pantalla se encuentran el <strong>buscador de cuentas</strong> y el botón
+        <strong>Nueva cuenta</strong> (visible solo para administradores).
+        Hacer clic en cualquier tarjeta abre la vista de movimientos de esa cuenta.
+      </p>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">
+          <strong>Saldo en tiempo real:</strong> el saldo de cada tarjeta se recalcula cada vez que se
+          registra, edita o elimina un movimiento. No es necesario refrescar la página manualmente.
+        </div>
+      </div>
+    </div>
+
+    <!-- 04 -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar cuentas</h2>
+      </div>
+      <p>
+        El campo de búsqueda en el encabezado filtra las tarjetas por el nombre de la cuenta.
+        La búsqueda es en tiempo real con un retardo de 300 ms (no requiere presionar Enter).
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/02_busqueda.png" alt="Búsqueda de cuentas por nombre" />
+        <div class="screenshot-caption">Búsqueda activa: la grilla se actualiza al escribir.</div>
+      </div>
+
+      <ul>
+        <li>La búsqueda es <strong>insensible a mayúsculas</strong>: "caja" encuentra "Caja Principal".</li>
+        <li>Si no hay coincidencias, se muestra el mensaje <em>"No hay cuentas registradas."</em></li>
+        <li>Para limpiar el filtro, borrar el texto del campo de búsqueda.</li>
+      </ul>
+    </div>
+
+    <!-- 05 -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver movimientos de una cuenta</h2>
+      </div>
+      <p>
+        Al hacer clic en una tarjeta de cuenta, la pantalla cambia a la <strong>vista de movimientos</strong>
+        de esa cuenta (drill-down). El encabezado muestra el nombre de la cuenta, su saldo actual
+        y la cantidad total de movimientos.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/03_panel_detalle.png" alt="Vista de movimientos de una cuenta" />
+        <div class="screenshot-caption">Vista de movimientos: tabla con fecha, comprobante, ingresos, egresos y tipo.</div>
+      </div>
+
+      <h3>Columnas de la tabla de movimientos</h3>
+      <table>
+        <thead>
+          <tr><th>Columna</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Fecha</strong></td><td>Fecha del movimiento en formato DD/MM/AAAA.</td></tr>
+          <tr><td><strong>Nro. Comprobante</strong></td><td>Número de comprobante opcional. Si no tiene, se muestra "—".</td></tr>
+          <tr><td><strong>Ingreso</strong></td><td>Monto ingresado (en verde). Vacío si es un egreso.</td></tr>
+          <tr><td><strong>Egreso</strong></td><td>Monto egresado (en rojo). Vacío si es un ingreso.</td></tr>
+          <tr><td><strong>Tipo</strong></td><td>Badge verde <em>Ingreso</em> o rojo <em>Egreso</em>.</td></tr>
+          <tr><td><strong>Acciones</strong></td><td>Lápiz (editar, solo movimientos manuales) y papelera (eliminar, solo admin).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Filtros disponibles</h3>
+      <ul>
+        <li><strong>Buscador</strong> — filtra por número de comprobante.</li>
+        <li><strong>Tipo</strong> — selector con opciones: Todos / Ingresos / Egresos.</li>
+        <li><strong>Fecha desde / hasta</strong> — filtro por rango de fechas.</li>
+      </ul>
+
+      <h3>Volver a la lista de cuentas</h3>
+      <p>
+        Hacer clic en el botón <strong>← Cuentas</strong> en el encabezado para regresar a la grilla
+        de tarjetas. También se puede usar el botón Atrás del navegador.
+      </p>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          Los movimientos generados automáticamente por cobranzas o pagos a prestadores
+          <strong>no tienen botón de lápiz</strong> (no editables), pero sí pueden verse en la tabla.
+          El botón de papelera aparece para el admin, pero el sistema bloquea la eliminación.
+        </div>
+      </div>
+    </div>
+
+    <!-- 06 -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Crear una cuenta</h2>
+      </div>
+      <p>
+        Solo el <span class="badge badge-admin">Administrador</span> puede crear nuevas cuentas.
+        El botón <strong>+ Nueva cuenta</strong> aparece en el encabezado de la pantalla principal.
+      </p>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/04_panel_crear.png" alt="Panel nueva cuenta vacío" />
+        <div class="screenshot-caption">Panel de creación de cuenta: un único campo obligatorio.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacer clic en <strong>+ Nueva cuenta</strong>.</span></li>
+        <li><span class="step-text">Se abre un panel lateral con el campo <strong>Descripción</strong>.</span></li>
+        <li><span class="step-text">Ingresar un nombre descriptivo (ej: "Caja Principal", "Banco XYZ — Cta. Cte. 001").</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Crear cuenta</strong>.</span></li>
+        <li><span class="step-text">La nueva tarjeta aparece en la grilla con saldo ₲ 0 y 0 movimientos.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/05_panel_crear_completo.png" alt="Panel nueva cuenta con datos" />
+        <div class="screenshot-caption">Panel con descripción ingresada, listo para guardar.</div>
+      </div>
+
+      <h3>Reglas de unicidad</h3>
+      <ul>
+        <li>El nombre de la cuenta debe ser <strong>único</strong> (insensible a mayúsculas). "Caja principal" y "CAJA PRINCIPAL" se consideran iguales.</li>
+        <li>Si el nombre ya existe, el sistema muestra un error y el panel permanece abierto para corregirlo.</li>
+        <li>Un nombre previamente eliminado puede reutilizarse sin inconvenientes.</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          El campo <strong>Descripción</strong> es obligatorio. Si se intenta guardar sin completarlo,
+          aparece el mensaje de error <em>"La descripción es requerida."</em> debajo del campo.
+        </div>
+      </div>
+    </div>
+
+    <!-- 07 -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Registrar un movimiento</h2>
+      </div>
+      <p>
+        <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span>
+        pueden registrar movimientos manuales dentro de cualquier cuenta activa.
+      </p>
+
+      <ol class="steps">
+        <li><span class="step-text">Hacer clic en la tarjeta de la cuenta destino para abrir su vista de movimientos.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>+ Nuevo</strong> en la barra de herramientas.</span></li>
+        <li><span class="step-text">Se abre el panel lateral de registro de movimiento.</span></li>
+        <li><span class="step-text">Seleccionar el <strong>Tipo</strong>: <em>Ingreso</em> (fondo verde) o <em>Egreso</em> (fondo rojo).</span></li>
+        <li><span class="step-text">Ingresar el <strong>Monto</strong> (en Guaraníes, sin decimales).</span></li>
+        <li><span class="step-text">Verificar o modificar la <strong>Fecha</strong> (por defecto: hoy).</span></li>
+        <li><span class="step-text">Opcionalmente, ingresar el <strong>Nro. Comprobante</strong>.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Registrar movimiento</strong>.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/06_panel_editar.png" alt="Panel nuevo movimiento con datos" />
+        <div class="screenshot-caption">Panel de registro: tipo Ingreso seleccionado, monto y comprobante completados.</div>
+      </div>
+
+      <h3>Campos del movimiento</h3>
+      <table>
+        <thead>
+          <tr><th>Campo</th><th>Obligatorio</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Cuenta</strong></td><td>—</td><td>Se carga automáticamente con la cuenta activa. Solo lectura.</td></tr>
+          <tr><td><strong>Tipo</strong></td><td>Sí</td><td>Ingreso o Egreso. Por defecto: Ingreso.</td></tr>
+          <tr><td><strong>Monto</strong></td><td>Sí</td><td>Monto en Guaraníes. Debe ser mayor a cero.</td></tr>
+          <tr><td><strong>Fecha</strong></td><td>Sí</td><td>Fecha del movimiento. Por defecto: fecha actual.</td></tr>
+          <tr><td><strong>Nro. Comprobante</strong></td><td>No</td><td>Número de factura, recibo u otro comprobante de respaldo.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          No es posible registrar un movimiento con <strong>Monto igual a cero</strong>. El sistema
+          rechaza la operación con el mensaje <em>"El monto debe ser mayor a cero."</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- 08 -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Editar cuenta o movimiento</h2>
+      </div>
+
+      <h3>Editar nombre de una cuenta</h3>
+      <p>
+        Solo el <span class="badge badge-admin">Administrador</span> puede editar el nombre de una cuenta.
+        Esta acción está disponible desde la vista de movimientos de la cuenta.
+      </p>
+      <ol class="steps">
+        <li><span class="step-text">Ingresar a la cuenta haciendo clic en su tarjeta.</span></li>
+        <li><span class="step-text">En el encabezado, hacer clic en el botón <strong>lápiz</strong> (ícono de editar).</span></li>
+        <li><span class="step-text">Se abre el panel con el nombre actual precargado.</span></li>
+        <li><span class="step-text">Modificar la descripción y hacer clic en <strong>Guardar cambios</strong>.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/08_navigation_guard.png" alt="Panel editar cuenta" />
+        <div class="screenshot-caption">Panel de edición de cuenta: descripción actual precargada y lista para modificar.</div>
+      </div>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          Al editar la descripción, la validación de unicidad <strong>excluye la propia cuenta</strong>,
+          por lo que guardar sin cambios (o con el mismo nombre) no genera error.
+        </div>
+      </div>
+
+      <h3>Editar un movimiento manual</h3>
+      <p>
+        <span class="badge badge-admin">Admin</span> y <span class="badge badge-recep">Recepcionista</span>
+        pueden editar los campos de cualquier movimiento que haya sido registrado manualmente.
+        Los movimientos automáticos (de cobranzas, ventas o pagos a prestadores) no muestran
+        el botón de lápiz.
+      </p>
+      <ol class="steps">
+        <li><span class="step-text">En la tabla de movimientos, hacer clic en el botón <strong>lápiz</strong> de la fila a editar.</span></li>
+        <li><span class="step-text">Se abre el panel lateral con los datos del movimiento precargados.</span></li>
+        <li><span class="step-text">Modificar los campos deseados: tipo, monto, fecha o comprobante.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Guardar cambios</strong>.</span></li>
+      </ol>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          Al editar un movimiento es obligatorio <strong>enviar el monto</strong> (ingreso o egreso).
+          Si se cambia solo el comprobante, se debe también incluir el monto actual en el formulario.
+        </div>
+      </div>
+    </div>
+
+    <!-- 09 -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Eliminar cuenta o movimiento</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body">
+          Solo el <span class="badge badge-admin">Administrador</span> puede eliminar cuentas y movimientos.
+          Todas las eliminaciones son <strong>borrados lógicos</strong>: el registro permanece en la base
+          de datos marcado como eliminado y no vuelve a aparecer en los listados normales.
+        </div>
+      </div>
+
+      <h3>Eliminar una cuenta</h3>
+      <p>
+        Una cuenta solo puede eliminarse si <strong>no tiene movimientos activos</strong>. Si la cuenta
+        tiene movimientos, el sistema rechaza la operación.
+      </p>
+      <ol class="steps">
+        <li><span class="step-text">Ingresar a la cuenta haciendo clic en su tarjeta.</span></li>
+        <li><span class="step-text">En el encabezado, hacer clic en el botón <strong>papelera roja</strong>.</span></li>
+        <li><span class="step-text">Aparece el diálogo de confirmación: <em>"¿Eliminar la cuenta?"</em></span></li>
+        <li><span class="step-text">Hacer clic en <strong>Eliminar</strong> para confirmar, o <strong>Cancelar</strong> para abortar.</span></li>
+        <li><span class="step-text">Al confirmar, la pantalla regresa a la grilla y la tarjeta desaparece.</span></li>
+      </ol>
+
+      <h3>Eliminar un movimiento</h3>
+      <p>
+        Solo los movimientos manuales pueden eliminarse. Los movimientos generados automáticamente
+        por el sistema (cobranzas, ventas, pagos) son rechazados con un error.
+      </p>
+      <ol class="steps">
+        <li><span class="step-text">En la tabla de movimientos, hacer clic en el botón <strong>papelera</strong> de la fila a eliminar.</span></li>
+        <li><span class="step-text">Aparece el diálogo de confirmación con la fecha del movimiento.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Eliminar</strong> para confirmar.</span></li>
+        <li><span class="step-text">La fila desaparece de la tabla y el saldo de la cuenta se actualiza automáticamente.</span></li>
+      </ol>
+
+      <div class="screenshot">
+        <img src="imagenes/cuentas-mcb/07_confirm_eliminar.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">Diálogo de confirmación: el sistema indica que no se puede eliminar si el movimiento fue generado automáticamente.</div>
+      </div>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">
+          <strong>Efecto inmediato en el saldo:</strong> al eliminar un movimiento manual de ingreso,
+          el saldo de la cuenta disminuye automáticamente. Al eliminar un egreso, el saldo aumenta.
+          No es necesario refrescar la página.
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th style="width:38%">Mensaje / Situación</th><th>Causa</th><th>Solución</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><em>"Ya existe una cuenta con esa descripción."</em></td>
+            <td>Se intentó crear o renombrar una cuenta con un nombre que ya usa otra cuenta activa.</td>
+            <td>Usar un nombre diferente.</td>
+          </tr>
+          <tr>
+            <td><em>"La descripción es requerida."</em></td>
+            <td>Se intentó guardar una cuenta sin completar el campo de descripción.</td>
+            <td>Ingresar un nombre descriptivo antes de guardar.</td>
+          </tr>
+          <tr>
+            <td><em>"El monto debe ser mayor a cero."</em></td>
+            <td>Se intentó registrar un movimiento con monto 0.</td>
+            <td>Ingresar un monto positivo mayor a cero.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede eliminar una cuenta con movimientos activos."</em></td>
+            <td>La cuenta tiene al menos un movimiento no eliminado.</td>
+            <td>Eliminar primero todos los movimientos de la cuenta, o dejar la cuenta inactiva en lugar de eliminarla.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede eliminar un movimiento generado automáticamente."</em></td>
+            <td>Se intentó eliminar un movimiento creado por el sistema (cobranza, venta o pago a prestador).</td>
+            <td>No es posible eliminarlo directamente. Para revertirlo, eliminar la cobranza, factura o pago de prestador correspondiente desde su módulo de origen.</td>
+          </tr>
+          <tr>
+            <td><em>"No se puede editar un movimiento generado automáticamente."</em></td>
+            <td>Se intentó editar (vía API) un movimiento generado por el sistema.</td>
+            <td>El botón de lápiz no aparece en la UI para estos movimientos. Esta validación es adicional en el backend.</td>
+          </tr>
+          <tr>
+            <td>El saldo muestra valor negativo</td>
+            <td>Los egresos acumulados superan los ingresos de la cuenta.</td>
+            <td>Comportamiento esperado. El sistema muestra el saldo negativo en rojo con ícono de flecha hacia abajo.</td>
+          </tr>
+          <tr>
+            <td>El botón lápiz no aparece en una fila</td>
+            <td>El movimiento fue generado automáticamente por cobranzas, ventas o pagos a prestadores.</td>
+            <td>Comportamiento esperado. Estos movimientos son de solo lectura.</td>
+          </tr>
+          <tr>
+            <td>El botón "Nueva cuenta" no aparece</td>
+            <td>El usuario autenticado no tiene el rol de administrador.</td>
+            <td>Comportamiento esperado. Solo admin puede crear cuentas.</td>
+          </tr>
+          <tr>
+            <td>La tabla de movimientos muestra "Sin movimientos para los filtros aplicados."</td>
+            <td>No existen movimientos que coincidan con los filtros activos (tipo, rango de fechas, búsqueda).</td>
+            <td>Limpiar los filtros usando el selector de tipo (seleccionar "Todos"), borrando las fechas y el texto del buscador.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que no son errores</h3>
+      <ul>
+        <li><strong>Saldo negativo</strong> — se muestra en rojo; es un estado válido si la cuenta tiene más egresos que ingresos.</li>
+        <li><strong>Tarjeta con 0 movimientos</strong> — una cuenta recién creada tiene saldo ₲ 0 y 0 movimientos; esto es correcto.</li>
+        <li><strong>Lápiz no aparece en movimientos automáticos</strong> — diseño intencional para preservar la integridad de los datos originados en otros módulos.</li>
+        <li><strong>Comprobante vacío muestra "—"</strong> — el número de comprobante es un campo opcional; si no se completó, la celda muestra un guión.</li>
+        <li><strong>El saldo se actualiza al eliminar un movimiento</strong> — el recálculo es automático; no requiere recargar la página.</li>
+      </ul>
+    </div>
+
+    <hr />
+  </div>
+
+  <!-- ══ PIE ══ -->
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual Módulo Cuentas Caja/Banco · Versión 1.0 · Junio 2026
+  </div>
+
+</div>
+</body>
+</html>

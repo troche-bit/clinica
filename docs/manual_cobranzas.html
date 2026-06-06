@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Módulo Cobranzas · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 920px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); }
+
+    /* ── Portada ── */
+    .cover { background: #1a3a5c; color: #fff; padding: 60px 64px 48px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:20px; }
+    .cover h1  { font-size:42px; font-weight:700; line-height:1.15; margin-bottom:12px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); margin-bottom:36px; }
+    .cover-meta { display:flex; gap:32px; font-size:13px; color:rgba(255,255,255,0.55); border-top:1px solid rgba(255,255,255,0.12); padding-top:20px; flex-wrap:wrap; }
+    .cover-meta span strong { color:rgba(255,255,255,0.9); }
+
+    /* ── Tabla de contenido ── */
+    .toc { padding:36px 64px; background:#f8fafc; border-bottom:1px solid #e8edf2; }
+    .toc h2 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#6b7280; margin-bottom:16px; }
+    .toc ol { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:4px 40px; }
+    .toc li a { text-decoration:none; color:#1a3a5c; font-size:14px; display:flex; align-items:center; gap:8px; padding:4px 0; }
+    .toc li a:hover { color:#15304d; }
+    .toc .num { font-size:11px; font-weight:600; color:#9ca3af; min-width:20px; }
+
+    /* ── Contenido ── */
+    .content { padding: 0 64px 64px; }
+    .section { margin-top:52px; }
+    .section-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:14px; border-bottom:2px solid #e8edf2; }
+    .section-number { background:#1a3a5c; color:#fff; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; }
+    .section h2 { font-size:22px; font-weight:600; color:#1a3a5c; }
+    .section h3 { font-size:16px; font-weight:600; color:#111827; margin:28px 0 10px; }
+    .section p  { color:#374151; margin-bottom:14px; }
+    .section ul, .section ol { margin:8px 0 16px 20px; font-size:14px; color:#374151; }
+    .section li { margin-bottom:6px; }
+
+    /* ── Capturas ── */
+    .screenshot { margin:20px 0 24px; border:1px solid #e8edf2; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+    .screenshot img { width:100%; display:block; }
+    .screenshot-caption { background:#f8fafc; border-top:1px solid #e8edf2; padding:8px 14px; font-size:12px; color:#6b7280; font-style:italic; }
+
+    /* ── Tabla ── */
+    table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+    th { background:#f8fafc; border:1px solid #e8edf2; padding:10px 14px; text-align:left; font-weight:600; color:#374151; font-size:13px; }
+    td { border:1px solid #e8edf2; padding:10px 14px; vertical-align:top; color:#374151; }
+    tr:nth-child(even) td { background:#fafbfc; }
+
+    /* ── Callouts ── */
+    .callout { border-radius:10px; padding:14px 18px; margin:16px 0; display:flex; gap:12px; font-size:14px; }
+    .callout-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+    .callout.info   { background:#eff6ff; border-left:4px solid #3b82f6; }
+    .callout.warn   { background:#fffbeb; border-left:4px solid #f59e0b; }
+    .callout.danger { background:#fff5f5; border-left:4px solid #dc2626; }
+    .callout.ok     { background:#f0fdf4; border-left:4px solid #22c55e; }
+    .callout-body { color:#374151; }
+    .callout-body strong { color:#111827; }
+
+    /* ── Pasos numerados ── */
+    .steps { list-style:none; counter-reset:steps; margin:12px 0 20px; }
+    .steps li { counter-increment:steps; display:flex; gap:14px; margin-bottom:14px; align-items:flex-start; }
+    .steps li::before { content:counter(steps); background:#e8f0fe; color:#1a3a5c; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; margin-top:2px; }
+    .steps li .step-text { color:#374151; font-size:14px; }
+    .steps li .step-text strong { color:#111827; }
+
+    /* ── Badges ── */
+    .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 10px; border-radius:20px; vertical-align:middle; }
+    .badge-admin     { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+    .badge-recep     { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .badge-medico    { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+    .badge-sec       { background:#faf5ff; color:#7c3aed; border:1px solid #e9d5ff; }
+    .badge-pagado    { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+    .badge-pendiente { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+    .badge-vencido   { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+
+    /* ── Teclado ── */
+    kbd { display:inline-block; padding:2px 8px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:5px; font-size:12px; font-family:'Courier New',monospace; color:#374151; box-shadow:0 1px 0 #9ca3af; }
+
+    /* ── Highlight ── */
+    .highlight-box { background:#f0f5ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:14px; color:#374151; }
+    .highlight-box strong { color:#1a3a5c; }
+
+    /* ── Tabs demo ── */
+    .tab-demo { display:flex; gap:0; border-bottom:2px solid #e8edf2; margin:16px 0 20px; }
+    .tab-demo-item { padding:10px 20px; font-size:14px; color:#6b7280; cursor:default; border-bottom:3px solid transparent; margin-bottom:-2px; }
+    .tab-demo-item.active { color:#1a3a5c; border-bottom-color:#1a3a5c; font-weight:500; }
+
+    /* ── Pie ── */
+    hr { border:none; border-top:1px solid #e8edf2; margin:40px 0; }
+    .footer { background:#1a3a5c; color:rgba(255,255,255,0.55); text-align:center; padding:24px 64px; font-size:12px; }
+    .footer strong { color:rgba(255,255,255,0.8); }
+
+    @media print {
+      body { background:#fff; font-size:13px; }
+      .page-wrap { box-shadow:none; max-width:100%; }
+      .cover { padding:40px; }
+      .content { padding:0 40px 40px; }
+      .toc { padding:24px 40px; }
+      .section, .screenshot { page-break-inside:avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ══ PORTADA ══ -->
+  <div class="cover">
+    <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+    <h1>Manual de Usuario<br>Módulo Cobranzas</h1>
+    <p class="cover-subtitle">Cobro de cuotas de facturas a crédito y gestión de recibos</p>
+    <div class="cover-meta">
+      <span><strong>Versión</strong> 1.0</span>
+      <span><strong>Módulo</strong> Finanzas / Cobranzas</span>
+      <span><strong>Acceso</strong> Administrador · Recepcionista (registro) · Médico (consulta)</span>
+      <span><strong>Fecha</strong> Junio 2026</span>
+    </div>
+  </div>
+
+  <!-- ══ TABLA DE CONTENIDO ══ -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ol>
+      <li><a href="#s1"><span class="num">01</span> Descripción del módulo</a></li>
+      <li><a href="#s2"><span class="num">02</span> Acceder al módulo</a></li>
+      <li><a href="#s3"><span class="num">03</span> Pantalla principal — listado</a></li>
+      <li><a href="#s4"><span class="num">04</span> Buscar y filtrar cobranzas</a></li>
+      <li><a href="#s5"><span class="num">05</span> Ver detalle de una cobranza</a></li>
+      <li><a href="#s6"><span class="num">06</span> Registrar una nueva cobranza</a></li>
+      <li><a href="#s7"><span class="num">07</span> Editar una cobranza</a></li>
+      <li><a href="#s8"><span class="num">08</span> Eliminar una cobranza</a></li>
+      <li><a href="#s9"><span class="num">09</span> Exportar reportes (PDF y Excel)</a></li>
+      <li><a href="#s10"><span class="num">10</span> Mensajes de error frecuentes</a></li>
+    </ol>
+  </div>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="content">
+
+    <!-- ─ Sección 01 ─ -->
+    <div class="section" id="s1">
+      <div class="section-header">
+        <div class="section-number">01</div>
+        <h2>Descripción del módulo</h2>
+      </div>
+
+      <p>El módulo de <strong>Cobranzas</strong> permite registrar el cobro de cuotas pendientes de facturas emitidas a crédito. Cada cobranza genera un recibo numerado correlativo, actualiza automáticamente el saldo de las cuotas cobradas y registra los movimientos en la cuenta de caja/banco correspondiente.</p>
+
+      <p>Una cobranza puede incluir el pago parcial o total de una o más cuotas del mismo cliente, con una o varias formas de pago. El sistema calcula el vuelto automáticamente cuando el monto recibido supera el total a cobrar.</p>
+
+      <h3>Permisos por rol</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Acción</th>
+            <th>Administrador</th>
+            <th>Recepcionista</th>
+            <th>Médico</th>
+            <th>Secretaria médico</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver listado y detalles</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Registrar nueva cobranza</td>
+            <td>✅</td><td>✅</td><td>❌</td><td>❌</td>
+          </tr>
+          <tr>
+            <td>Eliminar cobranza</td>
+            <td>✅</td><td>❌</td><td>❌</td><td>❌</td>
+          </tr>
+          <tr>
+            <td>Ver listado de eliminados</td>
+            <td>✅</td><td>❌</td><td>❌</td><td>❌</td>
+          </tr>
+          <tr>
+            <td>Exportar PDF / Excel</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+          <tr>
+            <td>Generar recibo PDF</td>
+            <td>✅</td><td>✅</td><td>✅</td><td>✅</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          <strong>Solo facturas a crédito.</strong> Solo aparecen como clientes disponibles aquellos que tienen al menos una cuota con saldo pendiente mayor a cero. Las facturas al contado no generan cobranzas.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ Sección 02 ─ -->
+    <div class="section" id="s2">
+      <div class="section-header">
+        <div class="section-number">02</div>
+        <h2>Acceder al módulo</h2>
+      </div>
+
+      <p>El módulo de Cobranzas se encuentra en el menú lateral izquierdo, dentro del grupo <strong>Finanzas</strong>.</p>
+
+      <ol class="steps">
+        <li><span class="step-text">Iniciar sesión con usuario y contraseña.</span></li>
+        <li><span class="step-text">En el menú lateral, hacer clic en <strong>Finanzas</strong> para desplegar el grupo.</span></li>
+        <li><span class="step-text">Seleccionar <strong>Cobranzas</strong>. La ruta en el navegador será <code>/finanzas/cobranzas</code>.</span></li>
+      </ol>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          El menú de <strong>Finanzas</strong> solo es visible para los roles <span class="badge badge-admin">admin</span> y <span class="badge badge-recep">recepcionista</span>. Los médicos y secretarias no ven este grupo en el menú.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ Sección 03 ─ -->
+    <div class="section" id="s3">
+      <div class="section-header">
+        <div class="section-number">03</div>
+        <h2>Pantalla principal — listado</h2>
+      </div>
+
+      <p>Al ingresar al módulo se muestra la lista de todas las cobranzas activas ordenadas por fecha descendente.</p>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/01_listado.png" alt="Listado de cobranzas" />
+        <div class="screenshot-caption">Pantalla principal del módulo de cobranzas con tabla, buscador, filtros de fecha y botones de acción.</div>
+      </div>
+
+      <h3>Barra de herramientas</h3>
+      <table>
+        <thead><tr><th>Elemento</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td>Buscador</td><td>Filtra por nombre o número de documento del cliente (debounce 300 ms).</td></tr>
+          <tr><td>Desde / Hasta</td><td>Filtros de fecha para acotar el período del listado.</td></tr>
+          <tr><td>Botón <strong>PDF</strong> (rojo)</td><td>Genera un PDF con el listado filtrado actualmente visible.</td></tr>
+          <tr><td>Botón <strong>Excel</strong> (verde)</td><td>Descarga un archivo .xlsx con el listado filtrado.</td></tr>
+          <tr><td>Botón <strong>Nueva cobranza</strong></td><td>Abre el formulario de registro. Atajo: <kbd>Insert</kbd>.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Columnas de la tabla</h3>
+      <table>
+        <thead><tr><th>Columna</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td>Comprobante</td><td>Número correlativo de 7 dígitos (ej. 0004801).</td></tr>
+          <tr><td>Fecha</td><td>Fecha de registro de la cobranza.</td></tr>
+          <tr><td>Cliente</td><td>Nombre del cliente con su número de documento como hint.</td></tr>
+          <tr><td>Monto</td><td>Total cobrado en guaraníes.</td></tr>
+          <tr><td>Vuelto</td><td>Diferencia cuando el monto recibido supera el cobrado (0 si no hubo vuelto).</td></tr>
+          <tr><td>Acciones</td><td>Botones: 👁 Ver detalle · 🖨 Recibo PDF · 🗑 Eliminar.</td></tr>
+        </tbody>
+      </table>
+
+      <p>Hacer clic en cualquier fila abre el modal de detalle de esa cobranza.</p>
+    </div>
+
+    <!-- ─ Sección 04 ─ -->
+    <div class="section" id="s4">
+      <div class="section-header">
+        <div class="section-number">04</div>
+        <h2>Buscar y filtrar cobranzas</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/02_busqueda.png" alt="Búsqueda activa" />
+        <div class="screenshot-caption">Búsqueda por nombre de cliente con filtros de fecha aplicados.</div>
+      </div>
+
+      <h3>Búsqueda por texto</h3>
+      <p>El buscador filtra simultáneamente por <strong>nombre/razón social</strong> y <strong>número de documento</strong> del cliente. La búsqueda aplica con un retardo de 300 ms para evitar consultas innecesarias mientras se escribe.</p>
+
+      <h3>Filtros de fecha</h3>
+      <p>Los campos <strong>Desde</strong> y <strong>Hasta</strong> filtran por la fecha de la cobranza. Se pueden usar independientemente: solo "Desde", solo "Hasta", o ambos a la vez.</p>
+
+      <ul>
+        <li>Dejar ambos vacíos muestra todas las cobranzas sin restricción de fecha.</li>
+        <li>Los filtros de fecha y el buscador de texto actúan en conjunto (AND).</li>
+      </ul>
+
+      <h3>Sin resultados</h3>
+      <p>Si la combinación de filtros no devuelve registros, la tabla muestra el mensaje <em>"Sin registros"</em>. Limpiar los campos restaura la lista completa.</p>
+    </div>
+
+    <!-- ─ Sección 05 ─ -->
+    <div class="section" id="s5">
+      <div class="section-header">
+        <div class="section-number">05</div>
+        <h2>Ver detalle de una cobranza</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/03_panel_detalle.png" alt="Modal de detalle de cobranza" />
+        <div class="screenshot-caption">Modal de detalle mostrando datos del comprobante, cuotas cobradas y valores recibidos.</div>
+      </div>
+
+      <p>Hacer clic sobre cualquier fila de la tabla (o sobre el botón 👁 en la columna Acciones) abre el modal de detalle de la cobranza seleccionada.</p>
+
+      <h3>Contenido del modal</h3>
+      <table>
+        <thead><tr><th>Sección</th><th>Datos mostrados</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Cabecera</strong></td>
+            <td>Nro. comprobante, fecha, cliente (documento + nombre), total cobrado.</td>
+          </tr>
+          <tr>
+            <td><strong>Cuotas cobradas</strong></td>
+            <td>Número de factura, cuota (ej. 1/3), fecha de vencimiento, saldo anterior y monto pagado.</td>
+          </tr>
+          <tr>
+            <td><strong>Valores recibidos</strong></td>
+            <td>Forma de pago, cuenta, monto y voucher (si aplica). Total cobrado, total recibido y vuelto.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Botones del modal de detalle</h3>
+      <ul>
+        <li><strong>Eliminar</strong> — abre el diálogo de confirmación para eliminar la cobranza (solo administrador).</li>
+        <li><strong>Recibo PDF</strong> — genera y abre el recibo oficial de la cobranza en una nueva pestaña.</li>
+        <li><strong>Cerrar</strong> — cierra el modal sin realizar ninguna acción.</li>
+      </ul>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          El botón <strong>Recibo PDF</strong> también está disponible directamente en la tabla (ícono de impresora), para generar el recibo sin abrir el modal de detalle.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ Sección 06 ─ -->
+    <div class="section" id="s6">
+      <div class="section-header">
+        <div class="section-number">06</div>
+        <h2>Registrar una nueva cobranza</h2>
+      </div>
+
+      <p>El formulario de nueva cobranza se abre con el botón <strong>Nueva cobranza</strong> en la barra de herramientas, o presionando <kbd>Insert</kbd>. Está organizado en dos pestañas.</p>
+
+      <div class="tab-demo">
+        <div class="tab-demo-item active">Cabecera y cuotas</div>
+        <div class="tab-demo-item">Valores recibidos</div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/04_panel_crear.png" alt="Modal nueva cobranza vacío" />
+        <div class="screenshot-caption">Formulario vacío de nueva cobranza — tab Cabecera y cuotas.</div>
+      </div>
+
+      <h3>Tab 1 — Cabecera y cuotas</h3>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/05_panel_crear_completo.png" alt="Modal con cliente y cuotas visibles" />
+        <div class="screenshot-caption">Formulario con cliente seleccionado mostrando las cuotas pendientes disponibles.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Verificar o ajustar la <strong>Fecha</strong> de la cobranza (por defecto es el día de hoy).</span></li>
+        <li><span class="step-text">El <strong>Nro. comprobante</strong> se completa automáticamente con el siguiente número disponible. Se puede modificar manualmente; el sistema valida en tiempo real si el número ya está en uso.</span></li>
+        <li><span class="step-text">En el campo <strong>Cliente</strong>, escribir el nombre o documento para buscar. El buscador muestra solo los clientes con cuotas pendientes. Hacer clic en el nombre para seleccionarlo.</span></li>
+        <li><span class="step-text">Una vez seleccionado el cliente, aparece la tabla de <strong>Cuotas pendientes</strong>. Las cuotas vencidas se destacan en fondo rojo claro.</span></li>
+        <li><span class="step-text">Para cada cuota a cobrar, marcar la casilla "Total" (paga el saldo completo) o ingresar manualmente el <strong>Monto a pagar</strong> (pago parcial). El monto no puede superar el saldo de la cuota.</span></li>
+        <li><span class="step-text">El <strong>Total a cobrar</strong> se calcula y actualiza en tiempo real.</span></li>
+      </ol>
+
+      <h3>Tab 2 — Valores recibidos</h3>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/06_panel_editar.png" alt="Tab valores recibidos" />
+        <div class="screenshot-caption">Tab de valores recibidos con forma de pago, cuenta y monto completados.</div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="step-text">Seleccionar la <strong>Forma de pago</strong> (efectivo, tarjeta, transferencia, etc.).</span></li>
+        <li><span class="step-text">Seleccionar la <strong>Cuenta</strong> de caja/banco donde ingresa el dinero.</span></li>
+        <li><span class="step-text">Ingresar el <strong>Monto</strong> recibido para esa forma de pago.</span></li>
+        <li><span class="step-text">Si se usan varias formas de pago, hacer clic en <strong>+ Agregar fila</strong> para añadir más valores.</span></li>
+        <li><span class="step-text">El sistema muestra el <strong>Total recibido</strong>, el <strong>Total a cobrar</strong> y el <strong>Vuelto</strong> calculado automáticamente. El total recibido debe ser igual o mayor al total a cobrar.</span></li>
+        <li><span class="step-text">Hacer clic en <strong>Registrar cobranza</strong> para guardar. El sistema registra la cobranza, actualiza el saldo de cada cuota y crea los movimientos de caja correspondientes.</span></li>
+      </ol>
+
+      <div class="callout ok">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">
+          <strong>Voucher y Nro. comprobante en valores:</strong> El campo "Voucher" se habilita solo cuando la forma de pago es tarjeta. El campo "Nro. comprobante" se habilita solo para transferencias. Para efectivo, ambos campos quedan deshabilitados.
+        </div>
+      </div>
+
+      <h3>Reglas de validación al guardar</h3>
+      <ul>
+        <li>Debe seleccionarse un cliente.</li>
+        <li>Debe incluirse al menos una cuota con monto mayor a cero.</li>
+        <li>El monto a pagar de cada cuota no puede superar su saldo disponible.</li>
+        <li>Debe ingresarse al menos un valor recibido completo (forma de pago + cuenta + monto).</li>
+        <li>El total recibido no puede ser menor al total a cobrar.</li>
+        <li>El número de comprobante no puede estar ya en uso.</li>
+      </ul>
+    </div>
+
+    <!-- ─ Sección 07 ─ -->
+    <div class="section" id="s7">
+      <div class="section-header">
+        <div class="section-number">07</div>
+        <h2>Editar una cobranza</h2>
+      </div>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body">
+          <strong>Las cobranzas no se pueden editar.</strong> Una vez registrada, una cobranza es un documento contable inmutable. Si se cometió un error, la única opción es eliminar la cobranza (solo administrador) y registrarla nuevamente con los datos correctos. La eliminación revierte automáticamente los saldos de las cuotas cobradas.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ Sección 08 ─ -->
+    <div class="section" id="s8">
+      <div class="section-header">
+        <div class="section-number">08</div>
+        <h2>Eliminar una cobranza</h2>
+      </div>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          Solo los usuarios con rol <span class="badge badge-admin">admin</span> pueden eliminar cobranzas.
+        </div>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/07_confirm_eliminar.png" alt="Diálogo de confirmación de eliminación" />
+        <div class="screenshot-caption">Diálogo de confirmación antes de eliminar una cobranza.</div>
+      </div>
+
+      <p>La eliminación puede iniciarse desde dos lugares:</p>
+      <ul>
+        <li>El <strong>botón 🗑 en la fila</strong> de la tabla (columna Acciones).</li>
+        <li>El <strong>botón Eliminar</strong> dentro del modal de detalle de la cobranza.</li>
+      </ul>
+
+      <p>En ambos casos aparece un diálogo de confirmación que muestra el número de comprobante y el nombre del cliente. Hacer clic en <strong>Eliminar</strong> para confirmar, o en <strong>Cancelar</strong> para volver sin cambios.</p>
+
+      <h3>Efecto de la eliminación</h3>
+      <ul>
+        <li>La cobranza queda marcada como eliminada (borrado lógico, no se borra físicamente de la base de datos).</li>
+        <li>El saldo de cada cuota cobrada en esa cobranza se <strong>restaura automáticamente</strong> al valor anterior.</li>
+        <li>Los movimientos de caja/banco asociados también quedan marcados como eliminados.</li>
+        <li>La cobranza desaparece del listado principal y ya no puede recuperarse desde la interfaz.</li>
+      </ul>
+
+      <div class="callout danger">
+        <span class="callout-icon">🚫</span>
+        <div class="callout-body">
+          <strong>Acción irreversible desde la UI.</strong> Si se elimina una cobranza por error, los saldos se restauran pero el recibo ya emitido no tiene respaldo en el sistema. Proceder con precaución.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ Sección 09 ─ -->
+    <div class="section" id="s9">
+      <div class="section-header">
+        <div class="section-number">09</div>
+        <h2>Exportar reportes (PDF y Excel)</h2>
+      </div>
+
+      <div class="screenshot">
+        <img src="imagenes/cobranzas/08_navigation_guard.png" alt="Listado con filtros de fecha" />
+        <div class="screenshot-caption">Listado con filtros de fecha aplicados, listo para exportar el período filtrado.</div>
+      </div>
+
+      <h3>Reporte PDF del listado</h3>
+      <p>El botón rojo <strong>PDF</strong> en la barra de herramientas genera un PDF con todas las cobranzas que cumplen los filtros activos en ese momento (búsqueda de texto y/o rango de fechas). El archivo se abre directamente en el navegador.</p>
+
+      <h3>Reporte Excel del listado</h3>
+      <p>El botón verde <strong>Excel</strong> genera y descarga automáticamente un archivo <code>.xlsx</code> con las mismas filas que aparecen en la tabla filtrada, incluyendo: nro. comprobante, fecha, cliente, documento, monto y vuelto.</p>
+
+      <h3>Recibo PDF individual</h3>
+      <p>Cada cobranza tiene su propio recibo oficial. Se puede generar desde dos lugares:</p>
+      <ul>
+        <li>El <strong>ícono de impresora 🖨</strong> en la fila de la tabla.</li>
+        <li>El botón <strong>Recibo PDF</strong> dentro del modal de detalle de la cobranza.</li>
+      </ul>
+      <p>El recibo incluye los datos del cliente, las cuotas cobradas con sus números de factura, y los valores recibidos.</p>
+
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div class="callout-body">
+          Los botones PDF y Excel muestran el texto "Generando..." y se deshabilitan mientras el archivo se procesa, para evitar dobles clics accidentales.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ Sección 10 ─ -->
+    <div class="section" id="s10">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <h2>Mensajes de error frecuentes</h2>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Mensaje / Situación</th>
+            <th>Causa</th>
+            <th>Solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><em>"Seleccione un cliente."</em></td>
+            <td>Se intentó guardar sin elegir un cliente en el buscador.</td>
+            <td>Buscar y seleccionar el cliente con cuotas pendientes.</td>
+          </tr>
+          <tr>
+            <td><em>"Seleccione al menos una cuota con monto mayor a 0."</em></td>
+            <td>No hay cuotas marcadas con monto en el tab de cuotas.</td>
+            <td>Marcar la casilla "Total" o ingresar un monto en al menos una cuota.</td>
+          </tr>
+          <tr>
+            <td><em>"Supera el saldo (Gs. X)"</em></td>
+            <td>El monto ingresado manualmente supera el saldo disponible de la cuota.</td>
+            <td>Reducir el monto a pagar al valor indicado como saldo máximo.</td>
+          </tr>
+          <tr>
+            <td><em>"Ingrese al menos un valor recibido completo."</em></td>
+            <td>La fila de valores recibidos está incompleta (falta forma de pago, cuenta o monto).</td>
+            <td>Completar todos los campos de la fila de pago activa.</td>
+          </tr>
+          <tr>
+            <td><em>"Total recibido (Gs. X) menor al total a cobrar (Gs. Y)."</em></td>
+            <td>La suma de los montos en "Valores recibidos" es menor al total de cuotas seleccionadas.</td>
+            <td>Aumentar el monto en los valores recibidos hasta cubrir el total a cobrar.</td>
+          </tr>
+          <tr>
+            <td><em>"El número X ya está en uso."</em></td>
+            <td>El número de comprobante ingresado manualmente ya existe en el sistema.</td>
+            <td>Dejar el campo en blanco para que el sistema asigne el siguiente disponible, o ingresar un número libre.</td>
+          </tr>
+          <tr>
+            <td>El buscador de clientes no muestra resultados</td>
+            <td>El cliente no tiene facturas a crédito con saldo pendiente, o el término de búsqueda no coincide.</td>
+            <td>Verificar que existan facturas a crédito con cuotas impagas para ese cliente. Revisar la ortografía del nombre o usar el número de documento.</td>
+          </tr>
+          <tr>
+            <td>El recibo PDF no se abre</td>
+            <td>El navegador bloqueó la apertura de ventanas emergentes.</td>
+            <td>Permitir ventanas emergentes para este sitio en la configuración del navegador.</td>
+          </tr>
+          <tr>
+            <td>La cuota aparece en rojo en la tabla</td>
+            <td>La fecha de vencimiento de la cuota ya pasó (cuota vencida).</td>
+            <td>No es un error — es solo un indicador visual. La cuota puede cobrarse normalmente.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Comportamientos esperados que no son errores</h3>
+      <ul>
+        <li><strong>Número de comprobante autocompletado:</strong> Al abrir el formulario, el campo "Nro. comprobante" se rellena automáticamente con el siguiente disponible. Es normal y puede modificarse.</li>
+        <li><strong>Cliente no aparece en el buscador:</strong> Si un cliente tiene todas sus cuotas saldadas o solo tiene facturas al contado, no aparece en el buscador de cobranzas. Esto es correcto.</li>
+        <li><strong>Vuelto en cero:</strong> Si el monto recibido es exactamente igual al cobrado, el campo "Vuelto" muestra 0. Es comportamiento esperado.</li>
+        <li><strong>Cuotas sin saldo no aparecen:</strong> Las cuotas ya pagadas en su totalidad no se muestran en el listado de cuotas pendientes al seleccionar un cliente.</li>
+      </ul>
+    </div>
+
+    <hr />
+  </div>
+
+  <!-- ══ PIE ══ -->
+  <div class="footer">
+    <strong>Clínica Lichi</strong> · Sistema de Gestión Clínica · Manual de Usuario — Módulo Cobranzas · Versión 1.0 · Junio 2026
+  </div>
+
+</div>
+</body>
+</html>
