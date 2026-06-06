@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { Plus, Search, Trash2, Eye, X, AlertCircle, CheckCircle, Banknote, Printer, FileText, FileSpreadsheet } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
 import Modal from '../../components/ui/Modal'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast from '../../components/ui/Toast'
@@ -496,7 +495,7 @@ function ModalNuevoPago({ onClose, onCreado, showToast, onIsDirtyChange }) {
   )
 }
 
-function ModalVerPago({ id, onClose, onEliminar, showToast, puedeEliminar }) {
+function ModalVerPago({ id, onClose, onEliminar, showToast }) {
   const { data: pago, isLoading } = usePagoPrestadorDetalle(id)
   const [generandoPdf, setGenerandoPdf] = useState(false)
 
@@ -520,18 +519,6 @@ function ModalVerPago({ id, onClose, onEliminar, showToast, puedeEliminar }) {
 
   return (
     <div className="pp-ver">
-      <div className="pp-ver-toolbar">
-        <button className="pp-ver-btn print" onClick={handleReciboPdf} disabled={generandoPdf}>
-          <Printer size={14} />
-          {generandoPdf ? 'Generando...' : 'Recibo PDF'}
-        </button>
-        {puedeEliminar && (
-          <button className="pp-ver-btn del" onClick={() => onEliminar(pago)}>
-            <Trash2 size={14} />
-            Eliminar
-          </button>
-        )}
-      </div>
       <div className="pp-ver-header">
         <div className="pp-ver-campo">
           <span className="pp-ver-lbl">Nro. comprobante</span>
@@ -587,6 +574,14 @@ function ModalVerPago({ id, onClose, onEliminar, showToast, puedeEliminar }) {
         </table>
       </div>
 
+      <div className="pp-modal-footer">
+        <button className="btn btn-danger" onClick={() => onEliminar(pago)}>Eliminar</button>
+        <button className="pp-btn-pdf" onClick={handleReciboPdf} disabled={generandoPdf}>
+          <Printer size={14} />
+          {generandoPdf ? 'Generando...' : 'Recibo PDF'}
+        </button>
+        <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+      </div>
     </div>
   )
 }
@@ -594,8 +589,6 @@ function ModalVerPago({ id, onClose, onEliminar, showToast, puedeEliminar }) {
 const ESTADOS_BADGE = { pendiente: 'badge-warning', parcial: 'badge-info', pagado: 'badge-success' }
 
 export default function PagoPrestadorPage() {
-  const { user }                      = useAuth()
-  const puedeEliminar                 = user?.rol === 'admin'
   const { toast, showToast }          = useToast()
   const [modalAbierto, setModalAbierto]         = useState(false)
   const [pagoViendo, setPagoViendo]             = useState(null)
@@ -609,7 +602,7 @@ export default function PagoPrestadorPage() {
   const [generandoReciboId,   setGenerandoReciboId]   = useState(null)
 
   useAtajosTeclado({
-    'Insert': { fn: () => { if (puedeEliminar && !modalAbierto && !pagoViendo) setModalAbierto(true) } },
+    'Insert': { fn: () => { if (!modalAbierto && !pagoViendo) setModalAbierto(true) } },
   })
 
   const _params = () => {
@@ -695,54 +688,49 @@ export default function PagoPrestadorPage() {
       <style>{`
         .pp-page { display: flex; flex-direction: column; height: 100%; }
 
-        .pp-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #e8edf2; }
-        .pp-toolbar-icon { width: 36px; height: 36px; background: #e8f0fe; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #1a3a5c; flex-shrink: 0; }
-        .pp-toolbar-titles { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 1px; }
+        .pp-toolbar { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; flex-wrap: wrap; border-bottom: 1px solid #f3f4f6; }
+        .pp-toolbar-icon { width: 34px; height: 34px; background: #e8f0fe; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #1a3a5c; flex-shrink: 0; align-self: center; }
+        .pp-toolbar-titles { order: 1; flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 1px; justify-content: center; }
         .pp-toolbar-title { font-size: 15px; font-weight: 700; color: #1a3a5c; }
         .pp-toolbar-subtitle { font-size: 11px; color: #9ca3af; }
-        .pp-search-wrap { flex: 1 1 200px; max-width: 300px; position: relative; }
-        .pp-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
-        .pp-search-input { width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid #e5e7eb; border-radius: 9px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; color: #111827; background: #fff; outline: none; box-sizing: border-box; transition: border-color 0.2s, box-shadow 0.2s; }
-        .pp-search-input:focus { border-color: #1a3a5c; box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
-        .pp-search-input::placeholder { color: #d1d5db; }
-        .pp-filtros { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .pp-filtro-sel { border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 8px 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; background: #fff; color: #374151; height: 38px; }
+        .pp-search-wrap { order: 2; flex: 1 1 200px; max-width: 280px; position: relative; }
+        .pp-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #9ca3af; pointer-events: none; }
+        .pp-search-input { width: 100%; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 10px 0 30px; font-size: 13px; outline: none; box-sizing: border-box; }
+        .pp-search-input:focus { border-color: #1a3a5c; }
+        .pp-filtros { order: 3; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .pp-filtro-sel { height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 8px; font-size: 13px; background: #fff; outline: none; color: #374151; cursor: pointer; }
         .pp-filtro-sel:focus { border-color: #1a3a5c; }
-        .pp-filtro-date { border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 0 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; background: #fff; color: #374151; height: 38px; width: 138px; }
+        .pp-filtro-date { height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 8px; font-size: 13px; outline: none; color: #374151; }
         .pp-filtro-date:focus { border-color: #1a3a5c; }
-        .pp-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .pp-btn-report { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 9px; border: none; background: #dc2626; color: #fff; font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s, box-shadow 0.15s; }
-        .pp-btn-report:hover:not(:disabled) { background: #b91c1c; box-shadow: 0 4px 12px rgba(220,38,38,0.2); }
-        .pp-btn-report.excel { background: #16a34a; }
-        .pp-btn-report.excel:hover:not(:disabled) { background: #15803d; box-shadow: 0 4px 12px rgba(22,163,74,0.2); }
-        .pp-btn-report:disabled { opacity: 0.6; cursor: not-allowed; }
-        .pp-btn-nuevo { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; border: none; background: #1a3a5c; color: #fff; font-size: 13.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.15s, box-shadow 0.15s; }
-        .pp-btn-nuevo:hover { background: #15304d; box-shadow: 0 4px 12px rgba(26,58,92,0.2); }
-        @media (max-width: 600px) { .pp-search-wrap { max-width: 100%; flex-basis: 100%; } .pp-toolbar-titles { display: none; } }
+        .pp-toolbar-right { order: 4; margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .pp-btn-report { height: 36px; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; color: #374151; cursor: pointer; font-weight: 500; transition: all .12s; flex-shrink: 0; }
+        .pp-btn-report:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .pp-btn-report:disabled { opacity: .6; cursor: default; }
+        .pp-btn-nuevo { height: 36px; display: flex; align-items: center; gap: 6px; background: #1a3a5c; color: #fff; border: none; border-radius: 8px; padding: 0 14px; font-size: 13px; font-weight: 500; cursor: pointer; flex-shrink: 0; }
+        .pp-btn-nuevo:hover { background: #15304d; }
+        @media (max-width: 600px) { .pp-search-wrap { order: 4; max-width: 100%; flex-basis: 100%; } .pp-toolbar-titles { display: none; } }
 
-        .pp-body { flex: 1; overflow: hidden; padding: 0 24px 24px; }
-        .pp-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 12px; background: #fff; overflow-y: auto; }
+        .pp-body { flex: 1; overflow: hidden; padding: 14px 24px 24px; }
+        .pp-tabla-wrap { height: 100%; border: 1px solid #e8edf2; border-radius: 10px; background: #fff; overflow-y: auto; }
         .pp-table-wrap { overflow-x: auto; border: 1px solid #e8edf2; border-radius: 8px; background: #fff; }
-        .pp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-        .pp-th { padding: 11px 16px; background: #f8fafc; color: #9ca3af; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+        .pp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .pp-th { padding: 10px 14px; background: #f8fafc; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #e8edf2; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
         .pp-th-right { text-align: right; }
         .pp-th-center { text-align: center; }
-        .pp-td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+        .pp-td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
         .pp-td-right { text-align: right; }
         .pp-td-center { text-align: center; }
-        .pp-td-hint { font-size: 11.5px; color: #9ca3af; margin-top: 3px; font-style: italic; }
-        .pp-tr { cursor: pointer; transition: background 0.15s; }
-        .pp-tr:nth-child(odd)  .pp-td { background: #ffffff; }
-        .pp-tr:nth-child(even) .pp-td { background: #f8fafc; }
-        .pp-tr:hover .pp-td { background: #f0f4f8 !important; }
+        .pp-td-hint { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .pp-tr { cursor: pointer; }
+        .pp-tr:nth-child(even) .pp-td { background: #f9fafb; }
+        .pp-tr:hover .pp-td { background: #eff6ff !important; }
         .pp-tr:last-child .pp-td { border-bottom: none; }
         .pp-mono { font-family: 'Courier New', monospace; font-size: 12px; }
         .pp-bold { font-weight: 600; }
 
-        .pp-td-acciones { display: flex; gap: 6px; justify-content: flex-end; }
-        .pp-row-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 7px; border: 1px solid #e8edf2; background: none; cursor: pointer; color: #6b7280; transition: background .15s, color .15s, border-color .15s; }
-        .pp-row-btn:hover { background: #f0f4f8; }
-        .pp-row-btn.print:hover { background: #eff6ff; color: #1a3a5c; border-color: #bfdbfe; }
+        .pp-td-acciones { display: flex; gap: 4px; justify-content: center; }
+        .pp-row-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; transition: all .12s; }
+        .pp-row-btn:hover { background: #eff6ff; border-color: #bfdbfe; color: #1a3a5c; }
         .pp-row-btn.danger { border-color: #fecaca; color: #dc2626; }
         .pp-row-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; }
 
@@ -807,19 +795,15 @@ export default function PagoPrestadorPage() {
         .pp-totales-excede { color: #dc2626; font-size: 13px; font-weight: 500; gap: 6px; }
         .pp-val-error { color: #dc2626; }
 
+        .pp-btn-pdf { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; color: #374151; cursor: pointer; font-weight: 500; transition: all .12s; }
+        .pp-btn-pdf:hover { border-color: #1a3a5c; color: #1a3a5c; background: #eff6ff; }
+        .pp-btn-pdf:disabled { opacity: .6; cursor: default; }
+
         .pp-btn-add-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #1a3a5c; background: none; border: 1px dashed #bfdbfe; border-radius: 6px; padding: 6px 14px; cursor: pointer; margin-top: 6px; }
         .pp-btn-add-row:hover { background: #eff6ff; }
         .pp-btn-remove { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 5px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #6b7280; }
         .pp-btn-remove:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
         .pp-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 0 0; border-top: 1px solid #e8edf2; margin-top: auto; }
-
-        .pp-ver-toolbar { display: flex; gap: 8px; padding: 14px 20px; border-bottom: 1px solid #e8edf2; flex-shrink: 0; background: #f8fafc; flex-wrap: wrap; }
-        .pp-ver-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; border: 1px solid #e5e7eb; background: #fff; transition: background 0.1s; }
-        .pp-ver-btn.print { color: #1a3a5c; border-color: #bfdbfe; }
-        .pp-ver-btn.print:hover { background: #eff6ff; }
-        .pp-ver-btn.print:disabled { opacity: .6; cursor: default; }
-        .pp-ver-btn.del { color: #dc2626; border-color: #fecaca; margin-left: auto; }
-        .pp-ver-btn.del:hover { background: #fef2f2; }
 
         .pp-ver { display: flex; flex-direction: column; gap: 20px; }
         .pp-ver-header { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e8edf2; }
@@ -870,14 +854,12 @@ export default function PagoPrestadorPage() {
             <button className="pp-btn-report" onClick={handlePdfLista} disabled={generandoPdfLista} title="Exportar listado PDF">
               <FileText size={14} />{generandoPdfLista ? 'Generando...' : 'PDF'}
             </button>
-            <button className="pp-btn-report excel" onClick={handleExcelLista} disabled={generandoExcelLista} title="Exportar listado Excel">
+            <button className="pp-btn-report" onClick={handleExcelLista} disabled={generandoExcelLista} title="Exportar listado Excel">
               <FileSpreadsheet size={14} />{generandoExcelLista ? 'Generando...' : 'Excel'}
             </button>
-            {puedeEliminar && (
-              <button className="pp-btn-nuevo" onClick={() => setModalAbierto(true)}>
-                <Plus size={15} /> Nuevo pago
-              </button>
-            )}
+            <button className="pp-btn-nuevo" onClick={() => setModalAbierto(true)}>
+              <Plus size={15} /> Nuevo pago
+            </button>
           </div>
         </div>
 
@@ -920,16 +902,14 @@ export default function PagoPrestadorPage() {
                         <button className="pp-row-btn" title="Ver detalle" onClick={() => setPagoViendo(p.id)}>
                           <Eye size={12} />
                         </button>
-                        <button className="pp-row-btn print" title="Recibo PDF"
+                        <button className="pp-row-btn" title="Recibo PDF"
                           disabled={generandoReciboId === p.id}
                           onClick={e => handleReciboFila(e, p)}>
                           {generandoReciboId === p.id ? '…' : <Printer size={12} />}
                         </button>
-                        {puedeEliminar && (
-                          <button className="pp-row-btn danger" title="Eliminar" onClick={() => handleEliminar(p)}>
-                            <Trash2 size={12} />
-                          </button>
-                        )}
+                        <button className="pp-row-btn danger" title="Eliminar" onClick={() => handleEliminar(p)}>
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -960,7 +940,6 @@ export default function PagoPrestadorPage() {
             onClose={() => setPagoViendo(null)}
             onEliminar={handleEliminar}
             showToast={showToast}
-            puedeEliminar={puedeEliminar}
           />
         </Modal>
       )}

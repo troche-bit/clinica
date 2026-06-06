@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py makemigrations pago_prestador --name nro_comprobante)",
+      "Bash(docker compose exec *)",
+      "Bash(xargs cat -n)",
+      "Bash(wait)",
+      "Bash(python backend/manage.py check --deploy)",
+      "Bash(python -c ' *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 *)",
+      "Bash(docker exec clinica_backend *)",
+      "Bash(docker exec clinica_frontend *)",
+      "Bash(python manage.py check)",
+      "Bash(npx vite *)",
+      "Bash(xargs cat)",
+      "Bash(xargs dirname)",
+      "Bash(docker exec clinica_db *)",
+      "Bash(xargs ls -la)",
+      "Bash(grep -n \"def estado_cuenta_excel\\\\|return response$\" /home/enzo_coronel/clinica/backend/apps/facturacion/ventas/views.py)",
+      "Bash(tee /home/enzo_coronel/clinica/backend/tests_users.log)",
+      "Bash(docker compose *)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Bash(tee /home/enzo_coronel/clinica/tests/logs/usuarios_e2e.log)",
+      "Bash(tee tests/logs/ubicacion.log)",
+      "Bash(tee /home/enzo_coronel/clinica/tests/logs/ubicacion.log)",
+      "Bash(tee ../tests/logs/ubicacion_e2e.log)",
+      "Bash(node *)",
+      "Bash(python manage.py test apps.clinica.configuracion.consultorio.tests --verbosity=2)",
+      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && wc -l < {}')",
+      "Bash(sed -n '54,60p' /home/enzo_coronel/clinica/frontend/src/components/responsable/ResponsableForm.jsx)",
+      "Bash(sed -n '312,320p' /home/enzo_coronel/clinica/frontend/src/components/paciente/PacienteForm.jsx)",
+      "Bash(grep \"| \\\\`paciente\\\\`\")",
+      "Bash(curl -s http://localhost:8000/api/tipo-documento/)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/token/ -H 'Content-Type: application/json' -d '{\"username\":\"test_e2e_admin\",\"password\":\"TestAdmin1234!\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -H \"Authorization: Bearer $\\(curl -s -X POST http://localhost:8000/api/auth/token/ -H 'Content-Type: application/json' -d '{\"username\":\"test_e2e_admin\",\"password\":\"TestAdmin1234!\"}')"
+    ]
+  }
+}

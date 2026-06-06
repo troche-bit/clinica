@@ -174,33 +174,6 @@ module.exports = defineConfig({
       },
     },
     {
-      name: 'pago-prestador',
-      dependencies: ['setup'],
-      testMatch: /pago-prestador\.spec\.js/,
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'e2e/.auth/admin.json',
-      },
-    },
-    {
-      name: 'cobranzas',
-      dependencies: ['setup'],
-      testMatch: /cobranzas\.spec\.js/,
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'e2e/.auth/admin.json',
-      },
-    },
-    {
-      name: 'cuentas-mcb',
-      dependencies: ['setup'],
-      testMatch: /cuentas-mcb\.spec\.js/,
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'e2e/.auth/admin.json',
-      },
-    },
-    {
       name: 'screenshots-manual',
       dependencies: ['setup'],
       testMatch: /screenshots-.*\.spec\.js/,
