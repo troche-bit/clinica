@@ -366,6 +366,165 @@ Ejecutar: `npx playwright test --project=screenshots-manual e2e/screenshots-{mod
 
 ---
 
+## Despliegue — Producción
+
+### Arquitectura objetivo
+
+```
+Internet (HTTPS 443)
+        │
+        ▼
+     NGINX               ← reverse proxy, termina SSL, sirve /static y /media
+      ├── /api      →  Gunicorn (Django, DEBUG=False, 3 workers)
+      ├── /static   →  STATIC_ROOT  (generado por collectstatic)
+      ├── /media    →  MEDIA_ROOT   (archivos subidos por usuarios)
+      └── /*        →  React SPA (dist/index.html)
+
+  PostgreSQL 16          ← puerto 5432 cerrado, solo accesible internamente
+```
+
+### Diferencia clave vs. desarrollo
+
+| | Desarrollo | Producción |
+|---|---|---|
+| Backend | `runserver` | **Gunicorn** |
+| Frontend | `npm run dev` (Vite, proceso vivo) | `npm run build` → estáticos servidos por Nginx |
+| Entrada | puertos 5173 y 8000 expuestos | un solo Nginx en 80/443 |
+| Código | montado por volumen (hot reload) | copiado dentro de la imagen |
+| DB puerto | 5432 expuesto al host | cerrado al exterior |
+
+### Variables de entorno en producción
+
+Copiar `.env.example` como `.env.production` y completar:
+
+| Variable | Valor de desarrollo | Valor de producción |
+|---|---|---|
+| `DEBUG` | `True` | `False` |
+| `DJANGO_SETTINGS_MODULE` | `config.settings.development` | `config.settings.production` |
+| `SECRET_KEY` | clave débil de prueba | `openssl rand -hex 50` |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1,backend` | `tu-dominio.duckdns.org` |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | `https://tu-dominio.duckdns.org` |
+| `CSRF_TRUSTED_ORIGINS` | — | `https://tu-dominio.duckdns.org` |
+| `SITE_URL` | `http://localhost:8000` | `https://tu-dominio.duckdns.org` |
+
+Generar `SECRET_KEY` segura:
+```bash
+openssl rand -hex 50
+```
+
+### Archivos de producción ✅ implementados
+
+| Archivo | Propósito |
+|---|---|
+| `docker-compose.prod.yml` | Stack de producción: nginx + gunicorn + db + certbot (sin volúmenes de código) |
+| `backend/Dockerfile.prod` | Imagen backend: copia código, corre `collectstatic` + `gunicorn` al iniciar |
+| `backend/entrypoint.prod.sh` | Script de inicio: `collectstatic --noinput` → `exec gunicorn` |
+| `backend/config/wsgi.py` | Entry point WSGI requerido por Gunicorn |
+| `frontend/Dockerfile.prod` | Multi-stage: `npm ci` + `npm run build` → `nginx:alpine` sirve `dist/` |
+| `nginx/default.conf` | Reverse proxy: `/api` y `/admin` → gunicorn, `/static` y `/media` → dirs, `/*` → SPA |
+| `nginx/certbot/conf/` | Directorio para certificados Let's Encrypt (contenido ignorado por git) |
+| `nginx/certbot/www/` | Directorio para challenges ACME (contenido ignorado por git) |
+
+### Deploy en Oracle Cloud Free
+
+#### Preparación única (primer deploy)
+
+```bash
+# 1. En la VM: instalar Docker
+sudo apt update && sudo apt install -y docker.io docker-compose-plugin
+sudo usermod -aG docker $USER  # cerrar sesión y volver a entrar
+
+# 2. Clonar repo y preparar entorno
+git clone https://github.com/tu-usuario/clinica.git && cd clinica
+cp .env.example .env.production
+nano .env.production   # completar todos los valores reales (SECRET_KEY, dominio, etc.)
+
+# 3. Reemplazar "tu-dominio.duckdns.org" en nginx/default.conf con el dominio real
+
+# 4. Abrir puertos — PASO CRÍTICO (hay que hacerlo en dos lugares):
+#    a) Oracle Cloud → Security List de la subred → Ingress Rules: TCP 80 y TCP 443
+#    b) Dentro de la VM:
+sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+
+# 5. Primer deploy SIN HTTPS (necesario para obtener el certificado SSL)
+#    En nginx/default.conf comentar el bloque "server { listen 443 ssl; ... }"
+docker compose -f docker-compose.prod.yml up -d --build nginx db backend
+
+# 6. Obtener certificado SSL con Certbot
+docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+    --webroot --webroot-path=/var/www/certbot \
+    -d tu-dominio.duckdns.org \
+    --email tu@email.com --agree-tos --no-eff-email
+
+# 7. Descomentar el bloque HTTPS en nginx/default.conf y relanzar
+docker compose -f docker-compose.prod.yml up -d --build nginx
+
+# 8. Migraciones y usuario administrador inicial
+docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+docker compose -f docker-compose.prod.yml exec backend python manage.py createadmin --username master --password CAMBIAR --nombre "Nombre Apellido"
+```
+
+#### Nota — build secuencial obligatorio (bug de Docker BuildKit con bake paralelo)
+
+```bash
+# Buildear de a una imagen para evitar el error "image already exists":
+COMPOSE_BAKE=false docker compose -f docker-compose.prod.yml build nginx
+COMPOSE_BAKE=false docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d db backend nginx certbot
+```
+
+#### Actualizaciones posteriores
+
+```bash
+git pull
+COMPOSE_BAKE=false docker compose -f docker-compose.prod.yml build backend
+docker compose -f docker-compose.prod.yml up -d --no-build backend
+# Solo si hay migraciones nuevas:
+docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+```
+
+#### Prueba local del stack de producción (sin Oracle, sin SSL)
+
+`docker-compose.prod.local.yml` es un compose **autónomo** (no hereda del prod): la config de nginx está horneada en la imagen para evitar conflictos de volúmenes.
+
+```bash
+# Build (secuencial)
+COMPOSE_BAKE=false docker compose -p clinica_prod -f docker-compose.prod.local.yml build backend
+COMPOSE_BAKE=false docker compose -p clinica_prod -f docker-compose.prod.local.yml build nginx
+
+# Levantar
+docker compose -p clinica_prod -f docker-compose.prod.local.yml up -d db backend nginx
+
+# Migraciones (primera vez o cuando hay nuevas)
+docker exec clinica_backend_prod python manage.py migrate
+
+# Acceder: http://localhost
+
+# Bajar
+docker compose -p clinica_prod -f docker-compose.prod.local.yml down
+```
+
+#### Comandos útiles de operación
+
+```bash
+# Ver logs en tiempo real
+docker compose -f docker-compose.prod.yml logs -f backend
+docker compose -f docker-compose.prod.yml logs -f nginx
+
+# Reiniciar un servicio sin reconstruir
+docker compose -f docker-compose.prod.yml restart backend
+
+# Ver estado de los contenedores
+docker compose -f docker-compose.prod.yml ps
+```
+
+**Dominio y SSL gratuitos:**
+- [DuckDNS](https://www.duckdns.org) → subdominio gratuito apuntando a la IP pública de Oracle
+- Certbot en `docker-compose.prod.yml` renueva los certificados automáticamente cada 12 horas
+
+---
+
 ## Validación de Dependencias — Borrado Lógico
 
 Regla: **nunca permitir borrar un registro si tiene hijos activos (`is_deleted=False`).**

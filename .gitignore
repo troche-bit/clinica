@@ -29,3 +29,9 @@ frontend/.env
 .DS_Store
 Thumbs.db
 
+# SSL — certificados de Let's Encrypt (generados en el servidor, no commitear)
+nginx/certbot/conf/*
+!nginx/certbot/conf/.gitkeep
+nginx/certbot/www/*
+!nginx/certbot/www/.gitkeep
+

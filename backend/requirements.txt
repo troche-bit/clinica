@@ -32,3 +32,6 @@ phonenumbers==9.0.29
 
 # Envío de emails transaccionales
 resend==2.10.0
+
+# Servidor WSGI para producción
+gunicorn==23.0.0

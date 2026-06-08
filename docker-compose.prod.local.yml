@@ -1,0 +1,56 @@
+# Stack de producción para prueba LOCAL (sin SSL, sin certbot)
+# Config de nginx horneada en la imagen — evita conflictos de volúmenes
+# Uso: ver CLAUDE.md sección "Despliegue — Producción"
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: clinica_db_prod
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: clinica_backend_prod
+    restart: unless-stopped
+    env_file: .env.production
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile.local
+    container_name: clinica_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - media_data:/app/media:ro
+      - static_data:/app/staticfiles:ro
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  media_data:
+  static_data:
