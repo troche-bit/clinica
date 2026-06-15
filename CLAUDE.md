@@ -313,6 +313,12 @@ Ejecutar: `npx playwright test --project=screenshots-manual e2e/screenshots-{mod
 | 09 | Protección de cambios sin guardar (NavigationGuard — cuándo aparece, opciones) |
 | 10 | Mensajes de error frecuentes + comportamientos esperados que no son errores |
 
+Al terminar el manual, integrarlo al sistema:
+1. Registrarlo en `MANUALES` de `Navbar.jsx` (pathname exacto del router → archivo) — habilita el botón de ayuda contextual.
+2. Agregarlo a `MANUALES` de `docs/assets/manual.js` (selector de la barra superior de los manuales).
+3. Agregar su tarjeta en `docs/index.html` (índice general).
+4. Correr `npm run sync:manuales` desde `frontend/` para actualizar la copia servida en `public/manuales/`.
+
 ---
 
 ## Estado de Tests y Documentación por Módulo

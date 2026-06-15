@@ -69,6 +69,17 @@ function colorEstado(estado) {
   }
 }
 
+const LABEL_ESTADO = {
+  disponible: 'Disponible',
+  ocupado:    'Confirmado',
+  inactivo:   'Bloqueado',
+  cancelado:  'Cancelado',
+  realizado:  'Realizado',
+}
+const labelEstado = (e) => LABEL_ESTADO[e] ?? e
+
+const LEYENDA_ESTADOS = ['disponible', 'ocupado', 'realizado', 'cancelado', 'inactivo']
+
 function previsualizarTurnos(horarios, fechaDesde, fechaHasta) {
   if (!fechaDesde || !fechaHasta) return []
   const desde = new Date(fechaDesde + 'T00:00:00')
@@ -230,14 +241,14 @@ export default function AgendaPage() {
     }
   }, [esRestringido, esMedico, esSecretaria, user?.persona_rrhh_id, user?.medico_asignado_id, user?.medicos_asignados, todosLosMedicos])
 
-  const { data: agendaMes }    = useAgendaMes(medicoSel?.id, mesVista.mes, mesVista.anio)
+  const { data: agendaMes, isLoading: cargandoMes } = useAgendaMes(medicoSel?.id, mesVista.mes, mesVista.anio)
   const turnosMes              = agendaMes ?? []
 
   const { data: turnosDia }    = useAgendaDia(medicoSel?.id, fechaSel)
   const { data: turnosDiaGlob} = useAgendaDiaGlobal(!medicoSel ? fechaSel : null)
   const turnosPanelDia = medicoSel ? (turnosDia ?? []) : (turnosDiaGlob ?? [])
 
-  const { data: turnosMesGlobal } = useAgendaGlobalMes(mesVista.mes, mesVista.anio)
+  const { data: turnosMesGlobal, isLoading: cargandoGlobal } = useAgendaGlobalMes(mesVista.mes, mesVista.anio)
   const statsGlobal = useMemo(() => {
     const t = turnosMesGlobal ?? []
     return {
@@ -374,6 +385,19 @@ export default function AgendaPage() {
     return map
   }, [turnosMesGlobal])
 
+  const medicosLeyenda = useMemo(() => {
+    const map = {}
+    for (const t of turnosMesGlobal ?? []) {
+      if (t.estado === 'cancelado' || t.estado === 'inactivo') continue
+      const det = t.horario_prestador_detalle
+      const id  = det?.persona_rrhh_id
+      if (!id || map[id]) continue
+      const m = todosLosMedicos.find(x => x.id === id)
+      map[id] = m?.persona_detalle?.razon_social ?? m?.nombre ?? det?.nombre ?? `Médico #${id}`
+    }
+    return Object.entries(map).map(([id, nombre]) => ({ id: Number(id), nombre }))
+  }, [turnosMesGlobal, todosLosMedicos])
+
   const reagendarMedicoId = useMemo(() => {
     if (!reagendarTurnoId) return null
     const t = turnosPanelDia.find(t => t.id === reagendarTurnoId)
@@ -427,6 +451,7 @@ export default function AgendaPage() {
     setBusqPaciente('')
     setPacienteSel(null)
     setObservacion('')
+    setTabMovil(3)
   }
 
   const handleConfirmar = async () => {
@@ -476,7 +501,7 @@ export default function AgendaPage() {
     if (!confirmEstado) return
     try {
       await cambiarEstado({ id: confirmEstado.turnoId, estado: confirmEstado.estado })
-      showToast(`Estado cambiado a ${confirmEstado.estado}.`, 'success')
+      showToast(`Estado cambiado a ${labelEstado(confirmEstado.estado)}.`, 'success')
       setTurnoExpandido(null)
     } catch (err) {
       showToast(extraerMensajeError(err), 'error')
@@ -704,6 +729,16 @@ export default function AgendaPage() {
         }
         .ag-cal-mas { font-size: 10px; color: #9ca3af; padding-left: 4px; }
         .ag-cal-empty { text-align: center; padding: 40px 16px; color: #9ca3af; font-size: 13px; }
+
+        .ag-cal-cargando { opacity: 0.45; pointer-events: none; transition: opacity 0.2s; }
+        .ag-cal-leyenda {
+          display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+          padding: 10px 20px 14px; border-top: 1px solid #f0f4f8;
+          font-size: 11px; color: #6b7280;
+        }
+        .ag-cal-leyenda-item { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .ag-cal-leyenda-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .ag-cal-leyenda-chip { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; border: 1px solid; }
 
         .ag-cal-dots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 3px; align-items: center; }
         .ag-cal-dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
@@ -978,7 +1013,7 @@ export default function AgendaPage() {
             { label: 'Confirmadas', val: statsGlobal.confirmadas, cls: 'ag-stat-conf' },
             { label: 'Disponibles', val: statsGlobal.disponibles, cls: 'ag-stat-pend' },
             { label: 'Realizadas',  val: statsGlobal.realizadas,  cls: 'ag-stat-real' },
-            { label: 'Cancelados',  val: statsGlobal.cancelados,  cls: 'ag-stat-canc' },
+            { label: 'Canceladas',  val: statsGlobal.cancelados,  cls: 'ag-stat-canc' },
             { label: 'Total',       val: statsGlobal.total,       cls: '' },
           ].map(s => (
             <div key={s.label} className={`ag-stat-pill ${s.cls}`}>
@@ -1133,7 +1168,7 @@ export default function AgendaPage() {
                     <div key={m.id}
                       className={`ag-medico-item${activo ? ' ag-medico-item-on' : ''}`}
                       style={activo ? { borderLeftColor: dot } : {}}
-                      onClick={() => { setMedicoSel(activo ? null : m); setFechaSel(null); setTurnoExpandido(null) }}>
+                      onClick={() => { setMedicoSel(activo ? null : m); setFechaSel(null); setTurnoExpandido(null); setTabMovil(2) }}>
                       <div className="ag-avatar" style={{ background: col.bg, color: col.text, border: `2px solid ${dot}` }}>
                         {inicialesMedico(m)}
                       </div>
@@ -1171,13 +1206,13 @@ export default function AgendaPage() {
                 </div>
               </div>
               <div className="ag-cal-nav">
-                <button className="ag-cal-nav-btn" onClick={irMesAnterior}><ChevronLeft size={14} /></button>
+                <button className="ag-cal-nav-btn" aria-label="Mes anterior" onClick={irMesAnterior}><ChevronLeft size={14} /></button>
                 <span className="ag-cal-mes-label">{MESES[mesVista.mes - 1]} {mesVista.anio}</span>
-                <button className="ag-cal-nav-btn" onClick={irMesSiguiente}><ChevronRight size={14} /></button>
+                <button className="ag-cal-nav-btn" aria-label="Mes siguiente" onClick={irMesSiguiente}><ChevronRight size={14} /></button>
               </div>
             </div>
 
-            <div className="ag-cal-grid">
+            <div className={`ag-cal-grid${(medicoSel ? cargandoMes : cargandoGlobal) ? ' ag-cal-cargando' : ''}`}>
               <div className="ag-cal-dias-header">
                 {DIAS_SEMANA.map(d => <div key={d} className="ag-cal-dia-hdr">{d}</div>)}
               </div>
@@ -1256,6 +1291,28 @@ export default function AgendaPage() {
               </div>
             </div>
 
+            {medicoSel ? (
+              <div className="ag-cal-leyenda">
+                {LEYENDA_ESTADOS.map(e => {
+                  const c = colorEstado(e)
+                  return (
+                    <div key={e} className="ag-cal-leyenda-item">
+                      <span className="ag-cal-leyenda-chip" style={{ background: c.bg, borderColor: c.borde }} />
+                      {labelEstado(e)}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : medicosLeyenda.length > 0 && (
+              <div className="ag-cal-leyenda">
+                {medicosLeyenda.map(m => (
+                  <div key={m.id} className="ag-cal-leyenda-item">
+                    <span className="ag-cal-leyenda-dot" style={{ background: colorDot(m.id) }} />
+                    {m.nombre}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
@@ -1456,7 +1513,7 @@ export default function AgendaPage() {
             ) : gestMedico ? (
               <div className="ag-pac-sel" style={{ marginBottom: 12 }}>
                 <span>{nombreMedico(gestMedico)}</span>
-                <button className="ag-pac-clear" onClick={() => { setGestMedico(null); setGestResult(null); setBusqGest('') }}>
+                <button className="ag-pac-clear" aria-label="Quitar médico seleccionado" onClick={() => { setGestMedico(null); setGestResult(null); setBusqGest('') }}>
                   <X size={13} />
                 </button>
               </div>
@@ -1665,7 +1722,7 @@ export default function AgendaPage() {
                           <div className="ag-turno-glob-med">{medNom}{espNom ? ` · ${espNom}` : ''}</div>
                         </div>
                         <span className="ag-turno-badge" style={{ background: colE.bg, color: colE.text, alignSelf: 'center', marginRight: 8 }}>
-                          {turno.estado}
+                          {labelEstado(turno.estado)}
                         </span>
                       </div>
                     )
@@ -1739,7 +1796,7 @@ export default function AgendaPage() {
                         <span className="ag-turno-hora">{fmtHora(turno.hora_desde)}</span>
                         <span className="ag-turno-paciente">{labelPaciente}</span>
                         <span className="ag-turno-badge" style={{ background: col.bg, color: col.text }}>
-                          {turno.estado}
+                          {labelEstado(turno.estado)}
                         </span>
                       </div>
 
@@ -1832,7 +1889,7 @@ export default function AgendaPage() {
                               ) : (
                                 <div className="ag-pac-sel">
                                   <span>{pacienteSel.nombre ?? pacienteSel.persona_detalle?.razon_social ?? '—'}</span>
-                                  <button className="ag-pac-clear" onClick={() => setPacienteSel(null)}>
+                                  <button className="ag-pac-clear" aria-label="Quitar paciente seleccionado" onClick={() => setPacienteSel(null)}>
                                     <X size={13} />
                                   </button>
                                 </div>
@@ -1878,7 +1935,7 @@ export default function AgendaPage() {
                                     } else {
                                       cambiarEstado({ id: turno.id, estado: tr.estado })
                                         .then(() => {
-                                          showToast(`Estado cambiado a ${tr.estado}.`, 'success')
+                                          showToast(`Estado cambiado a ${labelEstado(tr.estado)}.`, 'success')
                                           setTurnoExpandido(null)
                                         })
                                         .catch(err => showToast(extraerMensajeError(err), 'error'))

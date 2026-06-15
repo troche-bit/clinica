@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:manuales": "rm -rf public/manuales && mkdir -p public/manuales && cp ../docs/manual_*.html ../docs/index.html public/manuales/ && cp -r ../docs/assets ../docs/imagenes public/manuales/"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.69.0",

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manuales de Usuario · Clínica Lichi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+    body {
+      font-family: 'DM Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 15px; line-height: 1.7;
+      color: #111827; background: #f0f4f8;
+    }
+    .page-wrap { max-width: 1080px; margin: 0 auto; background: #fff; box-shadow: 0 2px 32px rgba(0,0,0,0.10); min-height: 100vh; }
+
+    .cover { background: #1a3a5c; color: #fff; padding: 56px 64px 44px; position: relative; overflow: hidden; }
+    .cover::before { content:''; position:absolute; width:400px; height:400px; border-radius:50%; background:rgba(255,255,255,0.05); top:-120px; right:-80px; }
+    .cover::after  { content:''; position:absolute; width:240px; height:240px; border-radius:50%; background:rgba(255,255,255,0.04); bottom:-60px; left:-40px; }
+    .cover-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:18px; }
+    .cover h1  { font-family:'DM Serif Display',Georgia,serif; font-size:40px; font-weight:400; line-height:1.15; margin-bottom:10px; }
+    .cover-subtitle { font-size:16px; color:rgba(255,255,255,0.72); }
+
+    .content { padding: 40px 64px 64px; }
+
+    .grupo { margin-top: 36px; }
+    .grupo:first-child { margin-top: 0; }
+    .grupo-titulo {
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+      color: #6b7280; font-weight: 600;
+      padding-bottom: 10px; margin-bottom: 18px;
+      border-bottom: 1px solid #e8edf2;
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .card {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 18px 20px;
+      background: #fff; border: 1px solid #e8edf2; border-radius: 12px;
+      text-decoration: none; color: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    }
+    .card:hover {
+      border-color: #93c5fd;
+      box-shadow: 0 4px 16px rgba(26,58,92,0.10);
+      transform: translateY(-2px);
+    }
+    .card-head { display: flex; align-items: center; gap: 10px; }
+    .card-icono {
+      width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+      background: #e8f0fe; display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+    }
+    .card-nombre { font-size: 15px; font-weight: 600; color: #1a3a5c; line-height: 1.3; }
+    .card-desc { font-size: 12.5px; color: #6b7280; line-height: 1.55; }
+    .card-meta { margin-top: auto; padding-top: 8px; font-size: 11.5px; color: #9ca3af; display: flex; align-items: center; gap: 4px; }
+    .card-meta .flecha { margin-left: auto; color: #1a3a5c; font-weight: 600; opacity: 0; transition: opacity 0.15s; }
+    .card:hover .card-meta .flecha { opacity: 1; }
+
+    @media (max-width: 720px) {
+      .cover { padding: 40px 28px 32px; }
+      .cover h1 { font-size: 30px; }
+      .content { padding: 28px 24px 48px; }
+    }
+    @media print {
+      body { background: #fff; }
+      .page-wrap { box-shadow: none; max-width: 100%; }
+      html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+  <link rel="stylesheet" href="assets/manual.css" />
+</head>
+<body>
+  <div class="page-wrap">
+
+    <div class="cover">
+      <div class="cover-tag">Sistema de Gestión Clínica · Clínica Lichi</div>
+      <h1>Manuales de Usuario</h1>
+      <div class="cover-subtitle">Documentación completa de cada módulo del sistema — elegí un módulo para abrir su manual</div>
+    </div>
+
+    <div class="content">
+
+      <div class="grupo">
+        <div class="grupo-titulo">Gestión Clínica</div>
+        <div class="cards">
+          <a class="card" href="manual_paciente.html">
+            <div class="card-head"><div class="card-icono">🧑‍⚕️</div><div class="card-nombre">Pacientes</div></div>
+            <div class="card-desc">Registro, gestión y consulta de los pacientes de la clínica: datos personales, clínicos y documentos.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_paciente-responsable.html">
+            <div class="card-head"><div class="card-icono">👪</div><div class="card-nombre">Responsables</div></div>
+            <div class="card-desc">Tutores y responsables de pacientes: alta, vinculación y gestión.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_agenda.html">
+            <div class="card-head"><div class="card-icono">📅</div><div class="card-nombre">Agenda / Citas y Turnos</div></div>
+            <div class="card-desc">Calendario de turnos, asignación de pacientes, cambio de estados y generación de turnos.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_consultas.html">
+            <div class="card-head"><div class="card-icono">🩺</div><div class="card-nombre">Consulta Médica</div></div>
+            <div class="card-desc">Atención de consultas: motivo, diagnóstico, tratamiento, historia clínica y finalización.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_recordatorios.html">
+            <div class="card-head"><div class="card-icono">🔔</div><div class="card-nombre">Recordatorios</div></div>
+            <div class="card-desc">Notificaciones de próximas citas a pacientes y seguimiento del historial de envíos.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <div class="grupo-titulo">Facturación y Finanzas</div>
+        <div class="cards">
+          <a class="card" href="manual_facturacion.html">
+            <div class="card-head"><div class="card-icono">🧾</div><div class="card-nombre">Facturación</div></div>
+            <div class="card-desc">Emisión de facturas contado y crédito, detalle de productos/servicios y anulación.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_timbrado.html">
+            <div class="card-head"><div class="card-icono">📜</div><div class="card-nombre">Timbrado</div></div>
+            <div class="card-desc">Configuración de timbrados: vigencia, rangos de numeración y validación.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_cobranzas.html">
+            <div class="card-head"><div class="card-icono">💵</div><div class="card-nombre">Cobranzas</div></div>
+            <div class="card-desc">Cobro de cuotas pendientes de facturas a crédito y recibos de cobranza.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_cuentas-mcb.html">
+            <div class="card-head"><div class="card-icono">🏦</div><div class="card-nombre">Cuentas Caja/Banco</div></div>
+            <div class="card-desc">Cuentas de caja y banco, y movimientos de ingreso/egreso del día a día.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_pago_prestador.html">
+            <div class="card-head"><div class="card-icono">🤝</div><div class="card-nombre">Pago a Prestadores</div></div>
+            <div class="card-desc">Liquidación y pago de honorarios a los prestadores por turnos realizados.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <div class="grupo-titulo">Stock</div>
+        <div class="cards">
+          <a class="card" href="manual_grupos_productos.html">
+            <div class="card-head"><div class="card-icono">📦</div><div class="card-nombre">Grupos y Productos</div></div>
+            <div class="card-desc">Catálogo de productos y servicios organizados por grupos, con precios.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <div class="grupo-titulo">Recursos Humanos</div>
+        <div class="cards">
+          <a class="card" href="manual_prestador.html">
+            <div class="card-head"><div class="card-icono">👨‍⚕️</div><div class="card-nombre">Prestadores (RRHH)</div></div>
+            <div class="card-desc">Registro de médicos y personal: datos, especialidades y documentos digitalizados.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_horario-prestador.html">
+            <div class="card-head"><div class="card-icono">🕐</div><div class="card-nombre">Horario del Prestador</div></div>
+            <div class="card-desc">Franjas horarias de atención por día, consultorio e intervalo de turnos.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+        </div>
+      </div>
+
+      <div class="grupo">
+        <div class="grupo-titulo">Administración y Configuración</div>
+        <div class="cards">
+          <a class="card" href="manual_usuarios.html">
+            <div class="card-head"><div class="card-icono">👤</div><div class="card-nombre">Usuarios del Sistema</div></div>
+            <div class="card-desc">Cuentas de usuario, roles, contraseñas y activación/desactivación.</div>
+            <div class="card-meta">12 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_consultorios.html">
+            <div class="card-head"><div class="card-icono">🚪</div><div class="card-nombre">Consultorios</div></div>
+            <div class="card-desc">Catálogo de consultorios físicos donde se atienden los turnos.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_especialidades.html">
+            <div class="card-head"><div class="card-icono">🎓</div><div class="card-nombre">Especialidades</div></div>
+            <div class="card-desc">Especialidades médicas asignables a los prestadores.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_eventoclinico.html">
+            <div class="card-head"><div class="card-icono">📋</div><div class="card-nombre">Eventos Clínicos</div></div>
+            <div class="card-desc">Tipos de evento clínico utilizados en las consultas médicas.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_tipo-doc-dig.html">
+            <div class="card-head"><div class="card-icono">🗂️</div><div class="card-nombre">Tipos de Doc. Digitalizado</div></div>
+            <div class="card-desc">Clasificación de los documentos digitalizados de pacientes y prestadores.</div>
+            <div class="card-meta">10 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+          <a class="card" href="manual_ubicaciones.html">
+            <div class="card-head"><div class="card-icono">🌎</div><div class="card-nombre">Ubicaciones</div></div>
+            <div class="card-desc">Jerarquía de países, departamentos y ciudades usada en datos personales.</div>
+            <div class="card-meta">14 secciones <span class="flecha">Abrir →</span></div>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <script src="assets/manual.js" defer></script>
+</body>
+</html>

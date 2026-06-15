@@ -354,7 +354,7 @@ test.describe('Turnos del día', () => {
     await expect(turno.locator('.ag-turno-hora')).toBeVisible()
     await expect(turno.locator('.ag-turno-badge')).toBeVisible()
     await expect(turno.locator('.ag-turno-hora')).toContainText('08:00')
-    await expect(turno.locator('.ag-turno-badge')).toContainText('disponible')
+    await expect(turno.locator('.ag-turno-badge')).toContainText('Disponible')
   })
 
   test('16 - clic en turno lo expande mostrando ag-turno-sel', async ({ page }) => {
@@ -432,7 +432,7 @@ test.describe('Asignar paciente', () => {
     await expect(page.locator('.toast-wrap').first()).toBeVisible({ timeout: 8000 })
 
     // El turno ahora debería mostrar "ocupado"
-    await expect(turno.locator('.ag-turno-badge')).toContainText('ocupado', { timeout: 6000 })
+    await expect(turno.locator('.ag-turno-badge')).toContainText('Confirmado', { timeout: 6000 })
   })
 
 })
@@ -472,7 +472,7 @@ test.describe('Cambiar estado', () => {
     // Cancelar (botón "Cancelar" en el dialog)
     await page.locator('.cd-backdrop').getByRole('button', { name: /cancelar/i }).click()
     await expect(page.locator('.cd-overlay')).not.toBeVisible({ timeout: 3000 })
-    await expect(turno.locator('.ag-turno-badge')).toContainText('disponible')
+    await expect(turno.locator('.ag-turno-badge')).toContainText('Disponible')
   })
 
   // Usa el tercer turno (09:00) para no interferir con el test de asignar (que usó 08:30)
@@ -488,7 +488,7 @@ test.describe('Cambiar estado', () => {
     await expect(page.locator('.toast-wrap').first()).toBeVisible({ timeout: 8000 })
 
     // El turno debe cambiar a inactivo
-    await expect(turno.locator('.ag-turno-badge')).toContainText('inactivo', { timeout: 6000 })
+    await expect(turno.locator('.ag-turno-badge')).toContainText('Bloqueado', { timeout: 6000 })
   })
 
 })

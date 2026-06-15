@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Menu, Bell, Calendar } from 'lucide-react'
+import { Menu, Bell, Calendar, HelpCircle } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStatsRecordatorios, useProximasCitas } from '../../hooks/mantenimiento/useRecordatorios'
 
@@ -27,6 +27,28 @@ const BREADCRUMBS = {
   '/mantenimiento/consultorios':  ['Mantenimiento', 'Consultorios'],
   '/mantenimiento/tipo-doc':      ['Mantenimiento', 'Tipo doc. digitalizado'],
   '/administracion/auditoria':    ['Administración', 'Auditoría del sistema'],
+}
+
+const MANUALES = {
+  '/paciente':                             'manual_paciente.html',
+  '/pacienteresponsable':                  'manual_paciente-responsable.html',
+  '/agenda/citas':                         'manual_agenda.html',
+  '/agenda/horarios':                      'manual_horario-prestador.html',
+  '/agenda/recordatorios':                 'manual_recordatorios.html',
+  '/consultas':                            'manual_consultas.html',
+  '/consultas/eventos':                    'manual_eventoclinico.html',
+  '/facturacion/ventas':                   'manual_facturacion.html',
+  '/facturacion/timbrado':                 'manual_timbrado.html',
+  '/facturacion/grupos':                   'manual_grupos_productos.html',
+  '/finanzas/cuentas':                     'manual_cuentas-mcb.html',
+  '/finanzas/cobranzas':                   'manual_cobranzas.html',
+  '/finanzas/pago-prestador':              'manual_pago_prestador.html',
+  '/rrhh/personal':                        'manual_prestador.html',
+  '/sistema/usuarios':                     'manual_usuarios.html',
+  '/mantenimiento/ubicaciones':            'manual_ubicaciones.html',
+  '/mantenimiento/consultorios':           'manual_consultorios.html',
+  '/mantenimiento/tipo-doc':               'manual_tipo-doc-dig.html',
+  '/clinica/configuracion/especialidades': 'manual_especialidades.html',
 }
 
 function formatearFechaHoy() {
@@ -314,6 +336,17 @@ export default function Navbar({ collapsed, onMenuToggle }) {
           <Calendar size={11} />
           {formatearFechaHoy()}
         </div>
+
+        {MANUALES[pathname] && (
+          <button
+            className="nb-bell"
+            title="Manual de este módulo"
+            aria-label="Abrir manual de usuario del módulo"
+            onClick={() => window.open(`/manuales/${MANUALES[pathname]}`, '_blank', 'noopener')}
+          >
+            <HelpCircle size={16} />
+          </button>
+        )}
 
         <div className="nb-drop-wrap" ref={dropRef}>
           <button
